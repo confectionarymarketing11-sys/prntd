@@ -42,6 +42,9 @@ export type CartItem = {
   quantity: number;
   frontLayers: DesignLayer[];
   backLayers: DesignLayer[];
+  mockupPreview?: string | null;
+  frontPreview?: string | null;
+  backPreview?: string | null;
   unitPrice: number;
   lineTotal: number;
   createdAt: string;
@@ -91,23 +94,6 @@ export const shopProducts: Product[] = [
     minimumQuantity: 1,
   },
   {
-    id: "premium-hoodie",
-    name: "Premium Hoodie",
-    category: "Apparel",
-    description: "Heavy fleece hoodie with front, back, or sleeve-ready art.",
-    basePrice: 54,
-    productionDays: "5-7 days",
-    sizes: ["S", "M", "L", "XL", "2XL"],
-    colors: [
-      { name: "Graphite", value: "#30343f" },
-      { name: "Oat", value: "#d9d1bf" },
-      { name: "Forest", value: "#1f4a3b" },
-      { name: "Wine", value: "#712d3a" },
-    ],
-    printAreas: ["front", "back"],
-    minimumQuantity: 1,
-  },
-  {
     id: "die-cut-stickers",
     name: "Die Cut Stickers",
     category: "Stickers",
@@ -139,21 +125,6 @@ export const shopProducts: Product[] = [
     ],
     printAreas: ["front", "back"],
     minimumQuantity: 50,
-  },
-  {
-    id: "poster-print",
-    name: "Poster Print",
-    category: "Paper",
-    description: "Satin poster prints for artists, launches, and signage.",
-    basePrice: 18,
-    productionDays: "2-3 days",
-    sizes: ["12x18", "18x24", "24x36"],
-    colors: [
-      { name: "Satin", value: "#f6f2e9" },
-      { name: "Matte", value: "#ebe6d8" },
-    ],
-    printAreas: ["front"],
-    minimumQuantity: 1,
   },
 ];
 

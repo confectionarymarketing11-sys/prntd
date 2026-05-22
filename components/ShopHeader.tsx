@@ -9,7 +9,6 @@ const navItems = [
   { href: "/", label: "Storefront" },
   { href: "/products", label: "Products" },
   { href: "/design-generator", label: "Design Creator" },
-  { href: "/designer", label: "Designer" },
   { href: "/subscriptions", label: "Subscriptions" },
   { href: "/dashboard", label: "Customer Portal" },
   { href: "/cart", label: "Cart" },

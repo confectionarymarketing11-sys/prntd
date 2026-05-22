@@ -36,29 +36,24 @@ export default function URLText({
     useRef<Konva.Transformer | null>(null);
 
   useEffect(() => {
-
-    if (
-      isSelected &&
-      trRef.current &&
-      shapeRef.current
-    ) {
-
-      setTimeout(() => {
+    if (isSelected && trRef.current && shapeRef.current) {
+      const frame = requestAnimationFrame(() => {
         const transformer = trRef.current;
         const shape = shapeRef.current;
 
         if (!transformer || !shape) return;
 
         transformer.nodes([shape]);
+        transformer.forceUpdate();
 
         transformer
           .getLayer()
           ?.batchDraw();
+      });
 
-      }, 0);
+      return () => cancelAnimationFrame(frame);
     }
-
-  }, [isSelected]);
+  }, [isSelected, layer.fontSize, layer.rotation, layer.text, layer.x, layer.y]);
 
   return (
     <>

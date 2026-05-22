@@ -22,17 +22,6 @@ export default function ProductMockup({ product, color, label }: ProductMockupPr
     );
   }
 
-  if (product.id === "poster-print") {
-    return (
-      <div className="mockup-surface">
-        <div className="poster-mockup" aria-hidden="true" style={{ background: fill }}>
-          <span />
-          <strong>{label ?? "ART"}</strong>
-        </div>
-      </div>
-    );
-  }
-
   if (product.id === "business-cards") {
     return (
       <div className="mockup-surface">
@@ -44,17 +33,6 @@ export default function ProductMockup({ product, color, label }: ProductMockupPr
           <div className="rounded border border-current/25 px-5 py-2 text-sm font-black uppercase tracking-[0.18em] text-current">
             {label ?? "PRNTD"}
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (product.id === "premium-hoodie") {
-    return (
-      <div className="mockup-surface">
-        <div className="hoodie-mockup" aria-hidden="true" style={{ background: fill }}>
-          <span />
-          <strong>{label ?? "PRINT"}</strong>
         </div>
       </div>
     );

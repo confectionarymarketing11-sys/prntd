@@ -22,15 +22,12 @@ type StoredDesign = {
 
 const productFeatures: Record<string, string[]> = {
   "classic-tee": ["Soft cotton feel", "Front and back print-ready", "Best for merch, staff shirts, and events"],
-  "premium-hoodie": ["Heavy fleece body", "Premium streetwear finish", "Front and back artwork support"],
   "die-cut-stickers": ["Durable vinyl material", "Waterproof and weather-resistant", "Vibrant long-lasting color"],
   "business-cards": ["Front and back card design", "Premium business-ready finish", "Built for QR codes and brand details"],
-  "poster-print": ["Satin poster stock", "Sharp full-color output", "Ready for launches and signage"],
 };
 
 const productCheckoutTypes: Partial<Record<string, StripeProductType>> = {
   "classic-tee": "shirts",
-  "premium-hoodie": "shirts",
   "die-cut-stickers": "stickers",
   "business-cards": "business-cards",
 };
@@ -172,6 +169,9 @@ export default function ProductDetail({ product }: { product: Product }) {
       quantity,
       frontLayers,
       backLayers: [],
+      mockupPreview: designPreview || null,
+      frontPreview: designPreview || null,
+      backPreview: null,
       unitPrice: price.unitPrice,
       lineTotal: price.lineTotal,
       createdAt: new Date().toISOString(),
@@ -237,35 +237,39 @@ export default function ProductDetail({ product }: { product: Product }) {
           </div>
 
           <div className="mt-5 grid gap-4">
-            <label className="grid gap-2">
-              <span className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Size</span>
-              <select value={selectedSize} onChange={(event) => setSelectedSize(event.target.value)} className="portal-field">
-                {product.sizes.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!isBusinessCard && (
+              <>
+                <label className="grid gap-2">
+                  <span className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Size</span>
+                  <select value={selectedSize} onChange={(event) => setSelectedSize(event.target.value)} className="portal-field">
+                    {product.sizes.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Color / Finish</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {product.colors.map((color) => (
-                  <button
-                    key={color.name}
-                    type="button"
-                    onClick={() => setSelectedColor(color)}
-                    className={`h-11 w-11 rounded-full border-[3px] ${
-                      color.name === selectedColor.name ? "border-[#7c3aed]" : "border-transparent"
-                    } shadow-sm`}
-                    style={{ background: color.value }}
-                    aria-label={color.name}
-                    title={color.name}
-                  />
-                ))}
-              </div>
-            </div>
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Color / Finish</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {product.colors.map((color) => (
+                      <button
+                        key={color.name}
+                        type="button"
+                        onClick={() => setSelectedColor(color)}
+                        className={`h-11 w-11 rounded-full border-[3px] ${
+                          color.name === selectedColor.name ? "border-[#7c3aed]" : "border-transparent"
+                        } shadow-sm`}
+                        style={{ background: color.value }}
+                        aria-label={color.name}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
             <label className="grid gap-2">
               <span className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Quantity</span>

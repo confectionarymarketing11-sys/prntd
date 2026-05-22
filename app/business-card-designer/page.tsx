@@ -20,6 +20,18 @@ function sideHasContent(layers: DesignLayer[]) {
   return layers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
 }
 
+async function urlToDataUrl(url: string) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export default function BusinessCardDesignerPage() {
   const product = getProduct("business-cards");
   const [side, setSide] = useState<CardSide>("front");
@@ -28,9 +40,10 @@ export default function BusinessCardDesignerPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fontFamily, setFontFamily] = useState("Arial");
   const [textColor, setTextColor] = useState("#111111");
+  const [qrValue, setQrValue] = useState("");
   const [quantity, setQuantity] = useState(product.minimumQuantity);
-  const [size, setSize] = useState(product.sizes[0] ?? "Standard");
-  const [finish, setFinish] = useState(product.colors[0]);
+  const [size] = useState(product.sizes[0] ?? "Standard");
+  const [finish] = useState(product.colors[0]);
   const [notice, setNotice] = useState("Keep all artwork inside the card edge.");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
@@ -68,6 +81,37 @@ export default function BusinessCardDesignerPage() {
     setCurrentLayers([...layers, nextLayer]);
     setSelectedId(nextLayer.id);
     setNotice("Text added. Edit the selected text field below.");
+  }
+
+  async function addFreeQrCode() {
+    const value = qrValue.trim();
+
+    if (!value) {
+      setNotice("Enter a URL or text value before adding a free QR code.");
+      return;
+    }
+
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=900x900&format=png&data=${encodeURIComponent(value)}`;
+      const preview = await urlToDataUrl(qrUrl);
+      const qrLayer: DesignLayer = {
+        id: crypto.randomUUID(),
+        type: "image",
+        preview,
+        x: 520,
+        y: 170,
+        width: 120,
+        height: 120,
+        rotation: 0,
+      };
+
+      setCurrentLayers([...layers, qrLayer]);
+      setSelectedId(qrLayer.id);
+      setQrValue("");
+      setNotice("Free static QR code added. It does not track scans or use dynamic redirects.");
+    } catch {
+      setNotice("Could not generate the free QR code. Please try again.");
+    }
   }
 
   function deleteSelectedLayer() {
@@ -113,6 +157,9 @@ export default function BusinessCardDesignerPage() {
       quantity,
       frontLayers,
       backLayers,
+      mockupPreview: frontLayers.find((layer) => layer.type === "image" && layer.preview)?.preview ?? null,
+      frontPreview: frontLayers.find((layer) => layer.type === "image" && layer.preview)?.preview ?? null,
+      backPreview: backLayers.find((layer) => layer.type === "image" && layer.preview)?.preview ?? null,
       unitPrice: price.unitPrice,
       lineTotal: price.lineTotal,
       createdAt: new Date().toISOString(),
@@ -235,6 +282,21 @@ export default function BusinessCardDesignerPage() {
               Add Text
             </button>
 
+            <div className="rounded-[22px] border border-[#e7eaf3] bg-[#f8faff] p-4">
+              <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Free Static QR Code</label>
+              <div className="mt-3 grid gap-2">
+                <input
+                  value={qrValue}
+                  onChange={(event) => setQrValue(event.target.value)}
+                  className="h-[52px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-sm"
+                  placeholder="https://example.com or plain text"
+                />
+                <button type="button" onClick={addFreeQrCode} className="portal-action">
+                  Add Free QR Code
+                </button>
+              </div>
+            </div>
+
             <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Font</label>
             <select value={fontFamily} onChange={(event) => setFontFamily(event.target.value)} className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base">
               {fonts.map((font) => (
@@ -255,20 +317,6 @@ export default function BusinessCardDesignerPage() {
 
             <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Quantity</label>
             <input className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-[18px] text-base" type="number" min={product.minimumQuantity} value={quantity} onChange={(event) => setQuantity(Math.max(product.minimumQuantity, Number(event.target.value) || product.minimumQuantity))} />
-
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Size</label>
-            <select value={size} onChange={(event) => setSize(event.target.value)} className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base">
-              {product.sizes.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Finish</label>
-            <div className="flex flex-wrap gap-3">
-              {product.colors.map((color) => (
-                <button key={color.name} type="button" onClick={() => setFinish(color)} className={`h-11 w-11 rounded-full border-[3px] ${color.name === finish.name ? "border-[#7c3aed]" : "border-transparent"}`} style={{ background: color.value }} title={color.name} />
-              ))}
-            </div>
 
             <div className="mt-2 rounded-3xl bg-[#f5f7fb] p-[22px]">
               <p className="text-[15px] font-bold text-[#111827]">Estimated Total</p>

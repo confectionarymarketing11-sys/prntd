@@ -12,6 +12,18 @@ const bodySchema = z.object({
   amount: z.coerce.number().int().positive(),
 });
 
+type CustomerCreditRow = {
+  id: string;
+  auth_user_id: string | null;
+  credits_balance: number | null;
+  has_received_free_credits?: boolean | null;
+};
+
+type BgCreditRow = {
+  credits: number | null;
+  subscription_credits: number | null;
+};
+
 export async function POST(request: Request) {
   return withApiErrorHandling(request, async () => {
     const email = requirePrntdEmail(request);
@@ -19,26 +31,80 @@ export async function POST(request: Request) {
     const supabase = createSupabaseAdminClient();
     const { data: customer, error: customerError } = await supabase
       .from("customers")
-      .select("id, auth_user_id, credits_balance")
+      .select("id, auth_user_id, credits_balance, has_received_free_credits")
       .eq("email", email)
-      .maybeSingle<{ id: string; auth_user_id: string | null; credits_balance: number | null }>();
+      .maybeSingle<CustomerCreditRow>();
 
-    if (!customerError && customer) {
-      const currentCredits = Number(customer.credits_balance ?? 0);
+    let activeCustomer = customer;
+    let freeCreditTrackingAvailable = true;
 
-      if (currentCredits < amount) {
-        throw new ApiError("Not enough credits", 400, "insufficient_credits");
+    if (customerError && (customerError.code === "42703" || customerError.message?.includes("has_received_free_credits"))) {
+      freeCreditTrackingAvailable = false;
+      const legacy = await supabase
+        .from("customers")
+        .select("id, auth_user_id, credits_balance")
+        .eq("email", email)
+        .maybeSingle<CustomerCreditRow>();
+
+      if (legacy.error && legacy.error.code !== "PGRST116") {
+        throw legacy.error;
       }
 
-      const nextCredits = currentCredits - amount;
+      activeCustomer = legacy.data ?? null;
+    } else if (customerError && customerError.code !== "PGRST116") {
+      throw customerError;
+    }
+
+    const { data: user, error } = await supabase
+      .from("bg_users")
+      .select("credits, subscription_credits")
+      .eq("email", email)
+      .maybeSingle<BgCreditRow>();
+
+    if (error && error.code !== "PGRST116") {
+      throw error;
+    }
+
+    let customerCredits = Number(activeCustomer?.credits_balance ?? 0);
+
+    if (activeCustomer && freeCreditTrackingAvailable && !activeCustomer.has_received_free_credits) {
+      customerCredits += 3;
+    }
+
+    const purchased = Number(user?.credits || 0);
+    const subscriptionCredits = Number(user?.subscription_credits || 0);
+
+    if (customerCredits + subscriptionCredits + purchased < amount) {
+      throw new ApiError("Not enough credits", 400, "insufficient_credits");
+    }
+
+    let remaining = amount;
+    const customerUsed = Math.min(customerCredits, remaining);
+    remaining -= customerUsed;
+
+    const subscriptionUsed = Math.min(subscriptionCredits, remaining);
+    remaining -= subscriptionUsed;
+
+    const purchasedUsed = Math.min(purchased, remaining);
+    const nextCustomerCredits = customerCredits - customerUsed;
+    const newSubscriptionCredits = subscriptionCredits - subscriptionUsed;
+    const newPurchasedCredits = purchased - purchasedUsed;
+
+    if (activeCustomer && customerUsed > 0) {
+      const updatePayload: Record<string, unknown> = {
+        credits_balance: nextCustomerCredits,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (freeCreditTrackingAvailable && !activeCustomer.has_received_free_credits) {
+        updatePayload.has_received_free_credits = true;
+        updatePayload.free_credits_granted_at = new Date().toISOString();
+      }
+
       const { data: updated, error: updateCustomerError } = await supabase
         .from("customers")
-        .update({
-          credits_balance: nextCredits,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", customer.id)
-        .eq("credits_balance", currentCredits)
+        .update(updatePayload)
+        .eq("id", activeCustomer.id)
         .select("id")
         .maybeSingle<{ id: string }>();
 
@@ -47,75 +113,43 @@ export async function POST(request: Request) {
       }
 
       await recordCreditTransaction({
-        customerId: customer.id,
-        authUserId: customer.auth_user_id,
-        amount: -amount,
+        customerId: activeCustomer.id,
+        authUserId: activeCustomer.auth_user_id,
+        amount: -customerUsed,
         reason: "usage",
         source: "prntd_api",
         metadata: {
           endpoint: "use-credits",
         },
       });
-
-      return apiJson(request, {
-        success: true,
-        credits: nextCredits,
-        subscription_credits: 0,
-        total_credits: nextCredits,
-        source: "customers",
-      });
     }
 
-    const { data: user, error } = await supabase
-      .from("bg_users")
-      .select("credits, subscription_credits")
-      .eq("email", email)
-      .maybeSingle<{ credits: number | null; subscription_credits: number | null }>();
+    if ((subscriptionUsed > 0 || purchasedUsed > 0) && user) {
+      const { data: updated, error: updateError } = await supabase
+        .from("bg_users")
+        .update({
+          credits: newPurchasedCredits,
+          subscription_credits: newSubscriptionCredits,
+        })
+        .eq("email", email)
+        .eq("credits", purchased)
+        .eq("subscription_credits", subscriptionCredits)
+        .select("email")
+        .maybeSingle<{ email: string }>();
 
-    if (error) {
-      throw error;
-    }
-
-    if (!user) {
-      throw new ApiError("User not found", 404, "user_not_found");
-    }
-
-    const purchased = Number(user.credits || 0);
-    const subscriptionCredits = Number(user.subscription_credits || 0);
-
-    if (subscriptionCredits + purchased < amount) {
-      throw new ApiError("Not enough credits", 400, "insufficient_credits");
-    }
-
-    let remaining = amount;
-    const subscriptionUsed = Math.min(subscriptionCredits, remaining);
-    remaining -= subscriptionUsed;
-
-    const purchasedUsed = Math.min(purchased, remaining);
-    const newSubscriptionCredits = subscriptionCredits - subscriptionUsed;
-    const newPurchasedCredits = purchased - purchasedUsed;
-
-    const { data: updated, error: updateError } = await supabase
-      .from("bg_users")
-      .update({
-        credits: newPurchasedCredits,
-        subscription_credits: newSubscriptionCredits,
-      })
-      .eq("email", email)
-      .eq("credits", purchased)
-      .eq("subscription_credits", subscriptionCredits)
-      .select("email")
-      .maybeSingle<{ email: string }>();
-
-    if (updateError || !updated) {
-      throw new ApiError("Conflict, retry request", 409, "credit_conflict");
+      if (updateError || !updated) {
+        throw new ApiError("Conflict, retry request", 409, "credit_conflict");
+      }
     }
 
     return apiJson(request, {
       success: true,
-      credits: newPurchasedCredits,
+      credits: nextCustomerCredits + newPurchasedCredits,
       subscription_credits: newSubscriptionCredits,
-      total_credits: newPurchasedCredits + newSubscriptionCredits,
+      total_credits: nextCustomerCredits + newPurchasedCredits + newSubscriptionCredits,
+      customer_credits: nextCustomerCredits,
+      legacy_credits: newPurchasedCredits,
+      source: "customers+bg_users",
     });
   });
 }

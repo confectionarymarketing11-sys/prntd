@@ -14,6 +14,8 @@ export type PlatformCustomer = {
   stripe_customer_id: string | null;
   shopify_customer_id: string | null;
   credits_balance: number;
+  has_received_free_credits: boolean;
+  free_credits_granted_at: string | null;
   subscription_status: string;
   plan_tier: string;
   stripe_subscription_id: string | null;
@@ -49,11 +51,50 @@ function normalizeCustomer(row: Partial<PlatformCustomer> & { id: string; email:
     stripe_customer_id: row.stripe_customer_id ?? null,
     shopify_customer_id: row.shopify_customer_id ?? null,
     credits_balance: Number(row.credits_balance ?? 0),
+    has_received_free_credits: row.has_received_free_credits ?? false,
+    free_credits_granted_at: row.free_credits_granted_at ?? null,
     subscription_status: row.subscription_status ?? "inactive",
     plan_tier: row.plan_tier ?? "none",
     stripe_subscription_id: row.stripe_subscription_id ?? null,
     subscription_current_period_end: row.subscription_current_period_end ?? null,
   };
+}
+
+const customerSelectColumns =
+  "id, auth_user_id, email, name, phone, company, stripe_customer_id, shopify_customer_id, credits_balance, has_received_free_credits, free_credits_granted_at, subscription_status, plan_tier, stripe_subscription_id, subscription_current_period_end";
+
+async function grantInitialCreditsIfNeeded(customer: PlatformCustomer) {
+  if (customer.has_received_free_credits) {
+    return customer;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const nextCredits = Number(customer.credits_balance ?? 0) + 3;
+  const { data, error } = await supabase
+    .from("customers")
+    .update({
+      credits_balance: nextCredits,
+      has_received_free_credits: true,
+      free_credits_granted_at: now,
+      updated_at: now,
+    })
+    .eq("id", customer.id)
+    .eq("has_received_free_credits", false)
+    .select(customerSelectColumns)
+    .maybeSingle<PlatformCustomer>();
+
+  if (!error && data) {
+    return normalizeCustomer(data);
+  }
+
+  const refreshed = await supabase
+    .from("customers")
+    .select(customerSelectColumns)
+    .eq("id", customer.id)
+    .maybeSingle<PlatformCustomer>();
+
+  return refreshed.data ? normalizeCustomer(refreshed.data) : customer;
 }
 
 export async function getOrCreateCustomerForEmail({
@@ -86,17 +127,14 @@ export async function getOrCreateCustomerForEmail({
   if (authUserId) evolvedPayload.auth_user_id = authUserId;
   if (stripeCustomerId) evolvedPayload.stripe_customer_id = stripeCustomerId;
 
-  const selectColumns =
-    "id, auth_user_id, email, name, phone, company, stripe_customer_id, shopify_customer_id, credits_balance, subscription_status, plan_tier, stripe_subscription_id, subscription_current_period_end";
-
   const evolved = await supabase
     .from("customers")
     .upsert(evolvedPayload, { onConflict: "email" })
-    .select(selectColumns)
+    .select(customerSelectColumns)
     .single<PlatformCustomer>();
 
   if (!evolved.error && evolved.data) {
-    return normalizeCustomer(evolved.data);
+    return grantInitialCreditsIfNeeded(normalizeCustomer(evolved.data));
   }
 
   const legacy = await supabase

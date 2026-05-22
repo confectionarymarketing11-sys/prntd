@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { ApiError, apiJson, withApiErrorHandling } from "@/lib/api-response";
+import { getOrCreateCustomerForEmail } from "@/lib/auth/customer";
 import { corsPreflight } from "@/lib/cors";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -45,6 +46,11 @@ export async function POST(request: Request) {
     if (!userId) {
       throw new ApiError("User lookup failed", 500, "user_lookup_failed");
     }
+
+    await getOrCreateCustomerForEmail({
+      email,
+      authUserId: userId,
+    });
 
     const token = jwt.sign({ email }, getEnv("JWT_SECRET"), { expiresIn: "24h" });
     const supabaseToken = jwt.sign(

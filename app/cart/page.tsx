@@ -4,11 +4,11 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import ProductMockup from "@/components/ProductMockup";
 import ShopHeader from "@/components/ShopHeader";
+import { usePrntdAccount } from "@/hooks/usePrntdAccount";
 import {
   CART_STORAGE_KEY,
   CartItem,
   Customer,
-  ORDERS_STORAGE_KEY,
   Order,
   SHIPPING_RATE,
   TAX_RATE,
@@ -32,6 +32,7 @@ const emptyCustomer: Customer = {
 };
 
 export default function CartPage() {
+  const { email, status: accountStatus } = usePrntdAccount();
   const [items, setItems] = useState<CartItem[]>([]);
   const [customer, setCustomer] = useState<Customer>(emptyCustomer);
   const [status, setStatus] = useState("");
@@ -57,6 +58,15 @@ export default function CartPage() {
 
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!email) return;
+    const timer = window.setTimeout(() => {
+      setCustomer((current) => ({ ...current, email }));
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [email]);
 
   function updateCustomer(field: keyof Customer, value: string) {
     setCustomer((current) => ({ ...current, [field]: value }));
@@ -100,29 +110,28 @@ export default function CartPage() {
       return;
     }
 
-    if (!customer.name || !customer.email || !customer.address) {
-      setStatus("Name, email, and address are required.");
+    if (!customer.name || !email || !customer.address) {
+      setStatus("Name, account email, and shipping address are required.");
       return;
     }
 
     const order: Order = {
       id: createOrderId(),
-      customer,
+      customer: {
+        ...customer,
+        email,
+      },
       items,
       subtotal: totals.subtotal,
       shipping: totals.shipping,
       tax: totals.tax,
       total: totals.total,
       status: "New",
-      paymentMode: "manual",
+      paymentMode: "stripe",
       createdAt: new Date().toISOString(),
     };
-
-    const currentOrders = JSON.parse(localStorage.getItem(ORDERS_STORAGE_KEY) ?? "[]") as Order[];
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify([order, ...currentOrders]));
-    localStorage.setItem("prntd_last_order", JSON.stringify(order));
     setIsCheckingOut(true);
-    setStatus("Creating checkout...");
+    setStatus("Creating secure Stripe checkout...");
 
     try {
       const response = await fetch("/api/checkout", {
@@ -138,6 +147,7 @@ export default function CartPage() {
         throw new Error(data.error ?? "Checkout failed");
       }
 
+      localStorage.setItem("prntd_pending_cart", JSON.stringify(order));
       localStorage.removeItem(CART_STORAGE_KEY);
       window.location.href = data.url;
     } catch (error) {
@@ -147,26 +157,26 @@ export default function CartPage() {
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 text-stone-950">
+    <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
       <ShopHeader />
 
-      <section className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:px-8">
-        <div className="rounded border border-stone-200 bg-white p-4 sm:p-6">
+      <section className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-8 pb-20 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="rounded-[30px] border border-white/70 bg-white p-5 shadow-[0_12px_38px_rgba(0,0,0,0.06)] sm:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-2xl font-black tracking-tight">Cart</h1>
-              <p className="text-sm text-stone-600">Review artwork, quantities, and print-ready pricing.</p>
+              <h1 className="text-[clamp(34px,4vw,54px)] font-black leading-none tracking-normal">Checkout</h1>
+              <p className="mt-2 text-sm text-[#6b7280]">Review artwork mockups, quantities, and Stripe-ready pricing.</p>
             </div>
-            <Link href="/designer" className="rounded border border-stone-300 px-4 py-2 text-center text-sm font-bold">
+            <Link href="/products" className="portal-action text-center">
               Add another item
             </Link>
           </div>
 
           {items.length === 0 ? (
-            <div className="mt-6 border border-dashed border-stone-300 bg-stone-50 p-8 text-center">
+            <div className="mt-6 rounded-[24px] border border-dashed border-[#c7d2fe] bg-[#f8faff] p-8 text-center">
               <p className="font-bold">Your cart is empty.</p>
-              <Link href="/designer" className="mt-4 inline-block rounded bg-stone-950 px-5 py-3 text-sm font-bold text-white">
-                Build a custom product
+              <Link href="/products" className="design-main-btn mx-auto max-w-xs">
+                Choose a product
               </Link>
             </div>
           ) : (
@@ -175,14 +185,21 @@ export default function CartPage() {
                 const product = getProduct(item.productId);
 
                 return (
-                  <article key={item.id} className="grid gap-4 rounded border border-stone-200 p-4 md:grid-cols-[190px_minmax(0,1fr)]">
-                    <ProductMockup product={product} color={item.color.value} label={item.frontLayers[0]?.text ?? item.productName} />
+                  <article key={item.id} className="grid gap-4 rounded-[24px] border border-[#e7eaf3] bg-[#fbfcff] p-4 md:grid-cols-[190px_minmax(0,1fr)]">
+                    <div className="overflow-hidden rounded-[20px] border border-white/80 bg-white">
+                      {item.mockupPreview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.mockupPreview} alt={`${item.productName} customizer mockup`} className="aspect-square w-full object-contain p-4" />
+                      ) : (
+                        <ProductMockup product={product} color={item.color.value} label={item.frontLayers[0]?.text ?? item.productName} />
+                      )}
+                    </div>
                     <div className="grid gap-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-700">{product.category}</p>
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#4f46e5]">{product.category}</p>
                           <h2 className="text-xl font-black">{item.productName}</h2>
-                          <p className="mt-1 text-sm text-stone-600">
+                          <p className="mt-1 text-sm text-[#6b7280]">
                             {item.size} / {item.color.name} / {item.frontLayers.length} front layers / {item.backLayers.length} back layers
                           </p>
                         </div>
@@ -196,14 +213,14 @@ export default function CartPage() {
                             min={product.minimumQuantity}
                             value={item.quantity}
                             onChange={(event) => updateQuantity(item.id, Number(event.target.value))}
-                            className="w-24 rounded border border-stone-300 px-3 py-2"
+                            className="w-24 rounded-[14px] border border-[#dbe0ea] px-3 py-2"
                           />
                         </label>
-                        <span className="text-sm text-stone-600">{formatMoney(item.unitPrice)} each</span>
+                        <span className="text-sm text-[#6b7280]">{formatMoney(item.unitPrice)} each</span>
                         <button
                           type="button"
                           onClick={() => removeItem(item.id)}
-                          className="rounded border border-stone-300 px-3 py-2 text-sm font-bold"
+                          className="rounded-[14px] border border-red-500/15 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"
                         >
                           Remove
                         </button>
@@ -216,74 +233,71 @@ export default function CartPage() {
           )}
         </div>
 
-        <form onSubmit={handleCheckout} className="rounded border border-stone-200 bg-white p-4 sm:p-6">
-          <h2 className="text-xl font-black">Checkout</h2>
-          <p className="mt-1 text-sm leading-6 text-stone-600">
-            Orders are saved to the built-in order desk. Add a Stripe secret key later for hosted card payment.
+        <form onSubmit={handleCheckout} className="h-fit rounded-[30px] border border-white/70 bg-white p-5 shadow-[0_12px_38px_rgba(0,0,0,0.06)] sm:p-6 lg:sticky lg:top-5">
+          <h2 className="text-2xl font-black">Secure Stripe Checkout</h2>
+          <p className="mt-1 text-sm leading-6 text-[#6b7280]">
+            Your order is finalized only after Stripe confirms payment.
           </p>
+          <div className="mt-4 rounded-[20px] bg-[#eef2ff] p-4 text-sm font-semibold text-[#4338ca]">
+            <p className="text-xs font-extrabold uppercase tracking-[0.12em]">Customer Account</p>
+            <p className="mt-1 break-all">{email || accountStatus}</p>
+          </div>
 
           <div className="mt-5 grid gap-3">
             <input
               value={customer.name}
               onChange={(event) => updateCustomer("name", event.target.value)}
               placeholder="Customer name"
-              className="rounded border border-stone-300 px-3 py-2"
-            />
-            <input
-              value={customer.email}
-              onChange={(event) => updateCustomer("email", event.target.value)}
-              placeholder="Email"
-              type="email"
-              className="rounded border border-stone-300 px-3 py-2"
+              className="portal-field"
             />
             <input
               value={customer.phone}
               onChange={(event) => updateCustomer("phone", event.target.value)}
               placeholder="Phone"
-              className="rounded border border-stone-300 px-3 py-2"
+              className="portal-field"
             />
             <input
               value={customer.company}
               onChange={(event) => updateCustomer("company", event.target.value)}
               placeholder="Company"
-              className="rounded border border-stone-300 px-3 py-2"
+              className="portal-field"
             />
             <input
               value={customer.address}
               onChange={(event) => updateCustomer("address", event.target.value)}
               placeholder="Shipping address"
-              className="rounded border border-stone-300 px-3 py-2"
+              className="portal-field"
             />
             <div className="grid grid-cols-2 gap-3">
               <input
                 value={customer.city}
                 onChange={(event) => updateCustomer("city", event.target.value)}
                 placeholder="City"
-                className="min-w-0 rounded border border-stone-300 px-3 py-2"
+                className="portal-field min-w-0"
               />
               <input
                 value={customer.region}
                 onChange={(event) => updateCustomer("region", event.target.value)}
                 placeholder="State"
-                className="min-w-0 rounded border border-stone-300 px-3 py-2"
+                className="portal-field min-w-0"
               />
             </div>
             <input
               value={customer.postal}
               onChange={(event) => updateCustomer("postal", event.target.value)}
               placeholder="ZIP / postal"
-              className="rounded border border-stone-300 px-3 py-2"
+              className="portal-field"
             />
             <textarea
               value={customer.notes}
               onChange={(event) => updateCustomer("notes", event.target.value)}
               placeholder="Order notes"
               rows={4}
-              className="rounded border border-stone-300 px-3 py-2"
+              className="portal-field"
             />
           </div>
 
-          <div className="mt-5 grid gap-2 border-t border-stone-200 pt-5 text-sm">
+          <div className="mt-5 grid gap-2 border-t border-[#e7eaf3] pt-5 text-sm">
             <div className="flex justify-between">
               <span>Subtotal</span>
               <strong>{formatMoney(totals.subtotal)}</strong>
@@ -296,20 +310,20 @@ export default function CartPage() {
               <span>Estimated tax</span>
               <strong>{formatMoney(totals.tax)}</strong>
             </div>
-            <div className="mt-2 flex justify-between border-t border-stone-200 pt-4 text-xl">
+            <div className="mt-2 flex justify-between border-t border-[#e7eaf3] pt-4 text-xl">
               <span className="font-black">Total</span>
               <strong>{formatMoney(totals.total)}</strong>
             </div>
           </div>
 
-          {status && <p className="mt-4 text-sm font-semibold text-cyan-800">{status}</p>}
+          {status && <p className="mt-4 rounded-[16px] bg-[#f8faff] px-4 py-3 text-sm font-semibold text-[#4338ca]">{status}</p>}
 
           <button
             type="submit"
             disabled={isCheckingOut}
-            className="mt-5 w-full rounded bg-cyan-700 px-5 py-3 text-sm font-black text-white transition hover:bg-stone-950 disabled:cursor-not-allowed disabled:opacity-60"
+            className="design-main-btn disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isCheckingOut ? "Processing..." : "Place order"}
+            {isCheckingOut ? "Opening Stripe..." : "Checkout With Stripe"}
           </button>
         </form>
       </section>
