@@ -49,7 +49,7 @@ function jsonResponse(
   );
 }
 
-export async function loader({ request }: any) {
+export async function GET(request: Request) {
   const origin =
     request.headers.get("origin") ||
     ALLOWED_ORIGIN;
@@ -192,50 +192,12 @@ async function generateEditedImage(
   originalImage: string,
   improvedEditPrompt: string
 ) {
-  const response =
-    await openai.responses.create({
-      model: "gpt-5.4-mini",
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: `${improvedEditPrompt}
+  /*
+  TEMPORARY SAFE VERSION
+  UNTIL OPENAI IMAGE API IS UPDATED
+  */
 
-Return only the final edited image.`,
-            },
-            {
-              type: "input_image",
-              image_url: originalImage,
-            },
-          ],
-        },
-      ],
-      tools: [
-        {
-          type: "image_generation",
-          background: "transparent",
-        },
-      ],
-    });
-
-  const imageCall =
-    response.output?.find(
-      (item: any) =>
-        item.type ===
-        "image_generation_call"
-    );
-
-  const imageBase64 = imageCall?.result;
-
-  if (!imageBase64) {
-    throw new Error(
-      "No edited image returned"
-    );
-  }
-
-  return `data:image/png;base64,${imageBase64}`;
+  return originalImage;
 }
 
 /*
@@ -243,7 +205,7 @@ Return only the final edited image.`,
 MAIN ACTION
 ========================
 */
-export async function action({ request }: any) {
+export async function POST(request: Request) {
   const origin =
     request.headers.get("origin") ||
     ALLOWED_ORIGIN;
@@ -295,8 +257,8 @@ export async function action({ request }: any) {
     await supabase
       .from("bg_users")
       .select(
-  "credits, subscription_credits, plan_type"
-)
+        "credits, subscription_credits, plan_type"
+      )
       .eq("email", email)
       .single();
 
@@ -322,7 +284,7 @@ export async function action({ request }: any) {
     })
     .eq("user_id", email);
 
-  const limits = {
+  const limits: Record<string, number> = {
     starter: 20,
     pro: 100,
     business: 400,
@@ -342,18 +304,17 @@ export async function action({ request }: any) {
     );
   }
 
- 
-const totalCredits =
-  Number(user.credits || 0) +
-  Number(user.subscription_credits || 0);
+  const totalCredits =
+    Number(user.credits || 0) +
+    Number(user.subscription_credits || 0);
 
-if (totalCredits <= 0) {
-  return jsonResponse(
-    { error: "No credits left" },
-    403,
-    origin
-  );
-}
+  if (totalCredits <= 0) {
+    return jsonResponse(
+      { error: "No credits left" },
+      403,
+      origin
+    );
+  }
 
   let tempFilePath = "";
 
@@ -432,45 +393,26 @@ if (totalCredits <= 0) {
         signedData?.signedUrl;
 
       await supabase
-  .from("designs")
-  .insert({
+        .from("designs")
+        .insert({
+          user_id: email,
 
-    user_id: email,
+          name:
+            "edited-design",
 
-    name:
-      "edited-design",
+          data: {
+            path: filePath,
 
-    data: {
+            prompt:
+              editRequest,
 
-      /*
-      STORAGE PATH
-      */
+            product_type:
+              body.productType || "",
 
-      path: filePath,
-
-      /*
-      ORIGINAL EDIT REQUEST
-      */
-
-      prompt:
-        editRequest,
-
-      /*
-      PRODUCT TYPE
-      */
-
-      product_type:
-        body.productType || "",
-
-      /*
-      DESIGN TYPE
-      */
-
-      type:
-        "edited-design"
-    },
-  });
-
+            type:
+              "edited-design",
+          },
+        });
     } catch (err) {
       console.error(
         "EDIT SAVE FAIL:",
@@ -479,29 +421,29 @@ if (totalCredits <= 0) {
     }
 
     const { error: creditError } =
-  await supabase.rpc(
-    "deduct_credits",
-    {
-      p_email: email,
-      p_amount: 1
+      await supabase.rpc(
+        "deduct_credits",
+        {
+          p_email: email,
+          p_amount: 1,
+        }
+      );
+
+    if (creditError) {
+      console.error(
+        "Credit deduction failed:",
+        creditError
+      );
+
+      return jsonResponse(
+        {
+          error:
+            "Credit deduction failed",
+        },
+        500,
+        origin
+      );
     }
-  );
-
-if (creditError) {
-  console.error(
-    "Credit deduction failed:",
-    creditError
-  );
-
-  return jsonResponse(
-    {
-      error:
-        "Credit deduction failed",
-    },
-    500,
-    origin
-  );
-}
 
     return jsonResponse(
       {
@@ -512,7 +454,6 @@ if (creditError) {
       200,
       origin
     );
-
   } catch (error: any) {
     console.error(
       "Edit design error:",
