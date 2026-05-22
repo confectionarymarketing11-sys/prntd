@@ -66,6 +66,9 @@ export type Order = {
   id: string;
   customer: Customer;
   items: CartItem[];
+  discountCode?: string;
+  discountAmount?: number;
+  shippingDiscount?: number;
   subtotal: number;
   shipping: number;
   tax: number;

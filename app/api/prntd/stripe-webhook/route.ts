@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { getEnv } from "@/lib/env";
 import { getOrCreateCustomerForEmail, PlatformCustomer } from "@/lib/auth/customer";
 import { recordCreditTransaction } from "@/lib/credits";
+import { recordDiscountRedemption } from "@/features/discounts/data/discounts";
 import { getStripe } from "@/lib/stripe";
 import {
   getStripeCheckoutProductByPrice,
@@ -373,6 +374,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const pricingContext = parseMetadataJson(session.metadata?.pricing_context);
   const uploadIds = parseMetadataArray(session.metadata?.upload_ids);
   const designReferences = parseMetadataArray(session.metadata?.design_references);
+  const discountId = session.metadata?.discount_id || "";
+  const discountAmountCents = Number(session.metadata?.discount_amount_cents ?? 0);
+  const shippingDiscountCents = Number(session.metadata?.shipping_discount_cents ?? 0);
 
   const items = lineItems.data.map((item) => {
     const priceId = typeof item.price === "string" ? item.price : item.price?.id ?? "";
@@ -414,6 +418,22 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   if (statusError) throw statusError;
 
   await attachUploadsToOrder(orderId, uploadIds, designReferences);
+
+  if (discountId && (discountAmountCents > 0 || shippingDiscountCents > 0)) {
+    await recordDiscountRedemption({
+      discountId,
+      orderId,
+      customerId: customer.id,
+      customerEmail: email,
+      code: session.metadata?.discount_code || null,
+      discountAmountCents,
+      shippingDiscountCents,
+      currency: (session.currency ?? "cad").toUpperCase(),
+      metadata: {
+        stripe_session_id: session.id,
+      },
+    });
+  }
 }
 
 export async function POST(request: Request) {

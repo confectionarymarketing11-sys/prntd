@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Order } from "@/data/shop";
+import { calculateDiscount } from "@/features/discounts/data/discounts";
 
 function stripeProductType(productId: string) {
   if (productId === "classic-tee") return "shirts";
@@ -28,6 +29,22 @@ export async function POST(req: NextRequest) {
 
     const firstItem = order.items[0];
     const designReferences = order.items.flatMap((item) => [item.frontPreview, item.backPreview].filter(Boolean));
+    const subtotalCents = Math.round(order.subtotal * 100);
+    const shippingCents = Math.round(order.shipping * 100);
+    const discount = await calculateDiscount({
+      code: order.discountCode,
+      customerEmail: order.customer.email,
+      subtotalCents,
+      shippingCents,
+      items: order.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        lineTotalCents: Math.round(item.lineTotal * 100),
+      })),
+    });
+    const finalShippingCents = discount.finalShippingCents;
+    const taxCents = Math.round(discount.finalSubtotalCents * 0.0825);
+    const finalTotalCents = discount.finalSubtotalCents + finalShippingCents + taxCents;
     const params = new URLSearchParams({
       mode: "payment",
       success_url: `${origin}/success?order=${encodeURIComponent(order.id)}&mode=stripe&session_id={CHECKOUT_SESSION_ID}`,
@@ -39,6 +56,11 @@ export async function POST(req: NextRequest) {
       "metadata[product_id]": firstItem.productId,
       "metadata[product_name]": firstItem.productName,
       "metadata[quantity]": String(firstItem.quantity),
+      "metadata[discount_id]": discount.discount?.id ?? "",
+      "metadata[discount_code]": discount.discount?.code ?? order.discountCode ?? "",
+      "metadata[discount_amount_cents]": String(discount.discountAmountCents),
+      "metadata[shipping_discount_cents]": String(discount.shippingDiscountCents),
+      "metadata[final_total_cents]": String(finalTotalCents),
       "metadata[design_references]": compactMetadataValue(designReferences),
       "metadata[customization]": compactMetadataValue({
         cart_item_count: order.items.length,
@@ -59,22 +81,19 @@ export async function POST(req: NextRequest) {
     params.append("shipping_address_collection[allowed_countries][0]", "CA");
     params.append("shipping_address_collection[allowed_countries][1]", "US");
 
-    order.items.forEach((item, index) => {
-      params.append(`line_items[${index}][quantity]`, String(item.quantity));
-      params.append(`line_items[${index}][price_data][currency]`, "cad");
-      params.append(`line_items[${index}][price_data][unit_amount]`, String(Math.round(item.unitPrice * 100)));
-      params.append(`line_items[${index}][price_data][product_data][name]`, item.productName);
-      params.append(
-        `line_items[${index}][price_data][product_data][description]`,
-        `${item.size} / ${item.color.name} / custom print`
-      );
-    });
+    params.append("line_items[0][quantity]", "1");
+    params.append("line_items[0][price_data][currency]", "cad");
+    params.append("line_items[0][price_data][unit_amount]", String(discount.finalSubtotalCents));
+    params.append("line_items[0][price_data][product_data][name]", order.items.length === 1 ? firstItem.productName : `PRNTD Custom Order (${order.items.length} items)`);
+    params.append(
+      "line_items[0][price_data][product_data][description]",
+      discount.discount ? `Includes backend discount: ${discount.discount.title}` : "Custom print order subtotal"
+    );
 
-    const shippingIndex = order.items.length;
-    params.append(`line_items[${shippingIndex}][quantity]`, "1");
-    params.append(`line_items[${shippingIndex}][price_data][currency]`, "cad");
-    params.append(`line_items[${shippingIndex}][price_data][unit_amount]`, String(Math.round((order.shipping + order.tax) * 100)));
-    params.append(`line_items[${shippingIndex}][price_data][product_data][name]`, "Shipping and estimated tax");
+    params.append("line_items[1][quantity]", "1");
+    params.append("line_items[1][price_data][currency]", "cad");
+    params.append("line_items[1][price_data][unit_amount]", String(finalShippingCents + taxCents));
+    params.append("line_items[1][price_data][product_data][name]", "Shipping and estimated tax");
 
     const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",

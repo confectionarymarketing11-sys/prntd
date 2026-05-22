@@ -37,19 +37,41 @@ export default function CartPage() {
   const [customer, setCustomer] = useState<Customer>(emptyCustomer);
   const [status, setStatus] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountPreview, setDiscountPreview] = useState<{
+    code: string | null;
+    title: string | null;
+    discountAmount: number;
+    shippingDiscount: number;
+    message?: string | null;
+  } | null>(null);
 
-  const totals = useMemo(() => {
+  const baseTotals = useMemo(() => {
     const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
     const shipping = items.length > 0 ? SHIPPING_RATE : 0;
-    const tax = roundMoney(subtotal * TAX_RATE);
 
     return {
       subtotal,
       shipping,
-      tax,
-      total: roundMoney(subtotal + shipping + tax),
     };
   }, [items]);
+
+  const totals = useMemo(() => {
+    const discountAmount = roundMoney(discountPreview?.discountAmount ?? 0);
+    const shippingDiscount = roundMoney(discountPreview?.shippingDiscount ?? 0);
+    const discountedSubtotal = Math.max(baseTotals.subtotal - discountAmount, 0);
+    const discountedShipping = Math.max(baseTotals.shipping - shippingDiscount, 0);
+    const tax = roundMoney(discountedSubtotal * TAX_RATE);
+
+    return {
+      subtotal: baseTotals.subtotal,
+      shipping: discountedShipping,
+      tax,
+      discountAmount,
+      shippingDiscount,
+      total: roundMoney(discountedSubtotal + discountedShipping + tax),
+    };
+  }, [baseTotals, discountPreview]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -102,6 +124,49 @@ export default function CartPage() {
     });
   }
 
+  async function applyDiscount() {
+    if (!items.length) {
+      setStatus("Add an item before applying a discount.");
+      return;
+    }
+
+    setStatus("Checking discount...");
+
+    try {
+      const response = await fetch("/api/discounts/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: discountCode,
+          customerEmail: email,
+          subtotal: baseTotals.subtotal,
+          shipping: baseTotals.shipping,
+          items: items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            lineTotal: item.lineTotal,
+          })),
+        }),
+      });
+      const data = (await response.json()) as {
+        code: string | null;
+        title: string | null;
+        discountAmount: number;
+        shippingDiscount: number;
+        message?: string | null;
+        error?: string;
+      };
+
+      if (!response.ok) throw new Error(data.error ?? "Discount failed");
+
+      setDiscountPreview(data);
+      setStatus(data.message ?? (data.title ? `${data.title} applied.` : "No eligible discount found."));
+    } catch (error) {
+      setDiscountPreview(null);
+      setStatus(error instanceof Error ? error.message : "Discount failed");
+    }
+  }
+
   async function handleCheckout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -126,6 +191,9 @@ export default function CartPage() {
       shipping: totals.shipping,
       tax: totals.tax,
       total: totals.total,
+      discountCode: discountCode || undefined,
+      discountAmount: totals.discountAmount,
+      shippingDiscount: totals.shippingDiscount,
       status: "New",
       paymentMode: "stripe",
       createdAt: new Date().toISOString(),
@@ -298,14 +366,40 @@ export default function CartPage() {
           </div>
 
           <div className="mt-5 grid gap-2 border-t border-[#e7eaf3] pt-5 text-sm">
+            <div className="grid gap-2 rounded-[18px] bg-[#f8faff] p-3">
+              <label className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#4f46e5]">Discount code</label>
+              <div className="flex gap-2">
+                <input
+                  value={discountCode}
+                  onChange={(event) => setDiscountCode(event.target.value)}
+                  placeholder="SAVE10"
+                  className="portal-field min-w-0 flex-1"
+                />
+                <button type="button" onClick={applyDiscount} className="rounded-[16px] bg-[#111827] px-4 text-sm font-bold text-white">
+                  Apply
+                </button>
+              </div>
+            </div>
             <div className="flex justify-between">
               <span>Subtotal</span>
               <strong>{formatMoney(totals.subtotal)}</strong>
             </div>
+            {totals.discountAmount > 0 && (
+              <div className="flex justify-between text-emerald-700">
+                <span>Discount</span>
+                <strong>-{formatMoney(totals.discountAmount)}</strong>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Shipping</span>
               <strong>{formatMoney(totals.shipping)}</strong>
             </div>
+            {totals.shippingDiscount > 0 && (
+              <div className="flex justify-between text-emerald-700">
+                <span>Shipping discount</span>
+                <strong>-{formatMoney(totals.shippingDiscount)}</strong>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Estimated tax</span>
               <strong>{formatMoney(totals.tax)}</strong>
