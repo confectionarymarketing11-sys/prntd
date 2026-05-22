@@ -124,6 +124,23 @@ export const shopProducts: Product[] = [
     minimumQuantity: 10,
   },
   {
+    id: "business-cards",
+    name: "Business Cards",
+    category: "Business Cards",
+    description: "Premium custom business cards with front and back design support.",
+    basePrice: 32,
+    productionDays: "3-5 days",
+    sizes: ["Standard", "Square", "Mini"],
+    colors: [
+      { name: "Matte", value: "#f7f3ea" },
+      { name: "Gloss", value: "#ffffff" },
+      { name: "Soft Touch", value: "#eef2ff" },
+      { name: "Black", value: "#111827" },
+    ],
+    printAreas: ["front", "back"],
+    minimumQuantity: 50,
+  },
+  {
     id: "poster-print",
     name: "Poster Print",
     category: "Paper",

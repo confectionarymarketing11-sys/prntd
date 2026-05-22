@@ -11,6 +11,7 @@ import {
   formatMoney,
   priceDesign,
 } from "@/data/shop";
+import type { StripeProductType } from "@/lib/stripe-products";
 
 type StoredDesign = {
   image?: string;
@@ -23,7 +24,15 @@ const productFeatures: Record<string, string[]> = {
   "classic-tee": ["Soft cotton feel", "Front and back print-ready", "Best for merch, staff shirts, and events"],
   "premium-hoodie": ["Heavy fleece body", "Premium streetwear finish", "Front and back artwork support"],
   "die-cut-stickers": ["Durable vinyl material", "Waterproof and weather-resistant", "Vibrant long-lasting color"],
+  "business-cards": ["Front and back card design", "Premium business-ready finish", "Built for QR codes and brand details"],
   "poster-print": ["Satin poster stock", "Sharp full-color output", "Ready for launches and signage"],
+};
+
+const productCheckoutTypes: Partial<Record<string, StripeProductType>> = {
+  "classic-tee": "shirts",
+  "premium-hoodie": "shirts",
+  "die-cut-stickers": "stickers",
+  "business-cards": "business-cards",
 };
 
 export default function ProductDetail({ product }: { product: Product }) {
@@ -33,9 +42,12 @@ export default function ProductDetail({ product }: { product: Product }) {
   const [design, setDesign] = useState<StoredDesign | null>(null);
   const [uploadedDesign, setUploadedDesign] = useState("");
   const [status, setStatus] = useState("");
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const designPreview = uploadedDesign || design?.image || "";
-  const isApparel = product.category.toLowerCase() === "apparel";
+  const isSticker = product.id === "die-cut-stickers";
+  const isBusinessCard = product.id === "business-cards";
+  const checkoutProductType = productCheckoutTypes[product.id];
 
   const frontLayers = useMemo<DesignLayer[]>(() => {
     if (!designPreview) return [];
@@ -95,7 +107,52 @@ export default function ProductDetail({ product }: { product: Product }) {
       localStorage.setItem("prntd_generated_image", designPreview);
     }
 
-    window.location.href = `/designer?product=${encodeURIComponent(product.id)}`;
+    window.location.href = isBusinessCard
+      ? `/business-card-designer?product=${encodeURIComponent(product.id)}`
+      : `/designer?product=${encodeURIComponent(product.id)}`;
+  }
+
+  async function checkoutNow() {
+    if (!checkoutProductType) {
+      setStatus("Stripe checkout is not configured for this product yet.");
+      return;
+    }
+
+    setIsCheckingOut(true);
+    setStatus("Creating secure checkout...");
+
+    try {
+      const response = await fetch("/api/prntd/create-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productType: checkoutProductType,
+          quantity,
+          customization: {
+            productId: product.id,
+            productName: product.name,
+            size: selectedSize,
+            color: selectedColor.name,
+            hasUploadedDesign: Boolean(designPreview),
+            designPath: design?.designPath ?? null,
+          },
+          successPath: "/success",
+          cancelPath: `/products/${product.id}`,
+        }),
+      });
+      const data = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error ?? "Checkout failed");
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Checkout failed.");
+      setIsCheckingOut(false);
+    }
   }
 
   function addToCart() {
@@ -222,13 +279,19 @@ export default function ProductDetail({ product }: { product: Product }) {
           </div>
 
           <div className="grid gap-2">
-            {isApparel ? (
+            {isSticker ? null : (
               <button type="button" onClick={openCustomizer} className="design-main-btn !mt-0">
-                Customize Product
+                {isBusinessCard ? "Customize Business Card" : "Customize Product"}
               </button>
-            ) : (
+            )}
+            {isSticker ? (
               <button type="button" onClick={addToCart} className="design-main-btn !mt-0">
                 Add To Cart
+              </button>
+            ) : null}
+            {checkoutProductType && (
+              <button type="button" onClick={checkoutNow} disabled={isCheckingOut} className="design-main-btn !mt-0 disabled:cursor-not-allowed disabled:opacity-60">
+                {isCheckingOut ? "Creating Checkout..." : "Checkout With Stripe"}
               </button>
             )}
             <Link href="/design-generator" className="rounded-full border border-[#e5e7eb] bg-white px-5 py-4 text-center text-sm font-extrabold text-[#111827] no-underline transition hover:bg-[#f9fafb]">
