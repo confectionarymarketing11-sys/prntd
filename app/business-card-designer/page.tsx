@@ -135,6 +135,12 @@ export default function BusinessCardDesignerPage() {
         body: JSON.stringify({
           productType: "business-cards",
           quantity,
+          productId: product.id,
+          pricingContext: {
+            unitPrice: price.unitPrice,
+            lineTotal: price.lineTotal,
+            currency: "CAD",
+          },
           customization: {
             size,
             finish: finish.name,

@@ -10,6 +10,25 @@ export async function GET(request: Request) {
   return withApiErrorHandling(request, async () => {
     const email = requirePrntdEmail(request);
     const supabase = createSupabaseAdminClient();
+    const { data: customer, error: customerError } = await supabase
+      .from("customers")
+      .select("credits_balance, subscription_status, plan_tier")
+      .eq("email", email)
+      .maybeSingle<{ credits_balance: number | null; subscription_status: string | null; plan_tier: string | null }>();
+
+    if (!customerError && customer) {
+      const credits = Number(customer.credits_balance ?? 0);
+
+      return apiJson(request, {
+        success: true,
+        credits,
+        subscription_credits: 0,
+        total_credits: credits,
+        subscription_status: customer.subscription_status ?? "inactive",
+        plan_tier: customer.plan_tier ?? "none",
+        source: "customers",
+      });
+    }
 
     const { data: user, error } = await supabase
       .from("bg_users")

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Order } from "@/data/shop";
-import { persistStorefrontOrder } from "@/features/admin/data/order-ingest";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,22 +10,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid checkout payload" }, { status: 400 });
     }
 
-    await persistStorefrontOrder(order);
-
     if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json({
-        mode: "manual",
-        url: `${origin}/success?order=${encodeURIComponent(order.id)}&mode=manual`,
-      });
+      return NextResponse.json({ error: "Stripe is not configured." }, { status: 503 });
     }
 
     const params = new URLSearchParams({
       mode: "payment",
-      success_url: `${origin}/success?order=${encodeURIComponent(order.id)}&mode=stripe`,
+      success_url: `${origin}/success?order=${encodeURIComponent(order.id)}&mode=stripe&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/cart`,
       customer_email: order.customer.email,
       "metadata[order_id]": order.id,
+      "metadata[source]": "legacy_cart",
+      "metadata[customer_name]": order.customer.name,
+      "metadata[customer_phone]": order.customer.phone,
     });
+
+    params.append("billing_address_collection", "auto");
+    params.append("phone_number_collection[enabled]", "true");
+    params.append("shipping_address_collection[allowed_countries][0]", "CA");
+    params.append("shipping_address_collection[allowed_countries][1]", "US");
 
     order.items.forEach((item, index) => {
       params.append(`line_items[${index}][quantity]`, String(item.quantity));

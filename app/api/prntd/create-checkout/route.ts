@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { apiJson, withApiErrorHandling } from "@/lib/api-response";
+import { ApiError, apiJson, withApiErrorHandling } from "@/lib/api-response";
+import { getCurrentCustomer, getOrCreateCustomerForEmail } from "@/lib/auth/customer";
 import { corsPreflight } from "@/lib/cors";
 import { getStripe } from "@/lib/stripe";
 import { getStripeCheckoutProduct, stripeProductTypes } from "@/lib/stripe-products";
@@ -11,6 +12,10 @@ const checkoutSchema = z.object({
   productType: z.enum(stripeProductTypes),
   quantity: z.coerce.number().int().positive().max(1000),
   customerEmail: z.string().trim().email().optional(),
+  productId: z.string().trim().max(120).optional(),
+  uploadIds: z.array(z.string().trim().max(120)).max(20).optional(),
+  designReferences: z.array(z.string().trim().max(500)).max(20).optional(),
+  pricingContext: z.record(z.string(), z.unknown()).optional(),
   customization: z.record(z.string(), z.unknown()).optional(),
   successPath: z.string().trim().startsWith("/").optional(),
   cancelPath: z.string().trim().startsWith("/").optional(),
@@ -26,12 +31,69 @@ function compactMetadataValue(value: unknown) {
   return serialized.length > 450 ? serialized.slice(0, 450) : serialized;
 }
 
+async function createOrReuseStripeCustomer(input: {
+  email: string;
+  name?: string | null;
+  authUserId?: string | null;
+  platformCustomerId?: string | null;
+  existingStripeCustomerId?: string | null;
+}) {
+  const stripe = getStripe();
+
+  if (input.existingStripeCustomerId) {
+    return input.existingStripeCustomerId;
+  }
+
+  const existing = await stripe.customers.list({
+    email: input.email,
+    limit: 1,
+  });
+
+  if (existing.data[0]) {
+    return existing.data[0].id;
+  }
+
+  const customer = await stripe.customers.create({
+    email: input.email,
+    name: input.name ?? undefined,
+    metadata: {
+      auth_user_id: input.authUserId ?? "",
+      platform_customer_id: input.platformCustomerId ?? "",
+      source: "prntd_next",
+    },
+  });
+
+  return customer.id;
+}
+
 export async function POST(request: Request) {
   return withApiErrorHandling(request, async () => {
     const input = checkoutSchema.parse(await request.json());
     const product = getStripeCheckoutProduct(input.productType);
     const origin = getOrigin(request);
     const stripe = getStripe();
+    const authenticated = await getCurrentCustomer();
+    const email = authenticated?.user.email ?? input.customerEmail;
+
+    if (!email) {
+      throw new ApiError("Customer email is required.", 400, "customer_email_required");
+    }
+
+    const platformCustomer = authenticated?.customer ?? (await getOrCreateCustomerForEmail({ email }));
+    const stripeCustomerId = await createOrReuseStripeCustomer({
+      email,
+      name: platformCustomer.name,
+      authUserId: authenticated?.user.id ?? platformCustomer.auth_user_id,
+      platformCustomerId: platformCustomer.id,
+      existingStripeCustomerId: platformCustomer.stripe_customer_id,
+    });
+
+    const customer = await getOrCreateCustomerForEmail({
+      email,
+      authUserId: authenticated?.user.id ?? platformCustomer.auth_user_id,
+      name: platformCustomer.name,
+      stripeCustomerId,
+    });
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -41,7 +103,7 @@ export async function POST(request: Request) {
           quantity: input.quantity,
         },
       ],
-      customer_email: input.customerEmail,
+      customer: stripeCustomerId,
       billing_address_collection: "auto",
       shipping_address_collection: {
         allowed_countries: ["CA", "US"],
@@ -50,10 +112,16 @@ export async function POST(request: Request) {
         enabled: true,
       },
       metadata: {
+        customer_id: customer.id,
+        auth_user_id: authenticated?.user.id ?? customer.auth_user_id ?? "",
+        stripe_customer_id: stripeCustomerId,
         product_type: product.type,
-        product_id: product.fulfillmentProductId,
+        product_id: input.productId ?? product.fulfillmentProductId,
         product_name: product.label,
         quantity: String(input.quantity),
+        pricing_context: compactMetadataValue(input.pricingContext),
+        upload_ids: compactMetadataValue(input.uploadIds),
+        design_references: compactMetadataValue(input.designReferences),
         customization: compactMetadataValue(input.customization),
       },
       success_url: `${origin}${input.successPath ?? "/success"}?session_id={CHECKOUT_SESSION_ID}`,

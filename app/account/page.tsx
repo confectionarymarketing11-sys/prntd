@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { fetchCustomerDesigns, fetchCustomerOrders, formatAccountMoney } from "@/lib/account/customer-data";
+import { fetchCustomerDesigns, fetchCustomerOrders, fetchCustomerProfile, formatAccountMoney } from "@/lib/account/customer-data";
 import { requireCustomerUser } from "@/lib/auth/customer";
 
 function formatDate(value?: string) {
@@ -15,7 +15,7 @@ function formatDate(value?: string) {
 export default async function AccountPage() {
   const user = await requireCustomerUser();
   const email = user.email ?? "";
-  const [orders, designs] = await Promise.all([fetchCustomerOrders(email), fetchCustomerDesigns(email)]);
+  const [orders, designs, customer] = await Promise.all([fetchCustomerOrders(email), fetchCustomerDesigns(email), fetchCustomerProfile(email)]);
   const paidTotal = orders.reduce((sum, order) => sum + Number(order.total_cents ?? 0), 0);
 
   return (
@@ -36,6 +36,7 @@ export default async function AccountPage() {
         {[
           ["Orders", String(orders.length), "Print jobs connected to this account"],
           ["Saved Designs", String(designs.length), "AI and uploaded assets found for this email"],
+          ["Credits", String(customer?.credits_balance ?? 0), `${customer?.plan_tier ?? "none"} plan • ${customer?.subscription_status ?? "inactive"}`],
           ["Total Spend", formatAccountMoney(paidTotal, orders[0]?.currency ?? "CAD"), "From fulfilled checkout records"],
         ].map(([label, value, detail]) => (
           <article key={label} className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
@@ -45,6 +46,24 @@ export default async function AccountPage() {
           </article>
         ))}
       </div>
+
+      <section className="rounded-[28px] border border-white/70 bg-white p-6 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
+        <h2 className="text-2xl font-black">Billing Linkage</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-[20px] bg-[#f5f7fb] p-4">
+            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Stripe Customer</p>
+            <p className="mt-2 break-all text-sm font-bold">{customer?.stripe_customer_id ?? "Not linked yet"}</p>
+          </div>
+          <div className="rounded-[20px] bg-[#f5f7fb] p-4">
+            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Subscription</p>
+            <p className="mt-2 text-sm font-bold">{customer?.subscription_status ?? "inactive"}</p>
+          </div>
+          <div className="rounded-[20px] bg-[#f5f7fb] p-4">
+            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Legacy Shopify</p>
+            <p className="mt-2 break-all text-sm font-bold">{customer?.shopify_customer_id ?? "Not imported"}</p>
+          </div>
+        </div>
+      </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="rounded-[28px] border border-white/70 bg-white p-6 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">

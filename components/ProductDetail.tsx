@@ -130,6 +130,13 @@ export default function ProductDetail({ product }: { product: Product }) {
         body: JSON.stringify({
           productType: checkoutProductType,
           quantity,
+          productId: product.id,
+          designReferences: [design?.designId, design?.designPath].filter(Boolean),
+          pricingContext: {
+            unitPrice: price.unitPrice,
+            lineTotal: price.lineTotal,
+            currency: "CAD",
+          },
           customization: {
             productId: product.id,
             productName: product.name,

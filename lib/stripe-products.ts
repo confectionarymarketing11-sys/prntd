@@ -9,6 +9,12 @@ export type StripeCheckoutProduct = {
   fulfillmentProductId: string;
 };
 
+export const subscriptionCreditGrants: Record<string, number> = {
+  starter: 15,
+  pro: 40,
+  business: 85,
+};
+
 export const stripeCheckoutProducts: Record<StripeProductType, StripeCheckoutProduct> = {
   stickers: {
     type: "stickers",
@@ -36,4 +42,14 @@ export function getStripeCheckoutProduct(type: StripeProductType) {
 
 export function getStripeCheckoutProductByPrice(priceId: string) {
   return Object.values(stripeCheckoutProducts).find((product) => product.priceId === priceId) ?? null;
+}
+
+export function inferSubscriptionTier(value: string | null | undefined) {
+  const normalized = (value ?? "").toLowerCase();
+
+  if (normalized.includes("business")) return "business";
+  if (normalized.includes("pro")) return "pro";
+  if (normalized.includes("starter")) return "starter";
+
+  return "none";
 }

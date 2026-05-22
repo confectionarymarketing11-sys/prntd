@@ -34,6 +34,19 @@ export type AccountDesign = {
   design_type?: string;
 };
 
+export type AccountCustomerProfile = {
+  id: string;
+  email: string;
+  name: string | null;
+  stripe_customer_id: string | null;
+  shopify_customer_id: string | null;
+  credits_balance: number;
+  subscription_status: string;
+  plan_tier: string;
+  stripe_subscription_id: string | null;
+  subscription_current_period_end: string | null;
+};
+
 type DesignRow = {
   data?: {
     path?: string;
@@ -94,6 +107,48 @@ export async function fetchCustomerOrders(email: string) {
   if (error || !data) return [];
 
   return data as AccountOrder[];
+}
+
+export async function fetchCustomerProfile(email: string): Promise<AccountCustomerProfile | null> {
+  if (!hasSupabaseAdminConfig()) return null;
+
+  const supabase = createSupabaseAdminClient();
+  const normalizedEmail = normalizeEmail(email);
+  const evolved = await supabase
+    .from("customers")
+    .select(
+      "id, email, name, stripe_customer_id, shopify_customer_id, credits_balance, subscription_status, plan_tier, stripe_subscription_id, subscription_current_period_end"
+    )
+    .eq("email", normalizedEmail)
+    .maybeSingle<AccountCustomerProfile>();
+
+  if (!evolved.error && evolved.data) {
+    return {
+      ...evolved.data,
+      credits_balance: Number(evolved.data.credits_balance ?? 0),
+      subscription_status: evolved.data.subscription_status ?? "inactive",
+      plan_tier: evolved.data.plan_tier ?? "none",
+    };
+  }
+
+  const legacy = await supabase
+    .from("customers")
+    .select("id, email, name")
+    .eq("email", normalizedEmail)
+    .maybeSingle<{ id: string; email: string; name: string | null }>();
+
+  if (legacy.error || !legacy.data) return null;
+
+  return {
+    ...legacy.data,
+    stripe_customer_id: null,
+    shopify_customer_id: null,
+    credits_balance: 0,
+    subscription_status: "inactive",
+    plan_tier: "none",
+    stripe_subscription_id: null,
+    subscription_current_period_end: null,
+  };
 }
 
 export async function fetchCustomerDesigns(email: string) {

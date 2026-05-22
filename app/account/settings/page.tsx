@@ -1,9 +1,11 @@
 import LogoutButton from "@/components/account/LogoutButton";
 import PasswordUpdateForm from "@/components/account/PasswordUpdateForm";
+import { fetchCustomerProfile } from "@/lib/account/customer-data";
 import { requireCustomerUser } from "@/lib/auth/customer";
 
 export default async function AccountSettingsPage() {
   const user = await requireCustomerUser();
+  const customer = await fetchCustomerProfile(user.email ?? "");
 
   return (
     <div className="grid gap-6">
@@ -17,6 +19,12 @@ export default async function AccountSettingsPage() {
           <h2 className="text-2xl font-black">Account</h2>
           <p className="mt-3 text-sm leading-6 text-[#6b7280]">Email</p>
           <p className="mt-1 break-all text-lg font-black">{user.email}</p>
+          <p className="mt-5 text-sm leading-6 text-[#6b7280]">Stripe customer</p>
+          <p className="mt-1 break-all text-sm font-bold">{customer?.stripe_customer_id ?? "Not linked yet"}</p>
+          <p className="mt-5 text-sm leading-6 text-[#6b7280]">Subscription</p>
+          <p className="mt-1 text-sm font-bold">
+            {customer?.subscription_status ?? "inactive"} / {customer?.plan_tier ?? "none"}
+          </p>
           <div className="mt-5">
             <LogoutButton />
           </div>

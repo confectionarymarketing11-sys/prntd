@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ApiError, apiJson, withApiErrorHandling } from "@/lib/api-response";
 import { requirePrntdEmail } from "@/lib/auth/jwt";
 import { corsPreflight } from "@/lib/cors";
+import { recordCreditTransaction } from "@/lib/credits";
 import { createSupabaseAdminClient } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -16,6 +17,54 @@ export async function POST(request: Request) {
     const email = requirePrntdEmail(request);
     const { amount } = bodySchema.parse(await request.json());
     const supabase = createSupabaseAdminClient();
+    const { data: customer, error: customerError } = await supabase
+      .from("customers")
+      .select("id, auth_user_id, credits_balance")
+      .eq("email", email)
+      .maybeSingle<{ id: string; auth_user_id: string | null; credits_balance: number | null }>();
+
+    if (!customerError && customer) {
+      const currentCredits = Number(customer.credits_balance ?? 0);
+
+      if (currentCredits < amount) {
+        throw new ApiError("Not enough credits", 400, "insufficient_credits");
+      }
+
+      const nextCredits = currentCredits - amount;
+      const { data: updated, error: updateCustomerError } = await supabase
+        .from("customers")
+        .update({
+          credits_balance: nextCredits,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", customer.id)
+        .eq("credits_balance", currentCredits)
+        .select("id")
+        .maybeSingle<{ id: string }>();
+
+      if (updateCustomerError || !updated) {
+        throw new ApiError("Conflict, retry request", 409, "credit_conflict");
+      }
+
+      await recordCreditTransaction({
+        customerId: customer.id,
+        authUserId: customer.auth_user_id,
+        amount: -amount,
+        reason: "usage",
+        source: "prntd_api",
+        metadata: {
+          endpoint: "use-credits",
+        },
+      });
+
+      return apiJson(request, {
+        success: true,
+        credits: nextCredits,
+        subscription_credits: 0,
+        total_credits: nextCredits,
+        source: "customers",
+      });
+    }
 
     const { data: user, error } = await supabase
       .from("bg_users")
