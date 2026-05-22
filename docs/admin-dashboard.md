@@ -21,6 +21,14 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
+JWT_SECRET=
+SUPABASE_JWT_SECRET=
+OPENAI_API_KEY=
+REMOVE_BG_API_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+SHOPIFY_WEBHOOK_SECRET=
+ALLOWED_ORIGIN=
 ```
 
 `NEXT_PUBLIC_*` is used for Supabase Auth session handling. `SUPABASE_SERVICE_ROLE_KEY` is server-only and is used after the admin user is authenticated and authorized.
@@ -42,7 +50,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 - `order_items`: line items and customization JSON.
 - `uploads`: artwork and print-ready files.
 - `shipments`: provider, label URL, tracking, shipment status.
-- `production_status`: timeline/activity history.
+- `production_status_history`: timeline/activity history.
 
 ## Shipping Strategy
 
@@ -67,7 +75,7 @@ Allowed workflow statuses:
 - Shipped
 - Completed
 
-Each status update inserts a row into `production_status` for timeline visibility.
+Each status update inserts a row into `production_status_history` for timeline visibility.
 
 ## First Admin User
 

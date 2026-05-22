@@ -69,7 +69,7 @@ export default function OrdersTable({ data }: { data: PaginatedOrders }) {
                   {order.shipments?.length ? (
                     <div className="grid gap-1">
                       {order.shipments.map((shipment) => (
-                        <StatusBadge key={shipment.id} status={shipment.status} />
+                        <StatusBadge key={shipment.id} status={shipment.shipment_status} />
                       ))}
                     </div>
                   ) : (

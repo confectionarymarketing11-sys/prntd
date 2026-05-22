@@ -98,38 +98,35 @@ create table if not exists public.uploads (
   customer_id uuid references public.customers(id) on delete set null,
   design_id uuid,
   file_name text,
-  file_type text,
-  storage_bucket text not null default 'uploads',
-  storage_path text,
+  file_url text,
   preview_url text,
-  print_ready_url text,
-  metadata jsonb not null default '{}'::jsonb,
+  mime_type text,
+  file_size bigint,
+  dpi integer,
+  upload_status text not null default 'uploaded',
   created_at timestamptz not null default now()
 );
 
 create table if not exists public.shipments (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.orders(id) on delete cascade,
-  provider public.shipment_provider default 'manual',
-  carrier text,
-  service_level text,
+  provider public.shipment_provider not null default 'manual',
+  shipment_status public.shipment_status not null default 'not_started',
   tracking_number text,
   tracking_url text,
   label_url text,
-  status public.shipment_status not null default 'not_started',
+  shipping_cost_cents integer,
   shipped_at timestamptz,
   delivered_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique(order_id)
+  created_at timestamptz not null default now()
 );
 
-create table if not exists public.production_status (
+create table if not exists public.production_status_history (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.orders(id) on delete cascade,
   status public.production_status_value not null,
-  note text,
-  created_by uuid references auth.users(id) on delete set null,
+  changed_by text,
+  notes text,
   created_at timestamptz not null default now()
 );
 
@@ -140,7 +137,7 @@ create index if not exists orders_created_at_idx on public.orders(created_at des
 create index if not exists order_items_order_id_idx on public.order_items(order_id);
 create index if not exists uploads_order_id_idx on public.uploads(order_id);
 create index if not exists shipments_order_id_idx on public.shipments(order_id);
-create index if not exists production_status_order_id_idx on public.production_status(order_id);
+create index if not exists production_status_history_order_id_idx on public.production_status_history(order_id);
 
 alter table public.admin_users enable row level security;
 alter table public.customers enable row level security;
@@ -148,7 +145,7 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 alter table public.uploads enable row level security;
 alter table public.shipments enable row level security;
-alter table public.production_status enable row level security;
+alter table public.production_status_history enable row level security;
 
 -- All operational tables are read/written server-side with SUPABASE_SERVICE_ROLE_KEY.
 -- Keep RLS enabled and avoid broad anon policies for internal fulfillment data.

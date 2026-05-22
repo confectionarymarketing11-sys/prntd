@@ -48,12 +48,12 @@ export type ArtworkUpload = {
   customer_id: string | null;
   design_id: string | null;
   file_name: string | null;
-  file_type: string | null;
-  storage_bucket: string;
-  storage_path: string | null;
+  file_url: string | null;
   preview_url: string | null;
-  print_ready_url: string | null;
-  metadata: JsonRecord;
+  mime_type: string | null;
+  file_size: number | null;
+  dpi: number | null;
+  upload_status: string;
   created_at: string;
 };
 
@@ -61,24 +61,22 @@ export type Shipment = {
   id: string;
   order_id: string;
   provider: "shippo" | "shipstation" | "easypost" | "canada_post" | "manual" | null;
-  carrier: string | null;
-  service_level: string | null;
   tracking_number: string | null;
   tracking_url: string | null;
   label_url: string | null;
-  status: ShipmentStatus;
+  shipping_cost_cents: number | null;
+  shipment_status: ShipmentStatus;
   shipped_at: string | null;
   delivered_at: string | null;
   created_at: string;
-  updated_at: string;
 };
 
 export type ProductionEvent = {
   id: string;
   order_id: string;
   status: ProductionStatus;
-  note: string | null;
-  created_by: string | null;
+  notes: string | null;
+  changed_by: string | null;
   created_at: string;
 };
 

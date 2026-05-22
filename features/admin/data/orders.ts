@@ -117,7 +117,7 @@ export async function getOrderById(id: string) {
         order_items(*),
         uploads(*),
         shipments(*),
-        production_status_events:production_status(*)
+        production_status_events:production_status_history(*)
       `
     )
     .eq("id", id)
@@ -130,7 +130,7 @@ export async function getOrderById(id: string) {
   return data;
 }
 
-export async function updateOrderStatus(orderId: string, status: ProductionStatus, adminId: string, note?: string) {
+export async function updateOrderStatus(orderId: string, status: ProductionStatus, changedBy: string, note?: string) {
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase
     .from("orders")
@@ -141,11 +141,11 @@ export async function updateOrderStatus(orderId: string, status: ProductionStatu
     throw new Error(error.message);
   }
 
-  const { error: eventError } = await supabase.from("production_status").insert({
+  const { error: eventError } = await supabase.from("production_status_history").insert({
     order_id: orderId,
     status,
-    note: note || null,
-    created_by: adminId,
+    notes: note || null,
+    changed_by: changedBy,
   });
 
   if (eventError) {

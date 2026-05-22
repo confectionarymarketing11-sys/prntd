@@ -23,7 +23,7 @@ export default function ProductionTimeline({ events }: { events: ProductionEvent
                     <StatusBadge status={event.status} />
                     <time className="text-xs font-semibold text-slate-500">{new Date(event.created_at).toLocaleString()}</time>
                   </div>
-                  {event.note && <p className="mt-2 text-sm text-slate-600">{event.note}</p>}
+                  {event.notes && <p className="mt-2 text-sm text-slate-600">{event.notes}</p>}
                 </li>
               ))}
           </ol>

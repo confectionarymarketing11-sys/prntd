@@ -9,7 +9,7 @@ import type { PaymentStatus, ProductionStatus, ShipmentStatus } from "@/features
 export async function updateOrderStatusAction(orderId: string, status: ProductionStatus, note?: string) {
   const admin = await requireAdmin();
 
-  await updateOrderStatus(orderId, status, admin.id, note);
+  await updateOrderStatus(orderId, status, admin.email, note);
   revalidatePath("/admin");
   revalidatePath(`/admin/orders/${orderId}`);
 }
@@ -31,8 +31,6 @@ export async function updateShipmentAction(formData: FormData) {
   await upsertShipment({
     orderId,
     provider: String(formData.get("provider") ?? "manual") as "shippo" | "shipstation" | "easypost" | "canada_post" | "manual",
-    carrier: String(formData.get("carrier") ?? ""),
-    serviceLevel: String(formData.get("serviceLevel") ?? ""),
     trackingNumber: String(formData.get("trackingNumber") ?? ""),
     trackingUrl: String(formData.get("trackingUrl") ?? ""),
     labelUrl: String(formData.get("labelUrl") ?? ""),

@@ -28,7 +28,7 @@ export default function ShipmentForm({ order }: { order: FulfillmentOrder }) {
             </label>
             <label className="grid gap-1 text-sm font-semibold">
               Shipment Status
-              <select name="status" defaultValue={shipment?.status ?? "not_started"} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm">
+              <select name="status" defaultValue={shipment?.shipment_status ?? "not_started"} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm">
                 <option value="not_started">Not Started</option>
                 <option value="label_created">Label Created</option>
                 <option value="in_transit">In Transit</option>
@@ -37,10 +37,6 @@ export default function ShipmentForm({ order }: { order: FulfillmentOrder }) {
                 <option value="returned">Returned</option>
               </select>
             </label>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input name="carrier" defaultValue={shipment?.carrier ?? ""} placeholder="Carrier" />
-            <Input name="serviceLevel" defaultValue={shipment?.service_level ?? ""} placeholder="Service level" />
           </div>
           <Input name="trackingNumber" defaultValue={shipment?.tracking_number ?? ""} placeholder="Tracking number" />
           <Input name="trackingUrl" defaultValue={shipment?.tracking_url ?? ""} placeholder="Tracking URL" />

@@ -84,9 +84,10 @@ export async function persistStorefrontOrder(order: Order) {
   const { error: itemsError } = await supabase.from("order_items").insert(items);
   if (itemsError) throw new Error(itemsError.message);
 
-  await supabase.from("production_status").insert({
+  await supabase.from("production_status_history").insert({
     order_id: dbOrder.id,
     status: "pending",
-    note: "Order created from storefront checkout.",
+    notes: "Order created from storefront checkout.",
+    changed_by: "storefront",
   });
 }
