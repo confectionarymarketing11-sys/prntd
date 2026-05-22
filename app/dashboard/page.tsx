@@ -2,23 +2,21 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import AccountConnect from "@/components/AccountConnect";
 import PortalSidebar from "@/components/PortalSidebar";
 import ShopHeader from "@/components/ShopHeader";
+import { usePrntdAccount } from "@/hooks/usePrntdAccount";
 import {
-  fetchCreditsConnected,
-  fetchDesignsConnected,
+  fetchCredits,
+  fetchDesigns,
   fetchQrAnalytics,
-  fetchQrLinksConnected,
-  fetchSubscriptionConnected,
-  getStoredEmail,
-  getTokenOrCreate,
+  fetchQrLinks,
+  fetchSubscription,
   QrAnalytics,
   SubscriptionResponse,
 } from "@/lib/prntdClient";
 
 export default function DashboardPage() {
-  const [email, setEmail] = useState(getStoredEmail);
+  const { email, token, status: accountStatus, loadAccount } = usePrntdAccount();
   const [status, setStatus] = useState("");
   const [credits, setCredits] = useState("--");
   const [subscription, setSubscription] = useState<SubscriptionResponse | null>(null);
@@ -28,22 +26,22 @@ export default function DashboardPage() {
   const [lastSynced, setLastSynced] = useState("");
 
   const refreshDashboard = useCallback(async () => {
-    if (!email.trim()) {
-      setStatus("Enter your account email to load portal data.");
+    const session = token && email ? { email, token } : await loadAccount();
+
+    if (!session?.email || !session.token) {
+      setStatus("Sign in to load portal data.");
       return;
     }
 
     setStatus("Loading portal data...");
 
     try {
-      const token = await getTokenOrCreate(email);
-      const normalizedEmail = email.trim().toLowerCase();
       const [creditData, subscriptionData, qrData, analyticsData, designData] = await Promise.all([
-        fetchCreditsConnected(normalizedEmail, token),
-        fetchSubscriptionConnected(normalizedEmail),
-        fetchQrLinksConnected(normalizedEmail),
-        fetchQrAnalytics(email),
-        fetchDesignsConnected(normalizedEmail, token),
+        fetchCredits(session.token),
+        fetchSubscription(session.email),
+        fetchQrLinks(session.email),
+        fetchQrAnalytics(session.email),
+        fetchDesigns(session.token),
       ]);
 
       setCredits(String(creditData.total_credits ?? "--"));
@@ -56,16 +54,16 @@ export default function DashboardPage() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to load portal data.");
     }
-  }, [email]);
+  }, [email, token, loadAccount]);
 
   useEffect(() => {
-    if (!email) return;
+    if (!email || !token) return;
     const timer = window.setTimeout(() => {
       void refreshDashboard();
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [email, refreshDashboard]);
+  }, [email, token, refreshDashboard]);
 
   const stats = [
     {
@@ -137,13 +135,24 @@ export default function DashboardPage() {
                   <p className="mt-1 text-[42px] font-black leading-none">{credits}</p>
                 </div>
                 <p className="text-sm leading-6 text-white/70">
-                  {lastSynced ? `Synced at ${lastSynced}` : "Connect your account to sync live Supabase data."}
+                  {lastSynced ? `Synced at ${lastSynced}` : "Sign in to sync live account data."}
                 </p>
               </div>
             </div>
           </div>
 
-          <AccountConnect email={email} setEmail={setEmail} onConnect={refreshDashboard} status={status} />
+          <div className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Customer Account</p>
+                <p className="mt-2 text-lg font-black">{email || "Loading..."}</p>
+                <p className="mt-1 text-sm text-[#6b7280]">{status || accountStatus}</p>
+              </div>
+              <button type="button" onClick={() => void refreshDashboard()} className="portal-action">
+                Refresh Portal
+              </button>
+            </div>
+          </div>
 
           <div className="my-6 grid grid-cols-3 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
             {[

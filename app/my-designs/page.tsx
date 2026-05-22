@@ -1,27 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import AccountConnect from "@/components/AccountConnect";
 import PortalSidebar from "@/components/PortalSidebar";
 import ShopHeader from "@/components/ShopHeader";
-import { downloadUrl, fetchDesigns, getStoredEmail, getTokenOrCreate, SavedDesign } from "@/lib/prntdClient";
+import { usePrntdAccount } from "@/hooks/usePrntdAccount";
+import { downloadUrl, fetchDesigns, SavedDesign } from "@/lib/prntdClient";
 
 export default function MyDesignsPage() {
-  const [email, setEmail] = useState(getStoredEmail);
+  const { email, token, status: accountStatus, loadAccount } = usePrntdAccount();
   const [status, setStatus] = useState("");
   const [designs, setDesigns] = useState<SavedDesign[]>([]);
 
   const loadDesigns = useCallback(async () => {
-    if (!email.trim()) {
-      setStatus("Enter your account email to view saved designs.");
+    const session = token ? { token } : await loadAccount();
+
+    if (!session?.token) {
+      setStatus("Sign in to view saved designs.");
       return;
     }
 
     setStatus("Loading your designs...");
 
     try {
-      const token = await getTokenOrCreate(email);
-      const data = await fetchDesigns(token);
+      const data = await fetchDesigns(session.token);
 
       if (data.error) throw new Error(data.error);
 
@@ -30,27 +31,28 @@ export default function MyDesignsPage() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to load designs.");
     }
-  }, [email]);
+  }, [token, loadAccount]);
 
   useEffect(() => {
-    if (!email) return;
+    if (!token) return;
     const timer = window.setTimeout(() => {
       void loadDesigns();
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [email, loadDesigns]);
+  }, [token, loadDesigns]);
 
   async function deleteDesign(design: SavedDesign) {
     if (!window.confirm("Delete this design?")) return;
 
     try {
-      const token = await getTokenOrCreate(email);
+      const session = token ? { token } : await loadAccount();
+      if (!session?.token) throw new Error("Sign in to delete designs.");
       const response = await fetch("/api/prntd/delete-design", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${session.token}`,
         },
         body: JSON.stringify({ path: design.path }),
       });
@@ -98,7 +100,18 @@ export default function MyDesignsPage() {
             </p>
           </div>
 
-          <AccountConnect email={email} setEmail={setEmail} onConnect={loadDesigns} status={status} />
+          <div className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Customer Account</p>
+                <p className="mt-2 text-lg font-black">{email || "Loading..."}</p>
+                <p className="mt-1 text-sm text-[#6b7280]">{status || accountStatus}</p>
+              </div>
+              <button type="button" onClick={() => void loadDesigns()} className="portal-action">
+                Refresh Designs
+              </button>
+            </div>
+          </div>
 
           <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {designs.map((design) => (
@@ -139,7 +152,7 @@ export default function MyDesignsPage() {
           {designs.length === 0 && (
             <div className="prntd-glass mt-6 p-8 text-center">
               <p className="text-lg font-bold">No saved designs loaded.</p>
-              <p className="mt-2 text-[#6b7280]">Create one from the design generator or connect your account.</p>
+              <p className="mt-2 text-[#6b7280]">Create one from the design generator and it will appear here automatically.</p>
             </div>
           )}
         </section>

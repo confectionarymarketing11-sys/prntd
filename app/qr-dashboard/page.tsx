@@ -1,15 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import AccountConnect from "@/components/AccountConnect";
 import PortalSidebar from "@/components/PortalSidebar";
 import ShopHeader from "@/components/ShopHeader";
+import { usePrntdAccount } from "@/hooks/usePrntdAccount";
 import {
   fetchQrAnalytics,
   fetchQrLinks,
   fetchSubscription,
-  getStoredEmail,
-  getTokenOrCreate,
   QrAnalytics,
   QrLink,
   SubscriptionResponse,
@@ -25,7 +23,7 @@ function slugify(value: string) {
 }
 
 export default function QrDashboardPage() {
-  const [email, setEmail] = useState(getStoredEmail);
+  const { email, token, status: accountStatus, loadAccount } = usePrntdAccount();
   const [status, setStatus] = useState("");
   const [qrs, setQrs] = useState<QrLink[]>([]);
   const [analytics, setAnalytics] = useState<QrAnalytics | null>(null);
@@ -38,8 +36,10 @@ export default function QrDashboardPage() {
   const [staticQrData, setStaticQrData] = useState("");
 
   const refresh = useCallback(async () => {
-    if (!email.trim()) {
-      setStatus("Enter your account email to load QR data.");
+    const session = email && token ? { email, token } : await loadAccount();
+
+    if (!session?.email) {
+      setStatus("Sign in to load QR data.");
       return;
     }
 
@@ -47,9 +47,9 @@ export default function QrDashboardPage() {
 
     try {
       const [qrData, analyticsData, subscriptionData] = await Promise.all([
-        fetchQrLinks(email),
-        fetchQrAnalytics(email),
-        fetchSubscription(email),
+        fetchQrLinks(session.email),
+        fetchQrAnalytics(session.email),
+        fetchSubscription(session.email),
       ]);
 
       setQrs(Array.isArray(qrData) ? qrData : []);
@@ -59,16 +59,16 @@ export default function QrDashboardPage() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to load QR dashboard.");
     }
-  }, [email]);
+  }, [email, token, loadAccount]);
 
   useEffect(() => {
-    if (!email) return;
+    if (!email || !token) return;
     const timer = window.setTimeout(() => {
       void refresh();
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [email, refresh]);
+  }, [email, token, refresh]);
 
   const stats = useMemo(
     () => [
@@ -92,12 +92,13 @@ export default function QrDashboardPage() {
     setStatus("Creating QR code...");
 
     try {
-      const token = await getTokenOrCreate(email);
+      const session = token ? { token } : await loadAccount();
+      if (!session?.token) throw new Error("Sign in to create QR codes.");
       const response = await fetch("/api/prntd/create-qr", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${session.token}`,
         },
         body: JSON.stringify({
           title,
@@ -152,12 +153,13 @@ export default function QrDashboardPage() {
 
   async function updateQr(qr: QrLink, nextUrl: string) {
     try {
-      const token = await getTokenOrCreate(email);
+      const session = token ? { token } : await loadAccount();
+      if (!session?.token) throw new Error("Sign in to update QR codes.");
       const response = await fetch("/api/prntd/update-qr", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${session.token}`,
         },
         body: JSON.stringify({
           slug: qr.slug,
@@ -178,12 +180,13 @@ export default function QrDashboardPage() {
     if (!window.confirm(`Delete ${qr.title}?`)) return;
 
     try {
-      const token = await getTokenOrCreate(email);
+      const session = token ? { token } : await loadAccount();
+      if (!session?.token) throw new Error("Sign in to delete QR codes.");
       const response = await fetch("/api/prntd/delete-qr", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${session.token}`,
         },
         body: JSON.stringify({ slug: qr.slug }),
       });
@@ -210,7 +213,18 @@ export default function QrDashboardPage() {
             </p>
           </div>
 
-          <AccountConnect email={email} setEmail={setEmail} onConnect={refresh} status={status} />
+          <div className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Customer Account</p>
+                <p className="mt-2 text-lg font-black">{email || "Loading..."}</p>
+                <p className="mt-1 text-sm text-[#6b7280]">{status || accountStatus}</p>
+              </div>
+              <button type="button" onClick={() => void refresh()} className="portal-action">
+                Refresh QR Data
+              </button>
+            </div>
+          </div>
 
           <section className="prntd-glass mt-6 p-6">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
@@ -218,7 +232,7 @@ export default function QrDashboardPage() {
                 <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#4f46e5]">Free Static QR</p>
                 <h2 className="mt-2 text-3xl font-black">Make a non-dynamic QR code</h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6b7280]">
-                  Static QR codes are free and do not require an account. They point directly to the URL or text you enter, so
+                  Static QR codes are free and do not use credits or a dynamic subscription. They point directly to the URL or text you enter, so
                   the destination cannot be edited later and scans are not tracked.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ShopHeader from "@/components/ShopHeader";
+import { usePrntdAccount } from "@/hooks/usePrntdAccount";
 
 type SubscriptionPlan = {
   id: "starter" | "pro" | "business";
@@ -63,20 +64,20 @@ const creditPacks = [
 ];
 
 export default function SubscriptionsPage() {
-  const [email, setEmail] = useState("");
+  const { email, status: accountStatus } = usePrntdAccount();
   const [currentPlan, setCurrentPlan] = useState("none");
-  const [status, setStatus] = useState("Enter your account email to check your current plan.");
+  const [status, setStatus] = useState("Loading your subscription...");
 
-  async function checkPlan() {
-    if (!email.trim()) {
-      setStatus("Enter your account email to check your current plan.");
+  const checkPlan = useCallback(async () => {
+    if (!email) {
+      setStatus(accountStatus);
       return;
     }
 
     setStatus("Checking subscription...");
 
     try {
-      const response = await fetch(`/api/prntd/get-subscription?email=${encodeURIComponent(email.trim())}`);
+      const response = await fetch(`/api/prntd/get-subscription?email=${encodeURIComponent(email)}`);
       const data = (await response.json()) as { plan_type?: string; error?: string };
 
       if (!response.ok) {
@@ -88,7 +89,16 @@ export default function SubscriptionsPage() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Subscription lookup failed.");
     }
-  }
+  }, [accountStatus, email]);
+
+  useEffect(() => {
+    if (!email) return;
+    const timer = window.setTimeout(() => {
+      void checkPlan();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [email, checkPlan]);
 
   return (
     <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
@@ -102,10 +112,11 @@ export default function SubscriptionsPage() {
           <p className="mx-auto mt-4 max-w-[760px] text-[17px] leading-7 text-[#6b7280]">
             Unlock dynamic QR codes, analytics, saved designs, customization, and premium business tools.
           </p>
-          <div className="mx-auto mt-6 flex max-w-xl gap-2 max-sm:flex-col">
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="Account email" className="portal-field flex-1" />
-            <button type="button" onClick={checkPlan} className="rounded-[18px] bg-[linear-gradient(135deg,#3b82f6,#6366f1_45%,#7c3aed)] px-5 py-3 text-sm font-extrabold text-white">
-              Check Plan
+          <div className="mx-auto mt-6 max-w-xl rounded-[22px] border border-white/70 bg-white px-5 py-4 text-left shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
+            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Customer Account</p>
+            <p className="mt-1 font-black text-[#111827]">{email || "Loading..."}</p>
+            <button type="button" onClick={() => void checkPlan()} className="portal-action mt-3">
+              Refresh Plan
             </button>
           </div>
           <p className="mt-3 text-sm font-semibold text-[#6b7280]">{status}</p>

@@ -145,7 +145,7 @@ export async function requireCustomerUser() {
   const user = await getCustomerUser();
 
   if (!user) {
-    redirect("/login?next=/account");
+    redirect("/login?next=/dashboard");
   }
 
   return user;
@@ -155,6 +155,6 @@ export async function redirectIfCustomerLoggedIn() {
   const user = await getCustomerUser();
 
   if (user) {
-    redirect("/account");
+    redirect("/dashboard");
   }
 }

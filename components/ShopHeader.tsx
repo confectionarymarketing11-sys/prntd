@@ -11,7 +11,7 @@ const navItems = [
   { href: "/design-generator", label: "Design Creator" },
   { href: "/designer", label: "Designer" },
   { href: "/subscriptions", label: "Subscriptions" },
-  { href: "/account", label: "Account" },
+  { href: "/dashboard", label: "Customer Portal" },
   { href: "/cart", label: "Cart" },
 ];
 

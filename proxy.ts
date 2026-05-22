@@ -1,7 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const protectedCustomerPaths = ["/account"];
+const protectedCustomerPaths = [
+  "/account",
+  "/dashboard",
+  "/design-generator",
+  "/background-remover",
+  "/qr-dashboard",
+  "/my-designs",
+  "/edit-design",
+];
 const publicAuthPaths = ["/login", "/signup", "/forgot-password"];
 
 function hasSupabaseConfig() {
@@ -57,7 +65,7 @@ export async function proxy(request: NextRequest) {
 
   if (isPublicAuthPath && user) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/account";
+    redirectUrl.pathname = "/dashboard";
     redirectUrl.search = "";
     return NextResponse.redirect(redirectUrl);
   }
@@ -66,5 +74,16 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*", "/login", "/signup", "/forgot-password"],
+  matcher: [
+    "/account/:path*",
+    "/dashboard/:path*",
+    "/design-generator/:path*",
+    "/background-remover/:path*",
+    "/qr-dashboard/:path*",
+    "/my-designs/:path*",
+    "/edit-design/:path*",
+    "/login",
+    "/signup",
+    "/forgot-password",
+  ],
 };

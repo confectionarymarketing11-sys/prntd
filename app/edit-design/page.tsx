@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import AccountConnect from "@/components/AccountConnect";
 import PortalSidebar from "@/components/PortalSidebar";
 import ShopHeader from "@/components/ShopHeader";
-import { downloadUrl, fetchCredits, getStoredEmail, getTokenOrCreate } from "@/lib/prntdClient";
+import { usePrntdAccount } from "@/hooks/usePrntdAccount";
+import { downloadUrl, fetchCredits } from "@/lib/prntdClient";
 
 export default function EditDesignPage() {
-  const [email, setEmail] = useState(getStoredEmail);
+  const { email, token, status: accountStatus, loadAccount } = usePrntdAccount();
   const [status, setStatus] = useState("");
   const [credits, setCredits] = useState("Credits: --");
   const [previewUrl, setPreviewUrl] = useState("");
@@ -37,14 +37,25 @@ export default function EditDesignPage() {
 
   async function connect() {
     try {
-      const token = await getTokenOrCreate(email);
-      const data = await fetchCredits(token);
+      const session = token ? { token } : await loadAccount();
+      if (!session?.token) throw new Error("Sign in to edit designs.");
+      const data = await fetchCredits(session.token);
       setCredits(`Credits: ${data.total_credits ?? "--"}`);
-      setStatus("Account connected.");
+      setStatus("Account synced.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to connect account.");
+      setStatus(error instanceof Error ? error.message : "Unable to sync account.");
     }
   }
+
+  useEffect(() => {
+    if (!token) return;
+    const timer = window.setTimeout(() => {
+      void connect();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   function setFile(file: File | null) {
     if (!file) return;
@@ -72,7 +83,8 @@ export default function EditDesignPage() {
     setStatus("Applying edit...");
 
     try {
-      const token = await getTokenOrCreate(email);
+      const session = token ? { token } : await loadAccount();
+      if (!session?.token) throw new Error("Sign in to edit designs.");
       const blob = await imageBlob();
       const formData = new FormData();
       formData.append("image", blob, "design.png");
@@ -82,7 +94,7 @@ export default function EditDesignPage() {
       const response = await fetch("/api/prntd/edit-image", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${session.token}`,
         },
         body: formData,
       });
@@ -99,7 +111,7 @@ export default function EditDesignPage() {
       setStatus("Edit complete. Download started.");
       downloadUrl(data.imageUrl, `edited-${Date.now()}.png`);
 
-      const creditsData = await fetchCredits(token);
+      const creditsData = await fetchCredits(session.token);
       setCredits(`Credits: ${creditsData.total_credits ?? "--"}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Edit failed.");
@@ -120,7 +132,20 @@ export default function EditDesignPage() {
             <p className="mt-3 max-w-3xl text-lg leading-8 text-[#6b7280]">Upload or load a saved design, describe the change, and generate a new version.</p>
           </div>
 
-          <AccountConnect email={email} setEmail={setEmail} onConnect={connect} status={`${credits} • ${status}`} />
+          <div className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Customer Account</p>
+                <p className="mt-2 text-lg font-black">{email || "Loading..."}</p>
+                <p className="mt-1 text-sm text-[#6b7280]">
+                  {credits} • {status || accountStatus}
+                </p>
+              </div>
+              <button type="button" onClick={() => void connect()} className="portal-action">
+                Refresh Credits
+              </button>
+            </div>
+          </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
             <section

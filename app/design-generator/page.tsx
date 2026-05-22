@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ShopHeader from "@/components/ShopHeader";
+import { usePrntdAccount } from "@/hooks/usePrntdAccount";
 
 type ProductChoice = {
   label: string;
@@ -78,12 +79,6 @@ const styleOptions = [
   "text",
 ];
 
-function getSavedEmail() {
-  if (typeof window === "undefined") return "";
-
-  return localStorage.getItem("prntd_customer_email") ?? localStorage.getItem("prntd_email") ?? "";
-}
-
 function getSpeechRecognitionConstructor() {
   if (typeof window === "undefined") return undefined;
 
@@ -125,7 +120,7 @@ function downloadImage(url: string) {
 }
 
 export default function DesignGeneratorPage() {
-  const [email, setEmail] = useState(getSavedEmail);
+  const { email, token: accountToken, status: accountStatus, loadAccount } = usePrntdAccount();
   const [authToken, setAuthToken] = useState("");
   const [credits, setCredits] = useState("Credits: --");
   const [selectedProduct, setSelectedProduct] = useState("");
@@ -179,35 +174,9 @@ export default function DesignGeneratorPage() {
     return "Create Your Design";
   }, [selectedProduct, businessCardDetails, brandDetails]);
 
-  async function loadAuthToken(nextEmail = email) {
-    if (!nextEmail.trim()) return "";
-
-    const response = await fetch(`${apiBase}/auth`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email: nextEmail.trim() }),
-    });
-
-    if (!response.ok) {
-      setCredits("Credits: --");
-      return "";
-    }
-
-    const data = (await response.json()) as { token?: string };
-
-    if (!data.token) return "";
-
-    localStorage.setItem("prntd_customer_email", nextEmail.trim());
-    setAuthToken(data.token);
-
-    return data.token;
-  }
-
-  async function loadDesignCredits(nextToken = authToken) {
+  const loadDesignCredits = useCallback(async (nextToken = authToken) => {
     if (!nextToken) {
-      setCredits(email.trim() ? "Credits: --" : "Enter email to load credits");
+      setCredits("Credits: --");
       return;
     }
 
@@ -228,11 +197,26 @@ export default function DesignGeneratorPage() {
     } catch {
       setCredits("Credits: --");
     }
-  }
+  }, [authToken]);
 
-  async function connectAccount() {
-    const token = await loadAuthToken(email);
-    await loadDesignCredits(token);
+  useEffect(() => {
+    if (!accountToken) return;
+    const timer = window.setTimeout(() => {
+      void loadDesignCredits(accountToken);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [accountToken, loadDesignCredits]);
+
+  async function ensureAuthToken() {
+    if (authToken || accountToken) return authToken || accountToken;
+    const session = accountToken ? { token: accountToken } : await loadAccount();
+
+    if (!session?.token) return "";
+
+    setAuthToken(session.token);
+    await loadDesignCredits(session.token);
+    return session.token;
   }
 
   function selectProduct(product: ProductChoice) {
@@ -364,14 +348,10 @@ export default function DesignGeneratorPage() {
       return;
     }
 
-    let token = authToken;
+    const token = await ensureAuthToken();
 
     if (!token) {
-      token = await loadAuthToken(email);
-    }
-
-    if (!token) {
-      alert("Enter your account email before creating a design.");
+      alert("Sign in before creating a design.");
       return;
     }
 
@@ -426,14 +406,10 @@ export default function DesignGeneratorPage() {
       return;
     }
 
-    let token = authToken;
+    const token = await ensureAuthToken();
 
     if (!token) {
-      token = await loadAuthToken(email);
-    }
-
-    if (!token) {
-      alert("Enter your account email before editing a design.");
+      alert("Sign in before editing a design.");
       return;
     }
 
@@ -558,7 +534,7 @@ export default function DesignGeneratorPage() {
           </p>
 
           <div className="mt-[30px] flex flex-wrap justify-center gap-3.5">
-            <Link href="/products" className="design-top-btn">
+            <Link href="/subscriptions" className="design-top-btn">
               Buy Credits
             </Link>
             <Link href="/dashboard" className="design-top-btn">
@@ -572,16 +548,10 @@ export default function DesignGeneratorPage() {
           <div className="mx-auto mt-[18px] grid max-w-xl gap-3 text-sm text-[#6b7280]">
             <p>{credits}</p>
             <p>Each design creation uses 1 credit</p>
-            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="Account email for credits"
-                className="h-12 rounded-full border border-[#e5e7eb] bg-white px-5 text-sm text-[#111827] outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-              />
-              <button type="button" onClick={connectAccount} className="design-top-btn !py-3">
-                Load Credits
-              </button>
+            <div className="rounded-[22px] border border-white/70 bg-white px-5 py-4 text-left shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
+              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Customer Account</p>
+              <p className="mt-1 font-black text-[#111827]">{email || "Loading..."}</p>
+              <p className="mt-1 text-xs text-[#6b7280]">{accountStatus}</p>
             </div>
           </div>
         </div>

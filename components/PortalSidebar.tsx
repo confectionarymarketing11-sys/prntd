@@ -9,6 +9,7 @@ const portalLinks = [
   { href: "/design-generator", label: "Design Tools", token: "AI" },
   { href: "/background-remover", label: "Background Remover", token: "BG" },
   { href: "/my-designs", label: "Saved Designs", token: "DS" },
+  { href: "/account/settings", label: "Account Details", token: "AC" },
   { href: "/products", label: "Print Products", token: "PR" },
 ];
 

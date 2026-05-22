@@ -39,7 +39,7 @@ const authCopy = {
   },
 } satisfies Record<AuthMode, Record<string, string>>;
 
-export default function AuthForm({ mode, nextPath = "/account", initialMessage = "" }: AuthFormProps) {
+export default function AuthForm({ mode, nextPath = "/dashboard", initialMessage = "" }: AuthFormProps) {
   const copy = authCopy[mode];
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -64,7 +64,7 @@ export default function AuthForm({ mode, nextPath = "/account", initialMessage =
 
         if (error) throw error;
 
-        window.location.href = nextPath || "/account";
+        window.location.href = nextPath || "/dashboard";
         return;
       }
 
@@ -73,7 +73,7 @@ export default function AuthForm({ mode, nextPath = "/account", initialMessage =
           email: email.trim().toLowerCase(),
           password,
           options: {
-            emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(nextPath || "/account")}`,
+            emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(nextPath || "/dashboard")}`,
             data: {
               full_name: fullName.trim(),
             },

@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import AccountConnect from "@/components/AccountConnect";
 import PortalSidebar from "@/components/PortalSidebar";
 import ShopHeader from "@/components/ShopHeader";
-import { fetchCredits, getStoredEmail, getTokenOrCreate } from "@/lib/prntdClient";
+import { usePrntdAccount } from "@/hooks/usePrntdAccount";
+import { fetchCredits } from "@/lib/prntdClient";
 
 export default function BackgroundRemoverPage() {
-  const [email, setEmail] = useState(getStoredEmail);
+  const { email: accountEmail, token: accountToken, status: accountStatus, loadAccount: loadPrntdAccount } = usePrntdAccount();
   const [status, setStatus] = useState("");
   const [credits, setCredits] = useState("Credits: --");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -19,29 +19,26 @@ export default function BackgroundRemoverPage() {
   const progressInterval = useRef<number | null>(null);
 
   const loadAccount = useCallback(async () => {
-    if (!email.trim()) {
-      setStatus("Enter your account email to load credits.");
-      return;
-    }
+    const session = accountToken ? { token: accountToken } : await loadPrntdAccount();
+    if (!session?.token) return;
 
     try {
-      const token = await getTokenOrCreate(email);
-      const data = await fetchCredits(token);
+      const data = await fetchCredits(session.token);
       setCredits(`Credits: ${data.total_credits ?? "--"}`);
-      setStatus("Account connected.");
+      setStatus("Account synced.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to connect account.");
+      setStatus(error instanceof Error ? error.message : "Unable to sync account.");
     }
-  }, [email]);
+  }, [accountToken, loadPrntdAccount]);
 
   useEffect(() => {
-    if (!email) return;
+    if (!accountToken) return;
     const timer = window.setTimeout(() => {
       void loadAccount();
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [email, loadAccount]);
+  }, [accountToken, loadAccount]);
 
   function setFile(file: File | null) {
     if (!file) return;
@@ -72,14 +69,13 @@ export default function BackgroundRemoverPage() {
       return;
     }
 
-    let token = "";
+    const session = accountToken ? { token: accountToken } : await loadPrntdAccount();
 
-    try {
-      token = await getTokenOrCreate(email);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to authenticate.");
+    if (!session?.token) {
+      setStatus("Sign in to remove backgrounds.");
       return;
     }
+    const token = session.token;
 
     setProcessing(true);
     setStatus("Removing background...");
@@ -144,7 +140,13 @@ export default function BackgroundRemoverPage() {
             </p>
           </div>
 
-          <AccountConnect email={email} setEmail={setEmail} onConnect={loadAccount} status={`${credits} • ${status}`} />
+          <div className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
+            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Customer Account</p>
+            <p className="mt-2 text-lg font-black">{accountEmail || "Loading..."}</p>
+            <p className="mt-1 text-sm text-[#6b7280]">
+              {credits} • {status || accountStatus}
+            </p>
+          </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
             <section
