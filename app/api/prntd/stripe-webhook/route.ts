@@ -8,5 +8,5 @@ async function loadLegacy() {
 }
 
 export async function POST(request: Request) {
-  return legacyRoute.legacyPost(await loadLegacy(), request);
+  return legacyRoute.legacyPost(loadLegacy(), request);
 }

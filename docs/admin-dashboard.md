@@ -29,6 +29,7 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 SHOPIFY_WEBHOOK_SECRET=
 ALLOWED_ORIGIN=
+CRON_SECRET=
 ```
 
 `NEXT_PUBLIC_*` is used for Supabase Auth session handling. `SUPABASE_SERVICE_ROLE_KEY` is server-only and is used after the admin user is authenticated and authorized.

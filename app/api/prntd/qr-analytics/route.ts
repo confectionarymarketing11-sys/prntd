@@ -8,9 +8,9 @@ async function loadLegacy() {
 }
 
 export async function GET(request: Request) {
-  return legacyRoute.legacyGet(await loadLegacy(), request);
+  return legacyRoute.legacyGet(loadLegacy(), request);
 }
 
 export async function OPTIONS(request: Request) {
-  return legacyRoute.legacyOptions(await loadLegacy(), request);
+  return legacyRoute.legacyOptions(loadLegacy(), request);
 }
