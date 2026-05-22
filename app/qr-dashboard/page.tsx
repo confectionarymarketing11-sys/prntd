@@ -34,6 +34,8 @@ export default function QrDashboardPage() {
   const [slug, setSlug] = useState("");
   const [destination, setDestination] = useState("");
   const [creating, setCreating] = useState(false);
+  const [staticQrValue, setStaticQrValue] = useState("");
+  const [staticQrData, setStaticQrData] = useState("");
 
   const refresh = useCallback(async () => {
     if (!email.trim()) {
@@ -122,6 +124,32 @@ export default function QrDashboardPage() {
     }
   }
 
+  function createStaticQr() {
+    const value = staticQrValue.trim();
+
+    if (!value) {
+      setStatus("Enter a URL or text value for your free static QR code.");
+      return;
+    }
+
+    setStaticQrData(value);
+    setStatus("Free static QR code generated. This QR does not track scans or use a redirect.");
+  }
+
+  function downloadStaticQr() {
+    if (!staticQrData) return;
+
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=900x900&format=png&data=${encodeURIComponent(staticQrData)}`;
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `prntd-static-qr-${Date.now()}.png`;
+    anchor.target = "_blank";
+    anchor.rel = "noreferrer";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }
+
   async function updateQr(qr: QrLink, nextUrl: string) {
     try {
       const token = await getTokenOrCreate(email);
@@ -183,6 +211,49 @@ export default function QrDashboardPage() {
           </div>
 
           <AccountConnect email={email} setEmail={setEmail} onConnect={refresh} status={status} />
+
+          <section className="prntd-glass mt-6 p-6">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#4f46e5]">Free Static QR</p>
+                <h2 className="mt-2 text-3xl font-black">Make a non-dynamic QR code</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6b7280]">
+                  Static QR codes are free and do not require an account. They point directly to the URL or text you enter, so
+                  the destination cannot be edited later and scans are not tracked.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <input
+                    value={staticQrValue}
+                    onChange={(event) => setStaticQrValue(event.target.value)}
+                    className="portal-field"
+                    placeholder="https://example.com or plain text"
+                  />
+                  <button type="button" onClick={createStaticQr} className="portal-action">
+                    Generate Free QR
+                  </button>
+                </div>
+              </div>
+              <div className="rounded-[24px] bg-white p-4 text-center shadow-[inset_0_0_0_1px_rgba(99,102,241,.08)]">
+                {staticQrData ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(staticQrData)}`}
+                      alt="Free static QR code"
+                      className="mx-auto aspect-square w-full max-w-[190px]"
+                    />
+                    <button type="button" onClick={downloadStaticQr} className="design-utility-btn mt-3 w-full">
+                      Download PNG
+                    </button>
+                  </>
+                ) : (
+                  <div className="grid min-h-[190px] place-items-center rounded-[20px] bg-[#f5f7fb] p-5 text-sm font-bold text-[#6b7280]">
+                    Your free QR preview appears here.
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
 
           <div className="mt-6 grid grid-cols-3 gap-4 max-[900px]:grid-cols-2 max-[640px]:grid-cols-1">
             {stats.map((stat) => (

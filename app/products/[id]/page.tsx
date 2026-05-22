@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import ProductDetail from "@/components/ProductDetail";
 import ShopHeader from "@/components/ShopHeader";
 import { shopProducts } from "@/data/shop";
@@ -14,6 +14,14 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const product = shopProducts.find((item) => item.id === id);
 
   if (!product) notFound();
+
+  if (product.category.toLowerCase() === "apparel") {
+    redirect(`/designer?product=${encodeURIComponent(product.id)}`);
+  }
+
+  if (product.id === "business-cards") {
+    redirect("/business-card-designer?product=business-cards");
+  }
 
   return (
     <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
