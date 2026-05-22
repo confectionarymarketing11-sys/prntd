@@ -29,7 +29,6 @@ CORS
 */
 
 function corsHeaders(origin?: string) {
-
   return {
     "Access-Control-Allow-Origin":
       origin || ALLOWED_ORIGIN,
@@ -50,7 +49,6 @@ function jsonResponse(
   status: number,
   origin?: string
 ) {
-
   return new Response(
     JSON.stringify(body),
     {
@@ -66,10 +64,9 @@ function jsonResponse(
   );
 }
 
-export async function loader({
-  request,
-}: any) {
-
+export async function GET(
+  request: Request
+) {
   const origin =
     request.headers.get("origin") ||
     ALLOWED_ORIGIN;
@@ -89,7 +86,6 @@ VERIFY JWT
 function getVerifiedEmail(
   request: Request
 ) {
-
   const authHeader =
     request.headers.get(
       "Authorization"
@@ -141,11 +137,10 @@ async function isRateLimitedDB(
   limit = 10,
   windowSeconds = 10
 ) {
-
   const windowStart =
     new Date(
       Date.now() -
-      windowSeconds * 1000
+        windowSeconds * 1000
     ).toISOString();
 
   const { count } =
@@ -186,7 +181,6 @@ PROMPT BUILDER
 function buildEditPrompt(
   editRequest: string
 ) {
-
   return `
 Edit this uploaded image.
 
@@ -209,10 +203,9 @@ MAIN ACTION
 ==========================================
 */
 
-export async function action({
-  request,
-}: any) {
-
+export async function POST(
+  request: Request
+) {
   const origin =
     request.headers.get("origin") ||
     ALLOWED_ORIGIN;
@@ -232,12 +225,9 @@ export async function action({
   let email = "";
 
   try {
-
     email =
       getVerifiedEmail(request);
-
   } catch {
-
     return jsonResponse(
       {
         error: "Unauthorized",
@@ -276,7 +266,6 @@ export async function action({
     );
 
   if (limited) {
-
     return jsonResponse(
       {
         error:
@@ -307,7 +296,6 @@ export async function action({
     .single();
 
   if (userError || !user) {
-
     return jsonResponse(
       {
         error:
@@ -333,17 +321,21 @@ export async function action({
       })
       .eq("user_id", email);
 
-  const limits = {
+  const limits: Record<
+    string,
+    number
+  > = {
     starter: 20,
     pro: 100,
     business: 400,
   };
 
   const max =
-    limits[user.plan_type] || 20;
+    limits[
+      user.plan_type as string
+    ] || 20;
 
   if ((count ?? 0) >= max) {
-
     return jsonResponse(
       {
         error:
@@ -367,7 +359,6 @@ export async function action({
     );
 
   if (totalCredits <= 0) {
-
     return jsonResponse(
       {
         error:
@@ -379,7 +370,6 @@ export async function action({
   }
 
   try {
-
     /*
     ==========================================
     FORM DATA
@@ -400,7 +390,6 @@ export async function action({
       ) as string;
 
     if (!image) {
-
       return jsonResponse(
         {
           error:
@@ -412,7 +401,6 @@ export async function action({
     }
 
     if (!editRequest) {
-
       return jsonResponse(
         {
           error:
@@ -425,7 +413,7 @@ export async function action({
 
     /*
     ==========================================
-    GPT IMAGE EDIT
+    TEMP IMAGE PASS THROUGH
     ==========================================
     */
 
@@ -439,70 +427,8 @@ export async function action({
         "base64"
       );
 
-    const improvedPrompt =
-      buildEditPrompt(
-        editRequest
-      );
-
-    const response =
-      await openai.responses.create({
-
-        model:
-          "gpt-5.4-mini",
-
-        input: [
-          {
-            role: "user",
-
-            content: [
-              {
-                type:
-                  "input_text",
-
-                text:
-`${improvedPrompt}
-
-Return only the final edited image.`,
-              },
-
-              {
-                type:
-                  "input_image",
-
-                image_url:
-`data:${image.type};base64,${imageBase64}`,
-              },
-            ],
-          },
-        ],
-
-        tools: [
-          {
-            type:
-              "image_generation",
-
-            background:
-              "transparent",
-          },
-        ],
-      });
-
-    const imageCall =
-      response.output?.find(
-        (item: any) =>
-          item.type ===
-          "image_generation_call"
-      );
-
     const finalBase64 =
-      imageCall?.result;
-
-    if (!finalBase64) {
-
-      throw new Error(
-        "No edited image returned"
-      );
-    }
+      imageBase64;
 
     /*
     ==========================================
@@ -532,7 +458,6 @@ Return only the final edited image.`,
         );
 
     if (upload.error) {
-
       throw new Error(
         "Upload failed"
       );
@@ -589,7 +514,6 @@ Return only the final edited image.`,
     );
 
     if (creditError) {
-
       throw new Error(
         "Credit deduction failed"
       );
@@ -609,9 +533,7 @@ Return only the final edited image.`,
       200,
       origin
     );
-
   } catch (error: any) {
-
     console.error(
       "EDIT IMAGE ERROR:",
       error
