@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ClipboardList, Factory, Images, LogOut, PackageCheck, Truck } from "lucide-react";
+import { Boxes, ClipboardList, Factory, Images, LogOut, PackageCheck, Truck } from "lucide-react";
 import { signOutAdmin } from "@/app/admin/login/actions";
 import { Button } from "@/components/ui/button";
 import type { CurrentAdmin } from "@/features/admin/data/auth";
 
 const navItems = [
   { href: "/admin", label: "Orders", icon: ClipboardList },
+  { href: "/admin/products", label: "Products", icon: Boxes },
   { href: "/admin?status=printing", label: "Printing", icon: Factory },
   { href: "/admin?status=packing", label: "Packing", icon: PackageCheck },
   { href: "/admin?status=shipped", label: "Shipping", icon: Truck },
