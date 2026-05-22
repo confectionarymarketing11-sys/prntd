@@ -9,6 +9,10 @@
 
 ## Completed Fixes
 
+- Added route-specific timeout control for `/api/prntd/generate-design` via `PRNTD_GENERATE_DESIGN_TIMEOUT_MS`.
+- Added OpenAI SDK timeout/retry controls for generation flows via `OPENAI_IMAGE_TIMEOUT_MS` and `OPENAI_MAX_RETRIES`.
+- Added structured timing logs to `generate-design` covering auth, rate-limit checks, credit/design lookups, prompt enhancement, image generation, storage upload, signed URL creation, DB insert, credit deduction, and total request completion.
+- Skipped the prompt-enhancement chat call for Ultra mode because the existing business logic already ignores the enhanced prompt and uses a simplified original prompt for Ultra.
 - Added shared API utilities:
   - `lib/api-response.ts` for JSON responses, safe error responses, and timeout wrappers.
   - `lib/cors.ts` for centralized CORS behavior.

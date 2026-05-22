@@ -13,10 +13,75 @@ const JWT_SECRET =
   process.env.JWT_SECRET!;
 const ALLOWED_ORIGIN =
   process.env.ALLOWED_ORIGIN || "";
+const OPENAI_IMAGE_TIMEOUT_MS =
+  Number(process.env.OPENAI_IMAGE_TIMEOUT_MS || 90000);
+const OPENAI_MAX_RETRIES =
+  Number(process.env.OPENAI_MAX_RETRIES || 1);
 
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
+  timeout: Number.isFinite(OPENAI_IMAGE_TIMEOUT_MS)
+    ? OPENAI_IMAGE_TIMEOUT_MS
+    : 90000,
+  maxRetries: Number.isFinite(OPENAI_MAX_RETRIES)
+    ? OPENAI_MAX_RETRIES
+    : 1,
 });
+
+function safeError(error: any) {
+  return {
+    name: error?.name,
+    message: error?.message,
+    status: error?.status,
+    code: error?.code,
+    type: error?.type,
+  };
+}
+
+function createGenerateLogger() {
+  const requestId =
+    globalThis.crypto?.randomUUID?.() ||
+    `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const start = Date.now();
+  let last = start;
+
+  return {
+    requestId,
+    mark(stage: string, details: Record<string, any> = {}) {
+      const now = Date.now();
+
+      console.log(
+        JSON.stringify({
+          scope: "prntd.generate-design",
+          requestId,
+          stage,
+          elapsedMs: now - start,
+          stepMs: now - last,
+          ...details,
+        })
+      );
+
+      last = now;
+    },
+    error(stage: string, error: any, details: Record<string, any> = {}) {
+      const now = Date.now();
+
+      console.error(
+        JSON.stringify({
+          scope: "prntd.generate-design",
+          requestId,
+          stage,
+          elapsedMs: now - start,
+          stepMs: now - last,
+          error: safeError(error),
+          ...details,
+        })
+      );
+
+      last = now;
+    },
+  };
+}
 
 /*
 ========================
@@ -200,6 +265,14 @@ MAIN POST HANDLER
 export async function action({
   request,
 }: any) {
+  const log =
+    createGenerateLogger();
+
+  log.mark("request_received", {
+    method: request.method,
+    origin: request.headers.get("origin") || "",
+  });
+
   const origin =
     request.headers.get("origin") ||
     ALLOWED_ORIGIN;
@@ -210,9 +283,15 @@ export async function action({
       SUPABASE_SERVICE_ROLE_KEY
     );
 
+  log.mark("supabase_client_created");
+
   cleanupRateLimits(
   supabase
-).catch(console.error);
+).catch((error) => {
+  log.error("rate_limit_cleanup_failed", error);
+});
+
+  log.mark("rate_limit_cleanup_scheduled");
 
   const rawIp =
     request.headers.get(
@@ -234,7 +313,14 @@ export async function action({
       getVerifiedEmail(
         request
       );
+
+    log.mark("auth_verified", {
+      emailHash:
+        Buffer.from(email).toString("base64").slice(0, 10),
+    });
   } catch (error: any) {
+    log.error("auth_failed", error);
+
     return jsonResponse(
       {
         error:
@@ -257,6 +343,11 @@ export async function action({
       identifier
     )
   ) {
+    log.mark("rate_limited", {
+      identifierHash:
+        Buffer.from(identifier).toString("base64").slice(0, 12),
+    });
+
     return jsonResponse(
       {
         error:
@@ -267,6 +358,8 @@ export async function action({
     );
   }
 
+  log.mark("rate_limit_checked");
+
   const {
     data: user,
     error,
@@ -275,6 +368,11 @@ export async function action({
     .select("credits, subscription_credits")
     .eq("email", email)
     .single();
+
+  log.mark("credits_loaded", {
+    foundUser: Boolean(user),
+    userError: error?.message,
+  });
 
 /*
 ========================
@@ -287,11 +385,19 @@ const { count } = await supabase
   .select("*", { count: "exact", head: true })
   .eq("user_id", email);
 
+log.mark("design_count_loaded", {
+  designCount: count ?? 0,
+});
+
 const { data: userPlan } = await supabase
   .from("bg_users")
   .select("plan_type")
   .eq("email", email)
   .single();
+
+log.mark("plan_loaded", {
+  plan: userPlan?.plan_type || "starter",
+});
 
 const limits = {
   starter: 20,
@@ -303,6 +409,12 @@ const plan = userPlan?.plan_type || "starter";
 const max = limits[plan] || 25;
 
 if ((count ?? 0) >= max) {
+  log.mark("design_limit_reached", {
+    designCount: count ?? 0,
+    max,
+    plan,
+  });
+
   return jsonResponse(
     { error: "Design limit reached for your plan" },
     403,
@@ -311,6 +423,8 @@ if ((count ?? 0) >= max) {
 }
 
   if (error || !user) {
+    log.mark("user_not_found");
+
     return jsonResponse(
       {
         error:
@@ -326,6 +440,11 @@ const sub = Number(user.subscription_credits || 0);
 const total = purchased + sub;
 
 if (total <= 0) {
+  log.mark("no_credits_left", {
+    purchased,
+    subscription: sub,
+  });
+
   return jsonResponse(
     { error: "No credits left" },
     403,
@@ -336,6 +455,19 @@ if (total <= 0) {
   try {
     const body =
   await request.json();
+
+log.mark("body_parsed", {
+  promptLength:
+    typeof body.prompt === "string"
+      ? body.prompt.length
+      : 0,
+  quality:
+    body.quality || "standard",
+  transparentBackground:
+    Boolean(body.transparentBackground),
+  productType:
+    body.productType || "",
+});
 
 const userPrompt =
   body.prompt;
@@ -412,20 +544,41 @@ if (quality === "ultra") {
   }
 }
 
+log.mark("quality_mapped", {
+  quality,
+  imageSize,
+  imageQuality,
+  imageModel,
+  transparentBackground,
+});
+
     /*
 ========================
 TEXT MODEL PROMPT BUILDER
 ========================
 */
 
-const promptBuilder =
-  await openai.chat.completions.create(
-    {
-      model: "gpt-4.1",
-      messages: [
-        {
-          role: "system",
-          content: `
+let improvedPrompt =
+  userPrompt;
+
+if (quality === "ultra") {
+  log.mark("prompt_enhancement_skipped", {
+    reason:
+      "ultra uses simplified original prompt",
+  });
+} else {
+  log.mark("prompt_enhancement_start", {
+    model: "gpt-4.1",
+  });
+
+  const promptBuilder =
+    await openai.chat.completions.create(
+      {
+        model: "gpt-4.1",
+        messages: [
+          {
+            role: "system",
+            content: `
 You are an expert print production designer.
 
 Rewrite customer requests into clear, high-quality design prompts for professional printing.
@@ -437,22 +590,25 @@ Rules:
 - Prioritize clean print-ready production quality
 
           `,
-        },
-        {
-          role: "user",
-          content:
-            userPrompt,
-        },
-      ],
-      temperature: 0.7,
-    }
-  );
+          },
+          {
+            role: "user",
+            content:
+              userPrompt,
+          },
+        ],
+        temperature: 0.7,
+      }
+    );
 
-const improvedPrompt =
-  promptBuilder
-    .choices?.[0]
-    ?.message?.content ||
-  userPrompt;
+  log.mark("prompt_enhancement_complete");
+
+  improvedPrompt =
+    promptBuilder
+      .choices?.[0]
+      ?.message?.content ||
+    userPrompt;
+}
 
 /*
 ========================
@@ -479,21 +635,28 @@ if (quality === "ultra") {
   `;
 }
 
-console.log(
-  "USER PROMPT:",
-  userPrompt
-);
-
-console.log(
-  "FINAL PROMPT:",
-  finalPrompt
-);
+log.mark("final_prompt_ready", {
+  improvedPromptLength:
+    typeof improvedPrompt === "string"
+      ? improvedPrompt.length
+      : 0,
+  finalPromptLength:
+    typeof finalPrompt === "string"
+      ? finalPrompt.length
+      : 0,
+});
 
 /*
 ========================
 IMAGE GENERATION
 ========================
 */
+
+log.mark("image_generation_start", {
+  model: imageModel,
+  size: imageSize,
+  quality: imageQuality,
+});
 
 const response =
   await openai.images.generate(
@@ -517,6 +680,11 @@ const response =
     }
   );
 
+log.mark("image_generation_complete", {
+  hasImage:
+    Boolean(response.data?.[0]?.b64_json),
+});
+
     
 
     const imageBase64 =
@@ -524,6 +692,8 @@ const response =
         ?.b64_json;
 
     if (!imageBase64) {
+      log.mark("image_generation_empty_response");
+
       return jsonResponse(
         {
           error:
@@ -545,6 +715,13 @@ let insertedDesign: any = null;
 let filePath = "";
 
 try {
+
+  log.mark("storage_phase_start", {
+    imageBytesApprox:
+      Math.round(
+        imageBase64.length * 0.75
+      ),
+  });
 
   filePath =
     `${email}/${Date.now()}.png`;
@@ -573,18 +750,17 @@ try {
 
   if (uploadError) {
 
-    console.error(
-      "UPLOAD ERROR:",
+    log.error(
+      "upload_failed",
       uploadError
     );
 
     throw uploadError;
   }
 
-  console.log(
-    "UPLOAD SUCCESS:",
-    filePath
-  );
+  log.mark("upload_complete", {
+    filePath,
+  });
 
   // =========================
   // CREATE SIGNED URL
@@ -602,8 +778,8 @@ try {
 
   if (signedError) {
 
-    console.error(
-      "SIGNED URL ERROR:",
+    log.error(
+      "signed_url_failed",
       signedError
     );
   }
@@ -611,6 +787,11 @@ try {
   storedImageUrl =
     signedData?.signedUrl ||
     null;
+
+  log.mark("signed_url_complete", {
+    hasSignedUrl:
+      Boolean(storedImageUrl),
+  });
 
   // =========================
   // SAVE TO DATABASE
@@ -661,8 +842,8 @@ try {
 
   if (insertError) {
 
-    console.error(
-      "DB INSERT ERROR:",
+    log.error(
+      "db_insert_failed",
       insertError
     );
 
@@ -671,14 +852,15 @@ try {
 
   insertedDesign = data;
 
-  console.log(
-    "DB INSERT SUCCESS"
-  );
+  log.mark("db_insert_complete", {
+    designId:
+      insertedDesign?.id || null,
+  });
 
 } catch (err) {
 
-  console.error(
-    "STORAGE FAIL:",
+  log.error(
+    "storage_or_db_failed",
     err
   );
 }    
@@ -696,7 +878,7 @@ const { error: creditError } = await supabase
   });
 
 if (creditError) {
-  console.error("Credit deduction failed:", creditError);
+  log.error("credit_deduction_failed", creditError);
 
   return jsonResponse(
     { error: "Credit deduction failed" },
@@ -704,6 +886,15 @@ if (creditError) {
     origin
   );
 }
+
+log.mark("credit_deduction_complete");
+
+log.mark("request_complete", {
+  hasImageUrl:
+    Boolean(storedImageUrl),
+  designId:
+    insertedDesign?.id || null,
+});
 
     return jsonResponse(
   {
@@ -720,17 +911,28 @@ if (creditError) {
   origin
 );
   } catch (err) {
-    console.error(
-      "Generate design error:",
+    log.error(
+      "generation_failed",
       err
     );
+
+    const status =
+      err?.status === 408 ||
+      err?.code === "ETIMEDOUT" ||
+      err?.name === "TimeoutError"
+        ? 504
+        : 500;
 
     return jsonResponse(
       {
         error:
-          "Generation failed",
+          status === 504
+            ? "Image generation timed out. Please try again."
+            : "Generation failed",
+        requestId:
+          log.requestId,
       },
-      500,
+      status,
       origin
     );
   }
