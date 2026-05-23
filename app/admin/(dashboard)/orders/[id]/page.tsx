@@ -82,11 +82,15 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                 <p className="font-black">{order.customer_name || order.customer?.name || "Unknown customer"}</p>
                 <p className="text-slate-500">{order.customer_email}</p>
                 {order.customer_phone && <p className="text-slate-500">{order.customer_phone}</p>}
+                {order.guest_checkout && <p className="mt-1 text-xs font-bold uppercase tracking-wide text-indigo-600">Guest checkout</p>}
               </div>
               <Separator />
               <div>
                 <p className="font-semibold">Shipping Address</p>
                 <p className="mt-1 leading-6 text-slate-600">{Object.values(order.shipping_address ?? {}).filter(Boolean).join(", ")}</p>
+                {order.shipping_method && (
+                  <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-500">Method: {order.shipping_method}</p>
+                )}
               </div>
               {order.notes && (
                 <>
@@ -111,7 +115,17 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               </div>
               <div className="flex justify-between">
                 <span>Shipping</span>
-                <strong>{formatCents(order.shipping_cents, order.currency)}</strong>
+                <strong>{formatCents(order.shipping_cost_cents ?? order.shipping_cents, order.currency)}</strong>
+              </div>
+              {Number(order.discount_cents ?? 0) > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <span>Discount</span>
+                  <strong>-{formatCents(Number(order.discount_cents ?? 0), order.currency)}</strong>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span>Taxable subtotal</span>
+                <strong>{formatCents(Math.max(0, order.subtotal_cents + (order.shipping_cost_cents ?? order.shipping_cents) - Number(order.discount_cents ?? 0)), order.currency)}</strong>
               </div>
               <div className="flex justify-between">
                 <span>Tax</span>
@@ -124,6 +138,10 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               </div>
             </CardContent>
           </Card>
+
+          {order.tax_breakdown && Object.keys(order.tax_breakdown).length > 0 && (
+            <JsonViewer title="Stripe Tax Breakdown" data={order.tax_breakdown} />
+          )}
 
           <ShipmentForm order={order} />
           <ProductionTimeline events={order.production_status_events ?? []} />

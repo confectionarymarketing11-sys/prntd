@@ -6,10 +6,8 @@ import type { User } from "@supabase/supabase-js";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const navItems = [
-  { href: "/", label: "Storefront" },
   { href: "/products", label: "Products" },
-  { href: "/design-generator", label: "Design Creator" },
-  { href: "/subscriptions", label: "Subscriptions" },
+  { href: "/design-tools", label: "Design Tools" },
   { href: "/dashboard", label: "Customer Portal" },
   { href: "/cart", label: "Cart" },
 ];

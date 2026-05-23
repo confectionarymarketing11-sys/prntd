@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { getEnv } from "@/lib/env";
 import { getOrCreateCustomerForEmail, PlatformCustomer } from "@/lib/auth/customer";
 import { recordCreditTransaction } from "@/lib/credits";
+import { orderConfirmationTemplate, sendTransactionalEmail } from "@/lib/email";
 import { recordDiscountRedemption } from "@/features/discounts/data/discounts";
 import { getStripe } from "@/lib/stripe";
 import {
@@ -43,6 +44,13 @@ function parseMetadataArray(value: string | undefined) {
   const parsed = parseMetadataJson(value);
 
   return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+}
+
+function formatCurrency(cents: number, currency: string) {
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: currency || "CAD",
+  }).format(cents / 100);
 }
 
 function stripeCustomerId(value: string | Stripe.Customer | Stripe.DeletedCustomer | null) {
@@ -262,7 +270,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const { data: existingOrder, error: existingError } = await supabase
     .from("orders")
     .select("id")
-    .eq("order_number", orderNumber)
+    .or(`order_number.eq.${orderNumber},external_order_id.eq.${session.id}`)
     .maybeSingle<{ id: string }>();
 
   if (existingError) {
@@ -303,6 +311,15 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   });
 
   let orderId = "";
+  const shippingCents = session.shipping_cost?.amount_total ?? Number(session.metadata?.shipping_cents ?? 0);
+  const discountAmountCents = Number(session.metadata?.discount_amount_cents ?? 0);
+  const shippingDiscountCents = Number(session.metadata?.shipping_discount_cents ?? 0);
+  const currency = (session.currency ?? "cad").toUpperCase();
+  const taxBreakdown = {
+    automatic_tax: session.automatic_tax ?? null,
+    total_details: session.total_details ?? null,
+    shipping_cost: session.shipping_cost ?? null,
+  };
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -317,12 +334,18 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       production_status: "pending",
       payment_status: "paid",
       subtotal_cents: session.amount_subtotal ?? 0,
-      shipping_cents: 0,
+      discount_cents: discountAmountCents + shippingDiscountCents,
+      shipping_cents: shippingCents,
       tax_cents: session.total_details?.amount_tax ?? 0,
       total_cents: session.amount_total ?? 0,
-      currency: (session.currency ?? "cad").toUpperCase(),
+      tax_breakdown: taxBreakdown,
+      shipping_method: session.metadata?.shipping_method ?? null,
+      shipping_cost_cents: shippingCents,
+      checkout_session_id: session.id,
+      guest_checkout: !customer.auth_user_id,
+      currency,
       notes: null,
-      source: "api",
+      source: "storefront",
       external_order_id: session.id,
     })
     .select("id")
@@ -343,12 +366,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           production_status: "pending",
           payment_status: "paid",
           subtotal_cents: session.amount_subtotal ?? 0,
-          shipping_cents: 0,
+          shipping_cents: shippingCents,
           tax_cents: session.total_details?.amount_tax ?? 0,
           total_cents: session.amount_total ?? 0,
-          currency: (session.currency ?? "cad").toUpperCase(),
+          currency,
           notes: null,
-          source: "api",
+          source: "storefront",
           external_order_id: session.id,
         })
         .select("id")
@@ -375,8 +398,6 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const uploadIds = parseMetadataArray(session.metadata?.upload_ids);
   const designReferences = parseMetadataArray(session.metadata?.design_references);
   const discountId = session.metadata?.discount_id || "";
-  const discountAmountCents = Number(session.metadata?.discount_amount_cents ?? 0);
-  const shippingDiscountCents = Number(session.metadata?.shipping_discount_cents ?? 0);
 
   const items = lineItems.data.map((item) => {
     const priceId = typeof item.price === "string" ? item.price : item.price?.id ?? "";
@@ -433,6 +454,36 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         stripe_session_id: session.id,
       },
     });
+  }
+
+  const portalUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.prntd.ca"}/dashboard`;
+  const confirmationEmail = orderConfirmationTemplate({
+    orderNumber,
+    customerName,
+    total: formatCurrency(session.amount_total ?? 0, currency),
+    portalUrl,
+  });
+
+  await sendTransactionalEmail({
+    eventKey: `order-confirmation:${session.id}`,
+    emailType: "order_confirmation",
+    to: customerEmail,
+    subject: confirmationEmail.subject,
+    html: confirmationEmail.html,
+    text: confirmationEmail.text,
+    metadata: {
+      order_id: orderId,
+      stripe_session_id: session.id,
+    },
+  });
+
+  const { error: emailStampError } = await supabase
+    .from("orders")
+    .update({ confirmation_email_sent_at: new Date().toISOString() })
+    .eq("id", orderId);
+
+  if (emailStampError && emailStampError.code !== "42703") {
+    throw emailStampError;
   }
 }
 

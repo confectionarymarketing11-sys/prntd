@@ -32,6 +32,16 @@ async function urlToDataUrl(url: string) {
   });
 }
 
+function readImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
 export default function BusinessCardDesignerPage() {
   const product = getProduct("business-cards");
   const [side, setSide] = useState<CardSide>("front");
@@ -45,7 +55,6 @@ export default function BusinessCardDesignerPage() {
   const [size] = useState(product.sizes[0] ?? "Standard");
   const [finish] = useState(product.colors[0]);
   const [notice, setNotice] = useState("Keep all artwork inside the card edge.");
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const layers = side === "front" ? frontLayers : backLayers;
   const selectedLayer = layers.find((layer) => layer.id === selectedId);
@@ -98,6 +107,7 @@ export default function BusinessCardDesignerPage() {
         id: crypto.randomUUID(),
         type: "image",
         preview,
+        originalPreview: preview,
         x: 520,
         y: 170,
         width: 120,
@@ -132,6 +142,7 @@ export default function BusinessCardDesignerPage() {
         id: crypto.randomUUID(),
         type: "image",
         preview: String(reader.result ?? ""),
+        originalPreview: String(reader.result ?? ""),
         x: 24,
         y: 24,
         width: 180,
@@ -147,7 +158,52 @@ export default function BusinessCardDesignerPage() {
     event.target.value = "";
   }
 
-  function addToCart() {
+  async function flattenCardSide(cardSide: CardSide) {
+    const sideLayers = cardSide === "front" ? frontLayers : backLayers;
+    const canvas = document.createElement("canvas");
+    canvas.width = 700;
+    canvas.height = 400;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (const layer of sideLayers) {
+      if (layer.type === "image" && layer.preview) {
+        const image = await readImage(layer.preview);
+        const width = layer.width ?? 180;
+        const height = layer.height ?? 110;
+
+        ctx.save();
+        ctx.translate(layer.x + width / 2, layer.y + height / 2);
+        ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
+        ctx.drawImage(image, -width / 2, -height / 2, width, height);
+        ctx.restore();
+      }
+
+      if (layer.type === "text" && layer.text) {
+        ctx.save();
+        ctx.translate(layer.x, layer.y);
+        ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
+        ctx.font = `${layer.fontSize ?? 22}px ${layer.fontFamily ?? "Arial"}`;
+        ctx.fillStyle = layer.fill ?? "#111111";
+        ctx.textBaseline = "top";
+        ctx.fillText(layer.text, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    return canvas.toDataURL("image/png");
+  }
+
+  async function addToCart() {
+    setNotice("Preparing clipped print files for cart...");
+    const [frontFlattened, backFlattened] = await Promise.all([
+      sideHasContent(frontLayers) ? flattenCardSide("front") : Promise.resolve(null),
+      sideHasContent(backLayers) ? flattenCardSide("back") : Promise.resolve(null),
+    ]);
+
     const item: CartItem = {
       id: crypto.randomUUID(),
       productId: product.id,
@@ -157,9 +213,9 @@ export default function BusinessCardDesignerPage() {
       quantity,
       frontLayers,
       backLayers,
-      mockupPreview: frontLayers.find((layer) => layer.type === "image" && layer.preview)?.preview ?? null,
-      frontPreview: frontLayers.find((layer) => layer.type === "image" && layer.preview)?.preview ?? null,
-      backPreview: backLayers.find((layer) => layer.type === "image" && layer.preview)?.preview ?? null,
+      mockupPreview: frontFlattened ?? backFlattened,
+      frontPreview: frontFlattened,
+      backPreview: backFlattened,
       unitPrice: price.unitPrice,
       lineTotal: price.lineTotal,
       createdAt: new Date().toISOString(),
@@ -167,48 +223,6 @@ export default function BusinessCardDesignerPage() {
     const currentCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[];
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([...currentCart, item]));
     window.location.href = "/cart";
-  }
-
-  async function checkoutNow() {
-    setIsCheckingOut(true);
-    setNotice("Creating secure checkout...");
-
-    try {
-      const response = await fetch("/api/prntd/create-checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          productType: "business-cards",
-          quantity,
-          productId: product.id,
-          pricingContext: {
-            unitPrice: price.unitPrice,
-            lineTotal: price.lineTotal,
-            currency: "CAD",
-          },
-          customization: {
-            size,
-            finish: finish.name,
-            frontLayers,
-            backLayers,
-          },
-          successPath: "/success",
-          cancelPath: "/business-card-designer",
-        }),
-      });
-      const data = (await response.json()) as { url?: string; error?: string };
-
-      if (!response.ok || !data.url) {
-        throw new Error(data.error ?? "Checkout failed");
-      }
-
-      window.location.href = data.url;
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Checkout failed.");
-      setIsCheckingOut(false);
-    }
   }
 
   return (
@@ -328,9 +342,6 @@ export default function BusinessCardDesignerPage() {
 
             <button type="button" onClick={addToCart} className="prntd-gradient-btn">
               Add To Cart
-            </button>
-            <button type="button" onClick={checkoutNow} disabled={isCheckingOut} className="prntd-gradient-btn disabled:cursor-not-allowed disabled:opacity-60">
-              {isCheckingOut ? "Creating Checkout..." : "Checkout With Stripe"}
             </button>
             <Link href="/products/business-cards" className="rounded-full border border-[#e5e7eb] bg-white px-5 py-4 text-center text-sm font-extrabold text-[#111827] no-underline">
               Back To Product

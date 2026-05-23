@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import PortalSidebar from "@/components/PortalSidebar";
 import ShopHeader from "@/components/ShopHeader";
 import { usePrntdAccount } from "@/hooks/usePrntdAccount";
 
@@ -103,7 +104,9 @@ export default function SubscriptionsPage() {
   return (
     <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
       <ShopHeader />
-      <section className="mx-auto my-10 max-w-7xl px-5 pb-20 font-sans">
+      <section className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-8 pb-20 font-sans sm:px-6 lg:grid-cols-[290px_minmax(0,1fr)] lg:px-8">
+        <PortalSidebar />
+        <div>
         <header className="mb-10 text-center">
           <div className="mb-6 inline-flex rounded-full border border-[#dfe7ff] bg-[linear-gradient(135deg,#eef4ff_0%,#eef2ff_45%,#f5f3ff_100%)] px-4 py-2.5 text-[13px] font-bold text-[#4f46e5]">
             7 Day Free Trial - Cancel Anytime
@@ -191,6 +194,7 @@ export default function SubscriptionsPage() {
         </section>
 
         <p className="mt-7 text-center text-sm text-[#6b7280]">Cancel anytime. No contracts.</p>
+        </div>
       </section>
     </main>
   );

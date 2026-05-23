@@ -54,6 +54,9 @@ export type ArtworkUpload = {
   file_size: number | null;
   dpi: number | null;
   upload_status: string;
+  print_side?: "front" | "back" | null;
+  asset_role?: "print_area" | "source_layer" | string | null;
+  placement?: JsonRecord | null;
   created_at: string;
 };
 
@@ -92,9 +95,19 @@ export type FulfillmentOrder = {
   production_status: ProductionStatus;
   payment_status: PaymentStatus;
   subtotal_cents: number;
+  discount_cents?: number | null;
   shipping_cents: number;
   tax_cents: number;
   total_cents: number;
+  tax_breakdown?: JsonRecord | null;
+  shipping_method?: string | null;
+  shipping_cost_cents?: number | null;
+  tracking_number?: string | null;
+  carrier?: string | null;
+  shipped_at?: string | null;
+  checkout_session_id?: string | null;
+  guest_checkout?: boolean | null;
+  confirmation_email_sent_at?: string | null;
   currency: string;
   notes: string | null;
   source: "storefront" | "shopify" | "manual" | "api";

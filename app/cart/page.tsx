@@ -11,9 +11,9 @@ import {
   Customer,
   Order,
   SHIPPING_RATE,
-  TAX_RATE,
   createOrderId,
   formatMoney,
+  getAvailableShippingMethods,
   getProduct,
   priceDesign,
   roundMoney,
@@ -45,33 +45,46 @@ export default function CartPage() {
     shippingDiscount: number;
     message?: string | null;
   } | null>(null);
+  const shippingMethods = useMemo(() => getAvailableShippingMethods(items), [items]);
+  const [shippingMethod, setShippingMethod] = useState("tracked");
 
   const baseTotals = useMemo(() => {
     const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
-    const shipping = items.length > 0 ? SHIPPING_RATE : 0;
+    const selectedShipping = shippingMethods.find((method) => method.code === shippingMethod) ?? shippingMethods[0];
+    const shipping = items.length > 0 ? selectedShipping?.price ?? SHIPPING_RATE : 0;
 
     return {
       subtotal,
       shipping,
     };
-  }, [items]);
+  }, [items, shippingMethod, shippingMethods]);
 
   const totals = useMemo(() => {
     const discountAmount = roundMoney(discountPreview?.discountAmount ?? 0);
     const shippingDiscount = roundMoney(discountPreview?.shippingDiscount ?? 0);
     const discountedSubtotal = Math.max(baseTotals.subtotal - discountAmount, 0);
     const discountedShipping = Math.max(baseTotals.shipping - shippingDiscount, 0);
-    const tax = roundMoney(discountedSubtotal * TAX_RATE);
 
     return {
       subtotal: baseTotals.subtotal,
       shipping: discountedShipping,
-      tax,
+      tax: 0,
       discountAmount,
       shippingDiscount,
-      total: roundMoney(discountedSubtotal + discountedShipping + tax),
+      total: roundMoney(discountedSubtotal + discountedShipping),
     };
   }, [baseTotals, discountPreview]);
+
+  useEffect(() => {
+    if (!shippingMethods.length) return;
+    if (!shippingMethods.some((method) => method.code === shippingMethod)) {
+      const timer = window.setTimeout(() => {
+        setShippingMethod(shippingMethods[0].code);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
+    }
+  }, [shippingMethod, shippingMethods]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -175,8 +188,10 @@ export default function CartPage() {
       return;
     }
 
-    if (!customer.name || !email || !customer.address) {
-      setStatus("Name, account email, and shipping address are required.");
+    const checkoutEmail = email || customer.email;
+
+    if (!customer.name || !checkoutEmail || !customer.address) {
+      setStatus("Name, email, and shipping address are required.");
       return;
     }
 
@@ -184,7 +199,7 @@ export default function CartPage() {
       id: createOrderId(),
       customer: {
         ...customer,
-        email,
+        email: checkoutEmail,
       },
       items,
       subtotal: totals.subtotal,
@@ -194,6 +209,7 @@ export default function CartPage() {
       discountCode: discountCode || undefined,
       discountAmount: totals.discountAmount,
       shippingDiscount: totals.shippingDiscount,
+      shippingMethod: shippingMethod as Order["shippingMethod"],
       status: "New",
       paymentMode: "stripe",
       createdAt: new Date().toISOString(),
@@ -308,7 +324,7 @@ export default function CartPage() {
           </p>
           <div className="mt-4 rounded-[20px] bg-[#eef2ff] p-4 text-sm font-semibold text-[#4338ca]">
             <p className="text-xs font-extrabold uppercase tracking-[0.12em]">Customer Account</p>
-            <p className="mt-1 break-all">{email || accountStatus}</p>
+            <p className="mt-1 break-all">{email ? email : `Guest checkout (${accountStatus})`}</p>
           </div>
 
           <div className="mt-5 grid gap-3">
@@ -318,6 +334,15 @@ export default function CartPage() {
               placeholder="Customer name"
               className="portal-field"
             />
+            {!email && (
+              <input
+                value={customer.email}
+                onChange={(event) => updateCustomer("email", event.target.value)}
+                placeholder="Email for order confirmation"
+                type="email"
+                className="portal-field"
+              />
+            )}
             <input
               value={customer.phone}
               onChange={(event) => updateCustomer("phone", event.target.value)}
@@ -367,6 +392,26 @@ export default function CartPage() {
 
           <div className="mt-5 grid gap-2 border-t border-[#e7eaf3] pt-5 text-sm">
             <div className="grid gap-2 rounded-[18px] bg-[#f8faff] p-3">
+              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#4f46e5]">Shipping method</p>
+              {shippingMethods.map((method) => (
+                <label key={method.code} className="flex cursor-pointer items-start justify-between gap-3 rounded-[14px] border border-[#e7eaf3] bg-white p-3">
+                  <span className="flex gap-2">
+                    <input
+                      type="radio"
+                      checked={shippingMethod === method.code}
+                      onChange={() => setShippingMethod(method.code)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block font-black">{method.name}</span>
+                      <span className="block text-xs leading-5 text-[#6b7280]">{method.description}</span>
+                    </span>
+                  </span>
+                  <strong>{formatMoney(method.price)}</strong>
+                </label>
+              ))}
+            </div>
+            <div className="grid gap-2 rounded-[18px] bg-[#f8faff] p-3">
               <label className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#4f46e5]">Discount code</label>
               <div className="flex gap-2">
                 <input
@@ -401,8 +446,8 @@ export default function CartPage() {
               </div>
             )}
             <div className="flex justify-between">
-              <span>Estimated tax</span>
-              <strong>{formatMoney(totals.tax)}</strong>
+              <span>Tax</span>
+              <strong>Calculated by Stripe</strong>
             </div>
             <div className="mt-2 flex justify-between border-t border-[#e7eaf3] pt-4 text-xl">
               <span className="font-black">Total</span>

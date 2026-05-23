@@ -4,6 +4,7 @@ export type DesignLayer = {
   id: string;
   type: "image" | "text";
   preview?: string;
+  originalPreview?: string;
   text?: string;
   fontSize?: number;
   fontFamily?: string;
@@ -13,6 +14,17 @@ export type DesignLayer = {
   width?: number;
   height?: number;
   rotation: number;
+};
+
+export type ShippingMethodCode = "lettermail" | "tracked" | "local_pickup";
+
+export type ShippingMethod = {
+  code: ShippingMethodCode;
+  name: string;
+  description: string;
+  price: number;
+  requiresTracking: boolean;
+  freeOver?: number;
 };
 
 export type ProductColor = {
@@ -69,6 +81,7 @@ export type Order = {
   discountCode?: string;
   discountAmount?: number;
   shippingDiscount?: number;
+  shippingMethod?: ShippingMethodCode;
   subtotal: number;
   shipping: number;
   tax: number;
@@ -138,6 +151,32 @@ export const SAVED_DESIGN_STORAGE_KEY = "prntd_saved_design";
 export const SHIPPING_RATE = 8.95;
 export const TAX_RATE = 0.0825;
 
+export const SHIPPING_METHODS: ShippingMethod[] = [
+  {
+    code: "lettermail",
+    name: "Lettermail",
+    description: "Economy shipping for business cards and stickers.",
+    price: 2.95,
+    requiresTracking: false,
+    freeOver: 75,
+  },
+  {
+    code: "tracked",
+    name: "Tracked Shipping",
+    description: "Tracked parcel shipping for apparel and mixed carts.",
+    price: 10.95,
+    requiresTracking: true,
+    freeOver: 125,
+  },
+  {
+    code: "local_pickup",
+    name: "Local Pickup",
+    description: "Pick up locally when your order is ready.",
+    price: 0,
+    requiresTracking: false,
+  },
+];
+
 export function getProduct(productId: string) {
   return shopProducts.find((product) => product.id === productId) ?? shopProducts[0];
 }
@@ -160,10 +199,26 @@ export function roundMoney(value: number) {
 }
 
 export function formatMoney(value: number) {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-CA", {
     style: "currency",
-    currency: "USD",
+    currency: "CAD",
   }).format(value);
+}
+
+export function getAvailableShippingMethods(items: CartItem[]) {
+  if (!items.length) return [];
+
+  const hasApparel = items.some((item) => item.productId === "classic-tee");
+  const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
+  const allowed = SHIPPING_METHODS.filter((method) => {
+    if (method.code === "lettermail" && hasApparel) return false;
+    return true;
+  });
+
+  return allowed.map((method) => ({
+    ...method,
+    price: method.freeOver && subtotal >= method.freeOver ? 0 : method.price,
+  }));
 }
 
 export function createOrderId() {

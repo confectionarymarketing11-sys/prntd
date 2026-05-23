@@ -30,8 +30,25 @@ export default function ArtworkGallery({ uploads }: { uploads: ArtworkUpload[] }
                 </div>
                 <div className="grid gap-3 p-4">
                   <div>
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {upload.asset_role && (
+                        <span className="rounded-full bg-indigo-50 px-2 py-1 text-[11px] font-black uppercase tracking-wide text-indigo-700">
+                          {upload.asset_role === "print_area" ? "Clipped print area" : "Original upload"}
+                        </span>
+                      )}
+                      {upload.print_side && (
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black uppercase tracking-wide text-slate-600">
+                          {upload.print_side}
+                        </span>
+                      )}
+                    </div>
                     <p className="truncate text-sm font-bold">{upload.file_name || "Artwork"}</p>
                     <p className="mt-1 text-xs text-slate-500">{upload.mime_type || upload.upload_status}</p>
+                    {upload.placement && Object.keys(upload.placement).length > 0 && (
+                      <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-500">
+                        Placement: {JSON.stringify(upload.placement)}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     {upload.file_url && (

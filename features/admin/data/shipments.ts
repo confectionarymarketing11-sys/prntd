@@ -38,4 +38,27 @@ export async function upsertShipment(payload: ShipmentPayload) {
   if (error) {
     throw new Error(error.message);
   }
+
+  const shippedAt = payload.status && ["in_transit", "delivered"].includes(payload.status) ? new Date().toISOString() : null;
+  const orderUpdate: Record<string, string | null> = {
+    carrier: payload.provider ?? "manual",
+    tracking_number: payload.trackingNumber || null,
+    shipped_at: shippedAt,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (payload.status === "delivered") {
+    orderUpdate.production_status = "completed";
+  } else if (payload.status === "in_transit") {
+    orderUpdate.production_status = "shipped";
+  }
+
+  const { error: orderError } = await supabase
+    .from("orders")
+    .update(orderUpdate)
+    .eq("id", payload.orderId);
+
+  if (orderError && orderError.code !== "42703") {
+    throw new Error(orderError.message);
+  }
 }
