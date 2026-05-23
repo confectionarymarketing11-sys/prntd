@@ -3,6 +3,7 @@ import { ApiError, apiJson, withApiErrorHandling } from "@/lib/api-response";
 import { getCurrentCustomer, getOrCreateCustomerForEmail } from "@/lib/auth/customer";
 import { corsPreflight } from "@/lib/cors";
 import { getStripe } from "@/lib/stripe";
+import { getSiteSettings } from "@/features/site-settings/data/site-settings";
 import { getStripeCheckoutProduct, stripeProductTypes } from "@/lib/stripe-products";
 
 export const runtime = "nodejs";
@@ -38,9 +39,10 @@ async function createOrReuseStripeCustomer(input: {
   platformCustomerId?: string | null;
   existingStripeCustomerId?: string | null;
 }) {
-  const stripe = getStripe();
+  const settings = await getSiteSettings();
+  const stripe = getStripe({ testMode: settings.test_mode_enabled });
 
-  if (input.existingStripeCustomerId) {
+  if (input.existingStripeCustomerId && !settings.test_mode_enabled) {
     return input.existingStripeCustomerId;
   }
 
@@ -71,7 +73,8 @@ export async function POST(request: Request) {
     const input = checkoutSchema.parse(await request.json());
     const product = getStripeCheckoutProduct(input.productType);
     const origin = getOrigin(request);
-    const stripe = getStripe();
+    const settings = await getSiteSettings();
+    const stripe = getStripe({ testMode: settings.test_mode_enabled });
     const authenticated = await getCurrentCustomer();
     const email = authenticated?.user.email ?? input.customerEmail;
 
@@ -115,6 +118,7 @@ export async function POST(request: Request) {
         customer_id: customer.id,
         auth_user_id: authenticated?.user.id ?? customer.auth_user_id ?? "",
         stripe_customer_id: stripeCustomerId,
+        test_mode: settings.test_mode_enabled ? "true" : "false",
         product_type: product.type,
         product_id: input.productId ?? product.fulfillmentProductId,
         product_name: product.label,

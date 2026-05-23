@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgePercent, BarChart3, Boxes, ClipboardList, Factory, Images, LogOut, PackageCheck, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, Boxes, ClipboardList, Factory, FileText, Images, LogOut, MessageSquare, PackageCheck, Settings, Star, Truck, Users } from "lucide-react";
 import { signOutAdmin } from "@/app/admin/login/actions";
 import { Button } from "@/components/ui/button";
 import type { CurrentAdmin } from "@/features/admin/data/auth";
@@ -10,6 +10,10 @@ const navItems = [
   { href: "/admin/discounts", label: "Discounts", icon: BadgePercent },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/reports", label: "Tax Reports", icon: FileText },
+  { href: "/admin/reviews", label: "Reviews", icon: Star },
+  { href: "/admin/settings", label: "Site Settings", icon: Settings },
+  { href: "/admin/settings#contact", label: "Contact", icon: MessageSquare },
   { href: "/admin?status=printing", label: "Printing", icon: Factory },
   { href: "/admin?status=packing", label: "Packing", icon: PackageCheck },
   { href: "/admin?status=shipped", label: "Shipping", icon: Truck },

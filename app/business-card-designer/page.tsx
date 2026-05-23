@@ -59,6 +59,7 @@ export default function BusinessCardDesignerPage() {
   const layers = side === "front" ? frontLayers : backLayers;
   const selectedLayer = layers.find((layer) => layer.id === selectedId);
   const selectedTextLayer = selectedLayer?.type === "text" ? selectedLayer : null;
+  const selectedImageLayer = selectedLayer?.type === "image" ? selectedLayer : null;
   const price = useMemo(() => priceDesign(product, quantity, frontLayers, backLayers), [product, quantity, frontLayers, backLayers]);
 
   function setCurrentLayers(nextLayers: DesignLayer[]) {
@@ -252,7 +253,6 @@ export default function BusinessCardDesignerPage() {
             <div className="grid min-h-[520px] place-items-center rounded-[28px] bg-[#eef2f7] p-6">
               <div className="relative aspect-[1.75/1] w-full max-w-[760px] overflow-hidden rounded-[26px] border border-white/70 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
                 <div className="absolute inset-5 rounded-[20px] border-2 border-dashed border-blue-500/70" />
-                <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(59,130,246,0.08),rgba(124,58,237,0.08))]" />
                 {layers.map((layer) => (
                   <button
                     key={layer.id}
@@ -265,11 +265,14 @@ export default function BusinessCardDesignerPage() {
                       color: layer.fill,
                       fontFamily: layer.fontFamily,
                       fontSize: layer.fontSize,
+                      width: layer.width,
+                      height: layer.height,
+                      transform: `rotate(${layer.rotation ?? 0}deg)`,
                     }}
                   >
                     {layer.type === "image" && layer.preview ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={layer.preview} alt="Uploaded card art" className="max-h-32 max-w-52 object-contain" />
+                      <img src={layer.preview} alt="Uploaded card art" className="h-full w-full object-contain" />
                     ) : (
                       <span>{layer.text}</span>
                     )}
@@ -323,6 +326,22 @@ export default function BusinessCardDesignerPage() {
 
             {selectedTextLayer && (
               <input value={selectedTextLayer.text ?? ""} onChange={(event) => updateLayer(selectedTextLayer.id, { text: event.target.value, fontFamily, fill: textColor })} className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base" />
+            )}
+
+            {selectedLayer && (
+              <div className="grid gap-3 rounded-[22px] border border-[#e7eaf3] bg-[#f8faff] p-4">
+                <p className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Selected Layer Position</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <input className="portal-field min-w-0" type="number" value={Math.round(selectedLayer.x)} onChange={(event) => updateLayer(selectedLayer.id, { x: Number(event.target.value) })} placeholder="X" />
+                  <input className="portal-field min-w-0" type="number" value={Math.round(selectedLayer.y)} onChange={(event) => updateLayer(selectedLayer.id, { y: Number(event.target.value) })} placeholder="Y" />
+                  {selectedImageLayer && (
+                    <>
+                      <input className="portal-field min-w-0" type="number" value={Math.round(selectedImageLayer.width ?? 180)} onChange={(event) => updateLayer(selectedImageLayer.id, { width: Number(event.target.value) })} placeholder="Width" />
+                      <input className="portal-field min-w-0" type="number" value={Math.round(selectedImageLayer.height ?? 110)} onChange={(event) => updateLayer(selectedImageLayer.id, { height: Number(event.target.value) })} placeholder="Height" />
+                    </>
+                  )}
+                </div>
+              </div>
             )}
 
             <button type="button" onClick={deleteSelectedLayer} className="min-h-[54px] rounded-[18px] border border-red-500/15 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">

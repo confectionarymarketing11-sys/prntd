@@ -67,12 +67,13 @@ export async function getCustomerMetrics() {
 
 export async function getCustomerById(id: string): Promise<CustomerDetail> {
   const supabase = createSupabaseAdminClient();
-  const [{ data: customer, error }, { data: orders }, { data: uploads }, { data: addresses }, { data: notes }] = await Promise.all([
+  const [{ data: customer, error }, { data: orders }, { data: uploads }, { data: addresses }, { data: notes }, { data: reviews }] = await Promise.all([
     supabase.from("customers").select("*").eq("id", id).single<CustomerProfile>(),
     supabase.from("orders").select("*, order_items(*), shipments(*)").eq("customer_id", id).order("created_at", { ascending: false }),
     supabase.from("uploads").select("*").eq("customer_id", id).order("created_at", { ascending: false }).limit(50),
     supabase.from("customer_addresses").select("*").eq("customer_id", id).order("created_at", { ascending: false }),
     supabase.from("customer_notes").select("*").eq("customer_id", id).order("created_at", { ascending: false }),
+    supabase.from("reviews").select("*").eq("customer_id", id).order("created_at", { ascending: false }),
   ]);
 
   if (error) throw new Error(error.message);
@@ -83,6 +84,7 @@ export async function getCustomerById(id: string): Promise<CustomerDetail> {
     uploads: uploads ?? [],
     addresses: addresses ?? [],
     customer_notes: notes ?? [],
+    reviews: reviews ?? [],
   } as CustomerDetail;
 }
 

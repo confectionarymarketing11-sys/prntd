@@ -11,6 +11,7 @@ import {
   formatMoney,
   priceDesign,
 } from "@/data/shop";
+import type { Review } from "@/features/reviews/data/reviews";
 
 type StoredDesign = {
   image?: string;
@@ -25,7 +26,7 @@ const productFeatures: Record<string, string[]> = {
   "business-cards": ["Front and back card design", "Premium business-ready finish", "Built for QR codes and brand details"],
 };
 
-export default function ProductDetail({ product }: { product: Product }) {
+export default function ProductDetail({ product, reviews = [] }: { product: Product; reviews?: Review[] }) {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] ?? "");
   const [selectedColor, setSelectedColor] = useState(product.colors[0]);
   const [quantity, setQuantity] = useState(product.minimumQuantity);
@@ -129,7 +130,7 @@ export default function ProductDetail({ product }: { product: Product }) {
       <div className="mx-auto grid w-full max-w-[1320px] gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)]">
         <div className="grid gap-4">
           <div className="overflow-hidden rounded-[30px] border border-white/70 bg-white shadow-[0_12px_38px_rgba(0,0,0,0.06)]">
-            <ProductMockup product={product} color={selectedColor.value} label={designPreview ? "YOUR DESIGN" : product.name} />
+            <ProductMockup product={product} label={designPreview ? "YOUR DESIGN" : product.name} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="overflow-hidden rounded-[24px] border border-white/70 bg-white shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
@@ -252,6 +253,26 @@ export default function ProductDetail({ product }: { product: Product }) {
               <li key={feature}>✓ {feature}</li>
             ))}
           </ul>
+
+          <div className="mt-6 rounded-[22px] bg-[#f8faff] p-5">
+            <p className="text-sm font-black text-[#111827]">Customer Reviews</p>
+            <div className="mt-3 grid gap-3">
+              {reviews.length ? (
+                reviews.map((review) => (
+                  <article key={review.id} className="rounded-[18px] border border-[#e7eaf3] bg-white p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-black">{review.title || "PRNTD customer"}</p>
+                      <p className="text-sm font-black text-[#4f46e5]">{review.rating}/5</p>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-[#4b5563]">{review.body}</p>
+                    <p className="mt-2 text-xs font-bold text-[#6b7280]">{review.customer_name || "Verified customer"}</p>
+                  </article>
+                ))
+              ) : (
+                <p className="text-sm leading-6 text-[#6b7280]">Customer reviews will appear here after they are approved in admin.</p>
+              )}
+            </div>
+          </div>
 
           {status && <p className="mt-4 rounded-[16px] bg-[#f5f7fb] px-4 py-3 text-sm font-semibold text-[#6b7280]">{status}</p>}
         </aside>

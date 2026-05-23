@@ -1,8 +1,11 @@
 import Link from "next/link";
 import ProductMockup from "@/components/ProductMockup";
 import { formatMoney, shopProducts } from "@/data/shop";
+import { getPublishedReviewSummary } from "@/features/reviews/data/reviews";
 
-export default function ProductCatalog() {
+export default async function ProductCatalog() {
+  const reviewSummary = await getPublishedReviewSummary();
+
   return (
     <section className="bg-[#f5f7fb] px-5 py-[55px] pb-[90px]">
       <div className="mx-auto w-full max-w-[1400px]">
@@ -19,10 +22,14 @@ export default function ProductCatalog() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {shopProducts.map((product) => (
-            <article
+          {shopProducts.map((product) => {
+            const summary = reviewSummary.get(product.id) ?? reviewSummary.get("all");
+
+            return (
+            <Link
               key={product.id}
-              className="prntd-glass overflow-hidden transition hover:-translate-y-1 hover:shadow-[0_16px_30px_rgba(0,0,0,0.07)]"
+              href={`/products/${product.id}`}
+              className="prntd-glass overflow-hidden text-[#111827] no-underline transition hover:-translate-y-1 hover:shadow-[0_16px_30px_rgba(0,0,0,0.07)]"
             >
               <ProductMockup product={product} />
               <div className="flex min-h-80 flex-col gap-4 p-[26px]">
@@ -34,6 +41,11 @@ export default function ProductCatalog() {
                     <p className="text-lg font-black">{formatMoney(product.basePrice)}+</p>
                   </div>
                   <h2 className="mt-5 text-[28px] font-extrabold leading-[1.15] tracking-normal">{product.name}</h2>
+                  {summary ? (
+                    <p className="mt-2 text-sm font-black text-[#4f46e5]">
+                      {summary.average.toFixed(1)}/5 from {summary.count} review{summary.count === 1 ? "" : "s"}
+                    </p>
+                  ) : null}
                   <p className="mt-3 text-[15px] leading-7 text-[#4b5563]">{product.description}</p>
                 </div>
                 <div className="mt-auto grid gap-4">
@@ -54,13 +66,14 @@ export default function ProductCatalog() {
                     <span className="rounded-2xl bg-[#f9fafb] px-3 py-2">{product.productionDays}</span>
                     <span className="rounded-2xl bg-[#f9fafb] px-3 py-2">Min {product.minimumQuantity}</span>
                   </div>
-                  <Link href={`/products/${product.id}`} className="design-main-btn !mt-0">
+                  <span className="design-main-btn !mt-0">
                     View Product
-                  </Link>
+                  </span>
                 </div>
               </div>
-            </article>
-          ))}
+            </Link>
+              );
+          })}
         </div>
       </div>
     </section>

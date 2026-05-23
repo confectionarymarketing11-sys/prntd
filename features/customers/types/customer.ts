@@ -1,4 +1,5 @@
 import type { ArtworkUpload, FulfillmentOrder, JsonRecord } from "@/features/admin/types/database";
+import type { Review } from "@/features/reviews/data/reviews";
 
 export type CustomerProfile = {
   id: string;
@@ -53,6 +54,7 @@ export type CustomerDetail = CustomerProfile & {
   uploads: ArtworkUpload[];
   addresses: CustomerAddress[];
   customer_notes: CustomerNote[];
+  reviews: Review[];
 };
 
 export type CustomersQuery = {

@@ -1,10 +1,9 @@
 import Stripe from "stripe";
-import { getEnv } from "@/lib/env";
 import { getOrCreateCustomerForEmail, PlatformCustomer } from "@/lib/auth/customer";
 import { recordCreditTransaction } from "@/lib/credits";
 import { orderConfirmationTemplate, sendTransactionalEmail } from "@/lib/email";
 import { recordDiscountRedemption } from "@/features/discounts/data/discounts";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 import {
   getStripeCheckoutProductByPrice,
   inferSubscriptionTier,
@@ -132,11 +131,11 @@ async function findCustomerByStripeCustomerId(stripeId: string) {
   return data;
 }
 
-async function getCustomerFromStripeCustomer(stripeId: string) {
+async function getCustomerFromStripeCustomer(stripeId: string, testMode = false) {
   const existing = await findCustomerByStripeCustomerId(stripeId);
   if (existing) return existing;
 
-  const stripe = getStripe();
+  const stripe = getStripe({ testMode });
   const stripeCustomer = await stripe.customers.retrieve(stripeId);
 
   if (stripeCustomer.deleted || !stripeCustomer.email) {
@@ -161,7 +160,7 @@ async function updateCustomerSubscription(subscription: Stripe.Subscription, eve
   const stripeId = stripeCustomerId(subscription.customer);
   if (!stripeId) return;
 
-  const customer = await getCustomerFromStripeCustomer(stripeId);
+  const customer = await getCustomerFromStripeCustomer(stripeId, !subscription.livemode);
   if (!customer) return;
 
   const planTier = inferPlanFromSubscription(subscription);
@@ -191,13 +190,13 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice, eventId: s
   const stripeId = stripeCustomerId(invoice.customer);
   if (!stripeId) return;
 
-  const customer = await getCustomerFromStripeCustomer(stripeId);
+  const customer = await getCustomerFromStripeCustomer(stripeId, !invoice.livemode);
   if (!customer) return;
 
   const subscriptionId = invoiceSubscriptionId(invoice);
   if (!subscriptionId) return;
 
-  const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
+  const subscription = await getStripe({ testMode: !invoice.livemode }).subscriptions.retrieve(subscriptionId);
   const planTier = inferPlanFromSubscription(subscription);
   const grant = subscriptionCreditGrants[planTier] ?? 0;
 
@@ -263,7 +262,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     return;
   }
 
-  const stripe = getStripe();
+  const stripe = getStripe({ testMode: !session.livemode });
   const supabase = createSupabaseAdminClient();
   const orderNumber = `STRIPE-${session.id}`;
 
@@ -498,9 +497,13 @@ export async function POST(request: Request) {
   let event: Stripe.Event;
 
   try {
-    event = getStripe().webhooks.constructEvent(rawBody, signature, getEnv("STRIPE_WEBHOOK_SECRET"));
+    event = getStripe().webhooks.constructEvent(rawBody, signature, getStripeWebhookSecret());
   } catch {
-    return new Response("Invalid signature", { status: 400 });
+    try {
+      event = getStripe({ testMode: true }).webhooks.constructEvent(rawBody, signature, getStripeWebhookSecret({ testMode: true }));
+    } catch {
+      return new Response("Invalid signature", { status: 400 });
+    }
   }
 
   try {

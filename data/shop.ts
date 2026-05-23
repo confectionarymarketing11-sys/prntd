@@ -43,6 +43,7 @@ export type Product = {
   colors: ProductColor[];
   printAreas: PrintSide[];
   minimumQuantity: number;
+  mockupImage?: string;
 };
 
 export type CartItem = {
@@ -108,6 +109,7 @@ export const shopProducts: Product[] = [
     ],
     printAreas: ["front", "back"],
     minimumQuantity: 1,
+    mockupImage: "/mockups/classic-tee.png",
   },
   {
     id: "die-cut-stickers",
@@ -124,6 +126,7 @@ export const shopProducts: Product[] = [
     ],
     printAreas: ["front"],
     minimumQuantity: 10,
+    mockupImage: "/mockups/stickers.png",
   },
   {
     id: "business-cards",
@@ -141,6 +144,7 @@ export const shopProducts: Product[] = [
     ],
     printAreas: ["front", "back"],
     minimumQuantity: 50,
+    mockupImage: "/mockups/business-cards.png",
   },
 ];
 

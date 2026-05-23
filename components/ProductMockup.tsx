@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Product } from "@/data/shop";
 
 type ProductMockupProps = {
@@ -8,6 +9,20 @@ type ProductMockupProps = {
 
 export default function ProductMockup({ product, color, label }: ProductMockupProps) {
   const fill = color ?? product.colors[0]?.value ?? "#111111";
+
+  if (!color && product.mockupImage) {
+    return (
+      <div className="mockup-surface">
+        <Image
+          src={product.mockupImage}
+          alt={`${product.name} mockup`}
+          width={1200}
+          height={900}
+          className="h-full w-full object-cover"
+        />
+      </div>
+    );
+  }
 
   if (product.id === "die-cut-stickers") {
     return (
@@ -28,7 +43,7 @@ export default function ProductMockup({ product, color, label }: ProductMockupPr
         <div
           aria-hidden="true"
           className="grid h-36 w-60 place-items-center rounded-2xl border border-white/80 shadow-[0_18px_35px_rgba(15,23,42,0.18)]"
-          style={{ background: fill }}
+          style={{ background: "#ffffff" }}
         >
           <div className="rounded border border-current/25 px-5 py-2 text-sm font-black uppercase tracking-[0.18em] text-current">
             {label ?? "PRNTD"}

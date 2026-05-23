@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DesignLayer, getAvailableShippingMethods, Order } from "@/data/shop";
 import { calculateDiscount } from "@/features/discounts/data/discounts";
+import { getSiteSettings } from "@/features/site-settings/data/site-settings";
 import { createSupabaseAdminClient } from "@/lib/supabase/service";
 
 function stripeProductType(productId: string) {
@@ -189,7 +190,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid checkout payload" }, { status: 400 });
     }
 
-    if (!process.env.STRIPE_SECRET_KEY) {
+    const settings = await getSiteSettings();
+    const stripeKey = settings.test_mode_enabled && process.env.STRIPE_TEST_SECRET_KEY ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY;
+
+    if (!stripeKey) {
       return NextResponse.json({ error: "Stripe is not configured." }, { status: 503 });
     }
 
@@ -220,6 +224,7 @@ export async function POST(req: NextRequest) {
       customer_email: order.customer.email,
       "metadata[order_id]": order.id,
       "metadata[source]": "cart",
+      "metadata[test_mode]": settings.test_mode_enabled ? "true" : "false",
       "metadata[product_type]": stripeProductType(firstItem.productId),
       "metadata[product_id]": firstItem.productId,
       "metadata[product_name]": firstItem.productName,
@@ -275,7 +280,7 @@ export async function POST(req: NextRequest) {
     const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+        Authorization: `Bearer ${stripeKey}`,
         "Content-Type": "application/x-www-form-urlencoded",
         "Idempotency-Key": order.id,
       },

@@ -1,0 +1,23 @@
+export type SiteSettings = {
+  id?: string;
+  test_mode_enabled: boolean;
+  test_mode_notice: string;
+  announcement_enabled: boolean;
+  announcement_text: string;
+  announcement_link: string | null;
+  logo_text: string;
+  logo_subtitle: string;
+  logo_image_url: string | null;
+  contact_email: string;
+  contact_phone: string | null;
+  contact_address: string | null;
+  contact_hours: string | null;
+  contact_body: string | null;
+  terms_body: string | null;
+  privacy_body: string | null;
+  refund_body: string | null;
+  shipping_body: string | null;
+  default_currency: string;
+  supported_currencies: string[];
+  supported_languages: string[];
+};
