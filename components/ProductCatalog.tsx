@@ -49,19 +49,25 @@ export default async function ProductCatalog() {
                   <p className="mt-3 text-[15px] leading-7 text-[#4b5563]">{product.description}</p>
                 </div>
                 <div className="mt-auto grid gap-4">
-                  <div>
-                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-[#6b7280]">Colors</p>
-                    <div className="flex flex-wrap gap-2">
-                      {product.colors.map((color) => (
-                        <span
-                          key={color.name}
-                          className="h-6 w-6 rounded-full border border-stone-300 shadow-sm"
-                          style={{ background: color.value }}
-                          title={color.name}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                  {product.id !== "die-cut-stickers" &&
+ product.id !== "business-cards" ? (
+  <div>
+    <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-[#6b7280]">
+      Colors
+    </p>
+
+    <div className="flex flex-wrap gap-2">
+      {product.colors.map((color) => (
+        <span
+          key={color.name}
+          className="h-6 w-6 rounded-full border border-stone-300 shadow-sm"
+          style={{ background: color.value }}
+          title={color.name}
+        />
+      ))}
+    </div>
+  </div>
+) : null}
                   <div className="grid grid-cols-2 gap-2 text-xs font-bold text-[#6b7280]">
                     <span className="rounded-2xl bg-[#f9fafb] px-3 py-2">{product.productionDays}</span>
                     <span className="rounded-2xl bg-[#f9fafb] px-3 py-2">Min {product.minimumQuantity}</span>
