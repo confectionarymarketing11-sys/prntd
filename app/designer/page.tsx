@@ -977,14 +977,51 @@ export default function DesignerPage() {
               </button>
             </div>
 
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Quantity</label>
-            <input
-              className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-[18px] text-base"
-              type="number"
-              min={1}
-              value={quantity}
-              onChange={(event) => setQuantity(Math.max(1, Number(event.target.value)))}
-            />
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">
+  Quantity
+</label>
+
+{selectedProduct.id === "business-cards" ? (
+  <select
+    value={quantity}
+    onChange={(event) =>
+      setQuantity(
+        Number(
+          event.target.value,
+        ),
+      )
+    }
+    className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-[18px] text-base"
+  >
+    {[50, 100, 250, 500, 1000].map(
+      (qty) => (
+        <option
+          key={qty}
+          value={qty}
+        >
+          {qty} Cards
+        </option>
+      ),
+    )}
+  </select>
+) : (
+  <input
+    className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-[18px] text-base"
+    type="number"
+    min={1}
+    value={quantity}
+    onChange={(event) =>
+      setQuantity(
+        Math.max(
+          1,
+          Number(
+            event.target.value,
+          ),
+        ),
+      )
+    }
+  />
+)}
 
             <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Size</label>
             <select
