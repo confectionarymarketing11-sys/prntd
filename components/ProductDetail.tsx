@@ -9,6 +9,7 @@ import {
   Product,
   formatMoney,
   priceDesign,
+  roundMoney,
 } from "@/data/shop";
 import type { Review } from "@/features/reviews/data/reviews";
 import { addCartItem } from "@/lib/cart-storage";
@@ -93,27 +94,46 @@ export default function ProductDetail({
   product: Product;
   reviews?: Review[];
 }) {
+  const isSticker =
+    product.id === "die-cut-stickers";
+
+  const isBusinessCard =
+    product.id === "business-cards";
+
+  const defaultStickerVariant =
+    isSticker
+      ? product.stickerVariants?.[0] ?? null
+      : null;
+
+  const defaultBusinessCardVariant =
+    isBusinessCard
+      ? product.businessCardVariants?.[1] ??
+        product.businessCardVariants?.[0] ??
+        null
+      : null;
+
   const [selectedSize, setSelectedSize] = useState(
-    product.sizes[0] ?? "",
+    defaultStickerVariant?.size ??
+      defaultBusinessCardVariant?.size ??
+      product.sizes[0] ??
+      "",
   );
 
   const [selectedColor, setSelectedColor] = useState(
     product.colors[0],
   );
 
-  const defaultStickerVariant =
-  isSticker &&
-  "stickerVariants" in product
-    ? product.stickerVariants?.[0]
-    : null;
+  const [quantity, setQuantity] = useState(
+    defaultStickerVariant?.quantity ??
+      defaultBusinessCardVariant?.quantity ??
+      product.minimumQuantity,
+  );
 
-const [quantity, setQuantity] = useState(
-  defaultStickerVariant?.quantity ??
-    product.minimumQuantity,
-);
+  const [selectedStickerVariant, setSelectedStickerVariant] =
+    useState(defaultStickerVariant);
 
-const [selectedStickerVariant, setSelectedStickerVariant] =
-  useState(defaultStickerVariant);
+  const [selectedBusinessCardVariant, setSelectedBusinessCardVariant] =
+    useState(defaultBusinessCardVariant);
 
   const [design, setDesign] =
     useState<StoredDesign | null>(null);
@@ -130,12 +150,6 @@ const [selectedStickerVariant, setSelectedStickerVariant] =
 
   const designPreview =
     uploadedDesign || design?.image || "";
-
-  const isSticker =
-    product.id === "die-cut-stickers";
-
-  const isBusinessCard =
-    product.id === "business-cards";
 
   const frontLayers = useMemo<DesignLayer[]>(() => {
     if (!designPreview) return [];
@@ -164,34 +178,61 @@ const [selectedStickerVariant, setSelectedStickerVariant] =
   );
 
   const price = useMemo(() => {
-  if (
-    isSticker &&
-    selectedStickerVariant
-  ) {
-    return {
-      unitPrice:
-        selectedStickerVariant.price /
-        selectedStickerVariant.quantity,
-      lineTotal:
-        selectedStickerVariant.price,
-    };
-  }
+    if (isSticker && selectedStickerVariant) {
+      return {
+        unitPrice: roundMoney(
+          selectedStickerVariant.price /
+            selectedStickerVariant.quantity,
+        ),
+        lineTotal: selectedStickerVariant.price,
+        printType: selectedStickerVariant.label,
+      };
+    }
 
-  return priceDesign(
+    if (
+      isBusinessCard &&
+      selectedBusinessCardVariant
+    ) {
+      const hasCustomDesign = Boolean(designPreview);
+      const designFee =
+        hasCustomDesign &&
+        selectedBusinessCardVariant.quantity > 1
+          ? product.designFee ?? 0
+          : 0;
+      const lineTotal = roundMoney(
+        selectedBusinessCardVariant.price +
+          designFee,
+      );
+
+      return {
+        unitPrice: roundMoney(
+          lineTotal /
+            selectedBusinessCardVariant.quantity,
+        ),
+        lineTotal,
+        printType: hasCustomDesign
+          ? "Custom business cards"
+          : selectedBusinessCardVariant.label,
+      };
+    }
+
+    return priceDesign(
+      pricedProduct,
+      quantity,
+      frontLayers,
+      [],
+    );
+  }, [
+    isSticker,
+    isBusinessCard,
+    selectedStickerVariant,
+    selectedBusinessCardVariant,
+    product.designFee,
+    designPreview,
     pricedProduct,
     quantity,
     frontLayers,
-    [],
-  );
-}, [
-  isSticker,
-  selectedStickerVariant,
-  pricedProduct,
-  quantity,
-  frontLayers,
-]);
-    [frontLayers, pricedProduct, quantity],
-  );
+  ]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -298,7 +339,10 @@ const [selectedStickerVariant, setSelectedStickerVariant] =
         productName: designPreview
           ? `Custom ${product.name}`
           : product.name,
-        size: selectedSize,
+        size:
+          selectedStickerVariant?.label ??
+          selectedBusinessCardVariant?.label ??
+          selectedSize,
         color: selectedColor,
         quantity,
         frontLayers,
@@ -519,7 +563,115 @@ const [selectedStickerVariant, setSelectedStickerVariant] =
 
           {/* OPTIONS */}
           <div className="mt-6 grid gap-5">
-            {!isBusinessCard && (
+            {isSticker && product.stickerVariants?.length ? (
+              <>
+                <label className="grid gap-2">
+                  <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                    Sticker Pack
+                  </span>
+
+                  <select
+                    value={selectedStickerVariant?.label ?? ""}
+                    onChange={(event) => {
+                      const next =
+                        product.stickerVariants?.find(
+                          (variant) =>
+                            variant.label ===
+                            event.target.value,
+                        ) ?? null;
+
+                      setSelectedStickerVariant(next);
+
+                      if (next) {
+                        setQuantity(next.quantity);
+                        setSelectedSize(next.size);
+                      }
+                    }}
+                    className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
+                  >
+                    {product.stickerVariants.map(
+                      (variant) => (
+                        <option
+                          key={variant.label}
+                          value={variant.label}
+                        >
+                          {variant.label} -{" "}
+                          {formatMoney(variant.price)}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </label>
+
+                <label className="grid gap-2">
+                  <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                    Material Finish
+                  </span>
+
+                  <select
+                    value={selectedColor.name}
+                    onChange={(event) => {
+                      const next =
+                        product.colors.find(
+                          (color) =>
+                            color.name ===
+                            event.target.value,
+                        ) ?? product.colors[0];
+
+                      setSelectedColor(next);
+                    }}
+                    className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
+                  >
+                    {product.colors.map((color) => (
+                      <option
+                        key={color.name}
+                        value={color.name}
+                      >
+                        {color.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            ) : isBusinessCard &&
+              product.businessCardVariants?.length ? (
+              <label className="grid gap-2">
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                  Card Quantity
+                </span>
+
+                <select
+                  value={selectedBusinessCardVariant?.label ?? ""}
+                  onChange={(event) => {
+                    const next =
+                      product.businessCardVariants?.find(
+                        (variant) =>
+                          variant.label === event.target.value,
+                      ) ?? null;
+
+                    setSelectedBusinessCardVariant(next);
+
+                    if (next) {
+                      setQuantity(next.quantity);
+                      setSelectedSize(next.size);
+                    }
+                  }}
+                  className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
+                >
+                  {product.businessCardVariants.map(
+                    (variant) => (
+                      <option
+                        key={variant.label}
+                        value={variant.label}
+                      >
+                        {variant.label} -{" "}
+                        {formatMoney(variant.price)}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+            ) : !isBusinessCard ? (
               <label className="grid gap-2">
                 <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
                   Size
@@ -546,31 +698,33 @@ const [selectedStickerVariant, setSelectedStickerVariant] =
                   )}
                 </select>
               </label>
-            )}
+            ) : null}
 
-            <label className="grid gap-2">
-  <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
-    Quantity
-  </span>
+            {!isSticker && !isBusinessCard ? (
+              <label className="grid gap-2">
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                  Quantity
+                </span>
 
-  <input
-    value={quantity}
-    type="number"
-    min={product.minimumQuantity}
-    onChange={(event) =>
-      setQuantity(
-        Math.max(
-          product.minimumQuantity,
-          Number(
-            event.target.value,
-          ) ||
-            product.minimumQuantity,
-        ),
-      )
-    }
-    className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
-  />
-</label>
+                <input
+                  value={quantity}
+                  type="number"
+                  min={product.minimumQuantity}
+                  onChange={(event) =>
+                    setQuantity(
+                      Math.max(
+                        product.minimumQuantity,
+                        Number(
+                          event.target.value,
+                        ) ||
+                          product.minimumQuantity,
+                      ),
+                    )
+                  }
+                  className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
+                />
+              </label>
+            ) : null}
           </div>
 
           {/* PRICE */}

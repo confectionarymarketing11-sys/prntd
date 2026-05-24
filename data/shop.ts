@@ -34,6 +34,14 @@ export type ProductColor = {
   value: string;
 };
 
+export type FixedPriceVariant = {
+  label: string;
+  quantity: number;
+  size: string;
+  price: number;
+  includesDesignFee?: boolean;
+};
+
 export type Product = {
   id: string;
   name: string;
@@ -46,6 +54,9 @@ export type Product = {
   printAreas: PrintSide[];
   minimumQuantity: number;
   mockupImage?: string;
+  stickerVariants?: FixedPriceVariant[];
+  businessCardVariants?: FixedPriceVariant[];
+  designFee?: number;
 };
 
 export type ProductPricingVariant = {
@@ -142,42 +153,30 @@ export const shopProducts: Product[] = [
   basePrice: 0,
 
   stickerVariants: [
-    {
-      label: '10 Stickers - 3"',
-      quantity: 10,
-      size: '3"',
-      price: 6.74,
-    },
-    {
-      label: '25 Stickers - 3"',
-      quantity: 25,
-      size: '3"',
-      price: 8.99,
-    },
-    {
-      label: '50 Stickers - 3"',
-      quantity: 50,
-      size: '3"',
-      price: 17.99,
-    },
-    {
-      label: '100 Stickers - 3"',
-      quantity: 100,
-      size: '3"',
-      price: 29.99,
-    },
+    { label: '25 Stickers - 2"', quantity: 25, size: '2"', price: 7.74 },
+    { label: '50 Stickers - 2"', quantity: 50, size: '2"', price: 10.06 },
+    { label: '100 Stickers - 2"', quantity: 100, size: '2"', price: 18.05 },
+    { label: '25 Stickers - 3"', quantity: 25, size: '3"', price: 7.73 },
+    { label: '50 Stickers - 3"', quantity: 50, size: '3"', price: 15.47 },
+    { label: '100 Stickers - 3"', quantity: 100, size: '3"', price: 25.79 },
   ],
 
   colors: [
     {
-      name: "White",
+      name: "Glossy",
       value: "#ffffff",
+    },
+    {
+      name: "Matte",
+      value: "#f7f3ea",
     },
   ],
 
-  sizes: ['3"'],
+  sizes: ['2"', '3"'],
 
-  minimumQuantity: 10,
+  minimumQuantity: 25,
+
+  printAreas: ["front"],
 
   productionDays: "2-4 Business Days",
 },
@@ -186,18 +185,23 @@ export const shopProducts: Product[] = [
     name: "Business Cards",
     category: "Business Cards",
     description: "Premium custom business cards with front and back design support.",
-    basePrice: 32,
+    basePrice: 23.86,
     productionDays: "3-5 days",
-    sizes: ["Standard", "Square", "Mini"],
+    sizes: ["Sample", "50", "100", "250"],
     colors: [
       { name: "Matte", value: "#f7f3ea" },
       { name: "Gloss", value: "#ffffff" },
-      { name: "Soft Touch", value: "#eef2ff" },
-      { name: "Black", value: "#111827" },
     ],
     printAreas: ["front", "back"],
-    minimumQuantity: 50,
+    minimumQuantity: 1,
     mockupImage: "/mockups/business-cards.png",
+    designFee: 14.83,
+    businessCardVariants: [
+      { label: "Sample Non Custom", quantity: 1, size: "Sample", price: 2.57 },
+      { label: "50 Business Cards", quantity: 50, size: "Standard", price: 23.86 },
+      { label: "100 Business Cards", quantity: 100, size: "Standard", price: 33.53 },
+      { label: "250 Business Cards", quantity: 250, size: "Standard", price: 44.5 },
+    ],
   },
 ];
 
@@ -271,28 +275,7 @@ const detailFee =
     product.id ===
     "business-cards"
   ) {
-    const tiers = [
-      {
-        quantity: 50,
-        price: 32,
-      },
-      {
-        quantity: 100,
-        price: 38,
-      },
-      {
-        quantity: 250,
-        price: 55,
-      },
-      {
-        quantity: 500,
-        price: 85,
-      },
-      {
-        quantity: 1000,
-        price: 145,
-      },
-    ];
+    const tiers = product.businessCardVariants ?? [];
 
     const matchedTier =
       tiers.find(
@@ -300,12 +283,15 @@ const detailFee =
           tier.quantity ===
           quantity,
       ) ??
-      tiers[0];
+      tiers.find((tier) => tier.quantity === 50) ??
+      tiers[0] ?? {
+        quantity,
+        price: product.basePrice,
+      };
 
     const total =
       matchedTier.price +
-      setupFee +
-      detailFee;
+      (sidesUsed > 0 ? product.designFee ?? 0 : 0);
 
     return {
       unitPrice:
@@ -318,9 +304,25 @@ const detailFee =
         roundMoney(total),
 
       printType:
-        quantity >= 500
-          ? "Bulk Offset"
-          : "Premium Digital",
+        sidesUsed > 1
+          ? "Double-sided custom"
+          : sidesUsed > 0
+            ? "Single-sided custom"
+            : "Non-custom",
+    };
+  }
+
+  if (product.id === "die-cut-stickers") {
+    const matchedVariant =
+      product.stickerVariants?.find((variant) => variant.quantity === quantity) ??
+      product.stickerVariants?.[0];
+
+    const total = matchedVariant?.price ?? product.basePrice;
+
+    return {
+      unitPrice: roundMoney(total / (matchedVariant?.quantity ?? quantity)),
+      lineTotal: roundMoney(total),
+      printType: matchedVariant?.label ?? "Sticker pack",
     };
   }
 

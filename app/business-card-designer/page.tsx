@@ -27,7 +27,7 @@ import {
   DesignLayer,
   formatMoney,
   getProduct,
-  priceDesign,
+  roundMoney,
 } from "@/data/shop";
 
 import {
@@ -140,6 +140,10 @@ export default function BusinessCardDesignerPage() {
       "business-cards",
     );
 
+  const defaultCardVariant =
+    product.businessCardVariants?.[1] ??
+    product.businessCardVariants?.[0];
+
   const [side, setSide] =
     useState<CardSide>(
       "front",
@@ -185,13 +189,19 @@ export default function BusinessCardDesignerPage() {
     quantity,
     setQuantity,
   ] = useState(
-    product.minimumQuantity,
+    defaultCardVariant?.quantity ??
+      product.minimumQuantity,
   );
 
-  const [size] = useState(
+  const [
+    selectedCardVariant,
+    setSelectedCardVariant,
+  ] = useState(defaultCardVariant);
+
+  const size =
+    selectedCardVariant?.label ??
     product.sizes[0] ??
-      "Standard",
-  );
+    "Standard";
 
   const [finish] =
     useState(
@@ -264,34 +274,42 @@ export default function BusinessCardDesignerPage() {
       ? selectedLayer
       : null;
 
-  const pricedProduct =
-    useMemo(
-      () => ({
-        ...product,
-        basePrice:
-          adminBasePrice,
-      }),
-      [
-        adminBasePrice,
-        product,
-      ],
+  const price = useMemo(() => {
+    const variant =
+      selectedCardVariant ??
+      product.businessCardVariants?.[1] ??
+      product.businessCardVariants?.[0];
+    const designFee =
+      variant && variant.quantity > 1
+        ? product.designFee ?? 0
+        : 0;
+    const lineTotal = roundMoney(
+      (variant?.price ?? adminBasePrice) +
+        designFee,
     );
+    const quantityForUnit =
+      variant?.quantity ?? quantity;
 
-  const price = useMemo(
-    () =>
-      priceDesign(
-        pricedProduct,
-        quantity,
-        frontLayers,
-        backLayers,
+    return {
+      unitPrice: roundMoney(
+        lineTotal / quantityForUnit,
       ),
-    [
-      pricedProduct,
-      quantity,
-      frontLayers,
-      backLayers,
-    ],
-  );
+      lineTotal,
+      printType:
+        sideHasContent(frontLayers) &&
+        sideHasContent(backLayers)
+          ? "Double-sided custom"
+          : "Single-sided custom",
+    };
+  }, [
+    selectedCardVariant,
+    product.businessCardVariants,
+    product.designFee,
+    adminBasePrice,
+    quantity,
+    frontLayers,
+    backLayers,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -1418,34 +1436,48 @@ export default function BusinessCardDesignerPage() {
               {/* QTY */}
               <div>
                 <label className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
-                  Quantity
+                  Card Quantity
                 </label>
 
-                <input
+                <select
                   className="mt-3 h-[56px] w-full rounded-[18px] border border-white/10 bg-[#020617] px-4 text-white"
-                  type="number"
-                  min={
-                    product.minimumQuantity
-                  }
                   value={
-                    quantity
+                    selectedCardVariant?.label ?? ""
                   }
                   onChange={(
                     event,
-                  ) =>
+                  ) => {
+                    const next =
+                      product.businessCardVariants?.find(
+                        (variant) =>
+                          variant.label ===
+                          event.target.value,
+                      );
+
+                    if (!next) return;
+
+                    setSelectedCardVariant(
+                      next,
+                    );
                     setQuantity(
-                      Math.max(
-                        product.minimumQuantity,
-                        Number(
-                          event
-                            .target
-                            .value,
-                        ) ||
-                          product.minimumQuantity,
-                      ),
-                    )
-                  }
-                />
+                      next.quantity,
+                    );
+                  }}
+                >
+                  {product.businessCardVariants?.map(
+                    (variant) => (
+                      <option
+                        key={variant.label}
+                        value={variant.label}
+                      >
+                        {variant.label} -{" "}
+                        {formatMoney(
+                          variant.price,
+                        )}
+                      </option>
+                    ),
+                  )}
+                </select>
               </div>
 
               {/* PRICE */}

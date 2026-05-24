@@ -20,6 +20,7 @@ type CustomerCreditRow = {
 type BgCreditRow = {
   credits: number | null;
   subscription_credits: number | null;
+  has_received_free_credits?: boolean | null;
 };
 
 const customerCreditColumns =
@@ -28,7 +29,7 @@ const customerCreditColumns =
 async function loadBgCredits(supabase: ReturnType<typeof createSupabaseAdminClient>, email: string) {
   const { data, error } = await supabase
     .from("bg_users")
-    .select("credits, subscription_credits")
+    .select("credits, subscription_credits, has_received_free_credits")
     .eq("email", email)
     .maybeSingle<BgCreditRow>();
 
@@ -39,7 +40,19 @@ async function loadBgCredits(supabase: ReturnType<typeof createSupabaseAdminClie
   return {
     credits: Number(data?.credits ?? 0),
     subscriptionCredits: Number(data?.subscription_credits ?? 0),
+    hasReceivedFreeCredits: Boolean(data?.has_received_free_credits),
   };
+}
+
+function getDuplicatedWelcomeCredits(customer: CustomerCreditRow, bg: Awaited<ReturnType<typeof loadBgCredits>>) {
+  const customerCredits = Number(customer.credits_balance ?? 0);
+  const legacyCredits = Number(bg.credits ?? 0);
+
+  if (!customer.has_received_free_credits || !bg.hasReceivedFreeCredits) {
+    return 0;
+  }
+
+  return Math.min(3, customerCredits, legacyCredits);
 }
 
 async function ensureCustomerCredits(supabase: ReturnType<typeof createSupabaseAdminClient>, email: string) {
@@ -156,14 +169,17 @@ export async function GET(request: Request) {
     const customerCredits = Number(customer.credits_balance ?? 0);
     const legacyCredits = bg.credits;
     const subscriptionCredits = bg.subscriptionCredits;
+    const duplicatedWelcomeCredits = getDuplicatedWelcomeCredits(customer, bg);
+    const unifiedCredits = customerCredits + legacyCredits - duplicatedWelcomeCredits;
 
     return apiJson(request, {
       success: true,
-      credits: customerCredits + legacyCredits,
+      credits: unifiedCredits,
       subscription_credits: subscriptionCredits,
-      total_credits: customerCredits + legacyCredits + subscriptionCredits,
+      total_credits: unifiedCredits + subscriptionCredits,
       customer_credits: customerCredits,
       legacy_credits: legacyCredits,
+      duplicated_welcome_credits: duplicatedWelcomeCredits,
       subscription_status: customer.subscription_status ?? "inactive",
       plan_tier: customer.plan_tier ?? "none",
       has_received_free_credits: customer.has_received_free_credits ?? false,

@@ -208,6 +208,50 @@ async function repriceOrder(order: Order): Promise<Order> {
       };
     }
 
+    if (item.productId === "die-cut-stickers") {
+      const stickerVariant =
+        product.stickerVariants?.find((variant) => variant.label === item.size) ??
+        product.stickerVariants?.find((variant) => variant.quantity === quantity) ??
+        product.stickerVariants?.[0];
+      const lineTotal = roundMoney(stickerVariant?.price ?? item.lineTotal);
+      const variantQuantity = stickerVariant?.quantity ?? quantity;
+
+      return {
+        ...item,
+        size: stickerVariant?.label ?? item.size,
+        quantity: variantQuantity,
+        frontLayers,
+        backLayers,
+        unitPrice: roundMoney(lineTotal / variantQuantity),
+        lineTotal,
+      };
+    }
+
+    if (item.productId === "business-cards") {
+      const cardVariant =
+        product.businessCardVariants?.find((variant) => variant.label === item.size) ??
+        product.businessCardVariants?.find((variant) => variant.quantity === quantity) ??
+        product.businessCardVariants?.[1] ??
+        product.businessCardVariants?.[0];
+      const hasCustomDesign = frontHasArt || backHasArt;
+      const designFee =
+        hasCustomDesign && (cardVariant?.quantity ?? quantity) > 1
+          ? product.designFee ?? 0
+          : 0;
+      const lineTotal = roundMoney((cardVariant?.price ?? item.lineTotal) + designFee);
+      const variantQuantity = cardVariant?.quantity ?? quantity;
+
+      return {
+        ...item,
+        size: cardVariant?.label ?? item.size,
+        quantity: variantQuantity,
+        frontLayers,
+        backLayers,
+        unitPrice: roundMoney(lineTotal / variantQuantity),
+        lineTotal,
+      };
+    }
+
     const price = priceDesign(pricedProduct, quantity, frontLayers, backLayers);
 
     return {

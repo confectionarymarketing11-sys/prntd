@@ -24,7 +24,26 @@ type CustomerCreditRow = {
 type BgCreditRow = {
   credits: number | null;
   subscription_credits: number | null;
+  has_received_free_credits?: boolean | null;
 };
+
+function getDuplicatedWelcomeCredits({
+  customerCredits,
+  purchasedCredits,
+  customerHasFreeCredits,
+  legacyHasFreeCredits,
+}: {
+  customerCredits: number;
+  purchasedCredits: number;
+  customerHasFreeCredits: boolean;
+  legacyHasFreeCredits: boolean;
+}) {
+  if (!customerHasFreeCredits || !legacyHasFreeCredits) {
+    return 0;
+  }
+
+  return Math.min(3, customerCredits, purchasedCredits);
+}
 
 export async function POST(request: Request) {
   return withApiErrorHandling(request, async () => {
@@ -69,7 +88,7 @@ export async function POST(request: Request) {
 
     const { data: user, error } = await supabase
       .from("bg_users")
-      .select("credits, subscription_credits")
+      .select("credits, subscription_credits, has_received_free_credits")
       .eq("email", email)
       .maybeSingle<BgCreditRow>();
 
@@ -85,8 +104,21 @@ export async function POST(request: Request) {
 
     const purchased = Number(user?.credits || 0);
     const subscriptionCredits = Number(user?.subscription_credits || 0);
+    const duplicatedWelcomeCredits = getDuplicatedWelcomeCredits({
+      customerCredits,
+      purchasedCredits: purchased,
+      customerHasFreeCredits:
+        Boolean(activeCustomer?.has_received_free_credits) ||
+        Boolean(activeCustomer && freeCreditTrackingAvailable),
+      legacyHasFreeCredits: Boolean(user?.has_received_free_credits),
+    });
+    const unifiedAvailableCredits =
+      customerCredits +
+      subscriptionCredits +
+      purchased -
+      duplicatedWelcomeCredits;
 
-    if (customerCredits + subscriptionCredits + purchased < amount) {
+    if (unifiedAvailableCredits < amount) {
       throw new ApiError("Not enough credits", 400, "insufficient_credits");
     }
 
@@ -101,6 +133,18 @@ export async function POST(request: Request) {
     const nextCustomerCredits = customerCredits - customerUsed;
     const newSubscriptionCredits = subscriptionCredits - subscriptionUsed;
     const newPurchasedCredits = purchased - purchasedUsed;
+    const nextDuplicatedWelcomeCredits = getDuplicatedWelcomeCredits({
+      customerCredits: nextCustomerCredits,
+      purchasedCredits: newPurchasedCredits,
+      customerHasFreeCredits:
+        Boolean(activeCustomer?.has_received_free_credits) ||
+        customerUsed > 0,
+      legacyHasFreeCredits: Boolean(user?.has_received_free_credits),
+    });
+    const nextUnifiedCredits =
+      nextCustomerCredits +
+      newPurchasedCredits -
+      nextDuplicatedWelcomeCredits;
 
     if (activeCustomer && customerUsed > 0) {
       const updatePayload: Record<string, unknown> = {
@@ -156,11 +200,12 @@ export async function POST(request: Request) {
 
     return apiJson(request, {
       success: true,
-      credits: nextCustomerCredits + newPurchasedCredits,
+      credits: nextUnifiedCredits,
       subscription_credits: newSubscriptionCredits,
-      total_credits: nextCustomerCredits + newPurchasedCredits + newSubscriptionCredits,
+      total_credits: nextUnifiedCredits + newSubscriptionCredits,
       customer_credits: nextCustomerCredits,
       legacy_credits: newPurchasedCredits,
+      duplicated_welcome_credits: nextDuplicatedWelcomeCredits,
       source: "customers+bg_users",
     });
   });

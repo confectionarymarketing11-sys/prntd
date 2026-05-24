@@ -31,8 +31,69 @@ function inputToCents(value: string) {
   return Math.round(Number(value || 0) * 100);
 }
 
-export default function VariantEditor({ variants: initialVariants }: { variants: ProductFormVariant[] }) {
-  const [variants, setVariants] = useState<ProductFormVariant[]>(initialVariants.length ? initialVariants : [newVariant()]);
+function findPrintSideVariant(variants: ProductFormVariant[], value: "1 Side" | "2 Side") {
+  return variants.find((variant) =>
+    [variant.option1_value, variant.option2_value, variant.option3_value]
+      .filter(Boolean)
+      .some((optionValue) => optionValue?.trim().toLowerCase() === value.toLowerCase()),
+  );
+}
+
+function classicTeePrintSideVariants(initialVariants: ProductFormVariant[]) {
+  const oneSide = findPrintSideVariant(initialVariants, "1 Side");
+  const twoSide = findPrintSideVariant(initialVariants, "2 Side");
+  const fallbackPrice = initialVariants[0]?.price_cents ?? 3500;
+
+  return [
+    {
+      ...newVariant(),
+      ...oneSide,
+      title: oneSide?.title || "One-sided printing",
+      sku: oneSide?.sku || "PRNTD-CLASSIC-TEE-1-SIDE",
+      price_cents: oneSide?.price_cents ?? fallbackPrice,
+      inventory_quantity: oneSide?.inventory_quantity ?? 9999,
+      inventory_policy: oneSide?.inventory_policy ?? "continue",
+      option1_name: "Print Sides",
+      option1_value: "1 Side",
+      option2_name: "",
+      option2_value: "",
+      option3_name: "",
+      option3_value: "",
+      active: oneSide?.active ?? true,
+    },
+    {
+      ...newVariant(),
+      ...twoSide,
+      title: twoSide?.title || "Double-sided printing",
+      sku: twoSide?.sku || "PRNTD-CLASSIC-TEE-2-SIDE",
+      price_cents: twoSide?.price_cents ?? fallbackPrice + 1000,
+      inventory_quantity: twoSide?.inventory_quantity ?? 9999,
+      inventory_policy: twoSide?.inventory_policy ?? "continue",
+      option1_name: "Print Sides",
+      option1_value: "2 Side",
+      option2_name: "",
+      option2_value: "",
+      option3_name: "",
+      option3_value: "",
+      active: twoSide?.active ?? true,
+    },
+  ];
+}
+
+export default function VariantEditor({
+  variants: initialVariants,
+  productSlug,
+}: {
+  variants: ProductFormVariant[];
+  productSlug?: string;
+}) {
+  const isClassicTee = productSlug === "classic-tee";
+  const initialEditorVariants = isClassicTee
+    ? classicTeePrintSideVariants(initialVariants)
+    : initialVariants.length
+      ? initialVariants
+      : [newVariant()];
+  const [variants, setVariants] = useState<ProductFormVariant[]>(initialEditorVariants);
   const serialized = useMemo(() => JSON.stringify(variants), [variants]);
 
   function updateVariant(index: number, patch: Partial<ProductFormVariant>) {
@@ -49,6 +110,12 @@ export default function VariantEditor({ variants: initialVariants }: { variants:
   return (
     <div className="grid gap-4">
       <input type="hidden" name="variants" value={serialized} />
+      {isClassicTee ? (
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm font-semibold text-indigo-900">
+          Classic Tee is locked to two pricing variants: one-sided printing and double-sided printing.
+          Edit the prices here, then save the product.
+        </div>
+      ) : null}
       <div className="grid gap-3">
         {variants.map((variant, index) => (
           <div key={`${variant.id ?? "new"}-${index}`} className="grid gap-3 rounded-xl border border-slate-200 p-4">
@@ -67,10 +134,12 @@ export default function VariantEditor({ variants: initialVariants }: { variants:
                   />
                   Active
                 </label>
-                <Button type="button" variant="ghost" size="sm" onClick={() => removeVariant(index)}>
-                  <Trash2 className="h-4 w-4" />
-                  Remove
-                </Button>
+                {!isClassicTee ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removeVariant(index)}>
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </Button>
+                ) : null}
               </div>
             </div>
 
@@ -143,10 +212,12 @@ export default function VariantEditor({ variants: initialVariants }: { variants:
           </div>
         ))}
       </div>
-      <Button type="button" variant="outline" onClick={() => setVariants((current) => [...current, newVariant()])}>
-        <Plus className="h-4 w-4" />
-        Add Variant
-      </Button>
+      {!isClassicTee ? (
+        <Button type="button" variant="outline" onClick={() => setVariants((current) => [...current, newVariant()])}>
+          <Plus className="h-4 w-4" />
+          Add Variant
+        </Button>
+      ) : null}
     </div>
   );
 }

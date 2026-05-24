@@ -92,7 +92,7 @@ export default function ProductForm({ product, action, submitLabel }: ProductFor
                 </div>
               </div>
             ) : null}
-            <VariantEditor variants={defaults.variants} />
+            <VariantEditor variants={defaults.variants} productSlug={defaults.slug} />
           </CardContent>
         </Card>
 
