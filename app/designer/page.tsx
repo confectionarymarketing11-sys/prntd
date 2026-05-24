@@ -764,310 +764,583 @@ export default function DesignerPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
+  <main className="min-h-screen overflow-hidden bg-[#020617] text-white">
+    {/* BG */}
+    <div className="pointer-events-none fixed inset-0 overflow-hidden">
+      <div className="absolute left-[-10%] top-[-10%] h-[520px] w-[520px] rounded-full bg-[#4f46e5]/15 blur-[140px]" />
+
+      <div className="absolute bottom-[-10%] right-[-10%] h-[520px] w-[520px] rounded-full bg-[#2563eb]/15 blur-[140px]" />
+    </div>
+
+    <div className="relative z-10">
       <ShopHeader />
 
       <section className="mx-auto w-full max-w-7xl px-[22px] py-10">
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] max-[1100px]:gap-7 max-[860px]:grid-cols-1">
-          <div className="relative rounded-[32px] bg-[#f5f7fb] p-7 max-[860px]:rounded-3xl max-[860px]:p-[18px]">
-            <div className="mb-[18px] flex gap-2.5 overflow-auto max-[860px]:w-full">
-              {(["front", "back"] as ShirtSide[]).map((side) => (
-                <button
-                  key={side}
-                  type="button"
-                  onClick={() => setSide(side)}
-                  className={`rounded-full px-[18px] py-3 text-sm font-bold capitalize max-[860px]:min-w-30 max-[860px]:flex-1 ${
-                    currentView === side ? "bg-[#111827] text-white" : "bg-[#e5e7eb] text-[#111827]"
-                  }`}
-                >
-                  {side}
-                </button>
-              ))}
-            </div>
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_420px] max-[860px]:grid-cols-1">
+          {/* DESIGNER */}
+          <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[#0f172a]/80 p-7 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+            {/* GLOW */}
+            <div className="absolute right-[-10%] top-[-10%] h-[260px] w-[260px] rounded-full bg-[#6366f1]/15 blur-[90px]" />
 
-            <div className="absolute right-7 top-5 z-50 flex max-w-[calc(100%-210px)] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-red-500/10 bg-white/90 px-[18px] py-2.5 text-sm font-semibold text-[#111827] shadow-[0_8px_24px_rgba(0,0,0,0.08)] backdrop-blur max-[860px]:static max-[860px]:mb-4 max-[860px]:w-full max-[860px]:max-w-none max-[860px]:justify-start max-[860px]:whitespace-normal max-[860px]:rounded-[18px]">
-              <span className="font-extrabold text-red-500">Important:</span>
-              Keep everything inside the blue-lined card. Prints exactly as shown.
-            </div>
+            <div className="relative z-10">
+              {/* HEADER */}
+              <div className="mb-7">
+                <p className="inline-flex rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#c7d2fe]">
+                  T-Shirt Designer
+                </p>
 
-            <div ref={stageWrapRef} className="relative mx-auto aspect-[1/1.2] w-full overflow-hidden rounded-[28px] bg-[#eef2f7] max-[860px]:rounded-[20px]">
-              <Image
-                src={color.images[currentView]}
-                alt={`${color.name} shirt ${currentView}`}
-                fill
-                priority
-                sizes="(max-width: 860px) calc(100vw - 80px), 760px"
-                className="pointer-events-none select-none object-contain"
-              />
+                <h1 className="mt-5 text-[clamp(40px,5vw,72px)] font-black leading-[0.92] tracking-[-0.06em]">
+                  Customize
+                  <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
+                    Premium Shirts
+                  </span>
+                </h1>
 
-              <Stage
-                width={stageWidth}
-                height={stageHeight}
-                className="!absolute inset-0 z-20"
-                onMouseDown={(event) => {
-                  if (event.target === event.target.getStage()) {
-                    setSelectedId(null);
-                  }
-                }}
-                onTouchStart={(event) => {
-                  if (event.target === event.target.getStage()) {
-                    setSelectedId(null);
-                  }
-                }}
-              >
-                <Layer clipX={printArea.x} clipY={printArea.y} clipWidth={printArea.width} clipHeight={printArea.height}>
-                  <Group>
-                    {layers.map((layer) =>
-                      layer.type === "image" ? (
-                        <URLImage
-                          key={layer.id}
-                          layer={layer}
-                          isSelected={selectedId === layer.id}
-                          onSelect={() => setSelectedId(layer.id)}
-                          updateLayer={updateLayer}
-                          onResetSize={resetImageSize}
-                        />
-                      ) : (
-                        <URLText
-                          key={layer.id}
-                          layer={layer}
-                          isSelected={selectedId === layer.id}
-                          onSelect={() => setSelectedId(layer.id)}
-                          updateLayer={updateLayer}
-                          onEdit={editTextLayer}
-                        />
-                      )
-                    )}
-                  </Group>
-                </Layer>
-              </Stage>
+                <p className="mt-5 max-w-2xl text-base leading-8 text-[#cbd5e1]">
+                  Upload artwork, add
+                  text, remove
+                  backgrounds, generate
+                  QR codes, and create
+                  premium print-ready
+                  apparel directly in
+                  your browser.
+                </p>
+              </div>
 
+              {/* VIEW SWITCH */}
+              <div className="mb-6 flex gap-3">
+                {(["front", "back"] as ShirtSide[]).map(
+                  (side) => (
+                    <button
+                      key={side}
+                      type="button"
+                      onClick={() =>
+                        setSide(side)
+                      }
+                      className={`rounded-full px-5 py-3 text-sm font-black uppercase tracking-[0.08em] transition ${
+                        currentView === side
+                          ? "bg-[linear-gradient(135deg,#3b82f6,#6366f1,#8b5cf6)] text-white shadow-[0_10px_30px_rgba(99,102,241,0.35)]"
+                          : "border border-white/10 bg-white/[0.04] text-[#cbd5e1]"
+                      }`}
+                    >
+                      {side}
+                    </button>
+                  ),
+                )}
+              </div>
+
+              {/* STAGE */}
               <div
-                className="pointer-events-none absolute z-30 box-border rounded-[18px] border-2 border-dashed border-blue-500/75"
-                style={{
-                  left: "50.5%",
-                  top: "51%",
-                  width: "30%",
-                  height: "39%",
-                  transform: "translate(-50%, -50%)",
-                }}
-              />
-            </div>
+                ref={stageWrapRef}
+                className="relative mx-auto aspect-[1/1.2] w-full overflow-hidden rounded-[30px] border border-white/10 bg-[#020617]"
+              >
+                <Image
+                  src={
+                    color.images[
+                      currentView
+                    ]
+                  }
+                  alt={`${color.name} shirt ${currentView}`}
+                  fill
+                  priority
+                  sizes="(max-width: 860px) calc(100vw - 80px), 760px"
+                  className="pointer-events-none select-none object-contain"
+                />
 
-            <p className="mt-4 rounded-[18px] bg-white/80 px-4 py-3 text-sm font-semibold text-[#4b5563] shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
-              {notice}
-            </p>
+                <Stage
+                  width={stageWidth}
+                  height={stageHeight}
+                  className="!absolute inset-0 z-20"
+                  onMouseDown={(
+                    event,
+                  ) => {
+                    if (
+                      event.target ===
+                      event.target.getStage()
+                    ) {
+                      setSelectedId(
+                        null,
+                      );
+                    }
+                  }}
+                  onTouchStart={(
+                    event,
+                  ) => {
+                    if (
+                      event.target ===
+                      event.target.getStage()
+                    ) {
+                      setSelectedId(
+                        null,
+                      );
+                    }
+                  }}
+                >
+                  <Layer
+                    clipX={
+                      printArea.x
+                    }
+                    clipY={
+                      printArea.y
+                    }
+                    clipWidth={
+                      printArea.width
+                    }
+                    clipHeight={
+                      printArea.height
+                    }
+                  >
+                    <Group>
+                      {layers.map(
+                        (layer) =>
+                          layer.type ===
+                          "image" ? (
+                            <URLImage
+                              key={
+                                layer.id
+                              }
+                              layer={
+                                layer
+                              }
+                              isSelected={
+                                selectedId ===
+                                layer.id
+                              }
+                              onSelect={() =>
+                                setSelectedId(
+                                  layer.id,
+                                )
+                              }
+                              updateLayer={
+                                updateLayer
+                              }
+                              onResetSize={
+                                resetImageSize
+                              }
+                            />
+                          ) : (
+                            <URLText
+                              key={
+                                layer.id
+                              }
+                              layer={
+                                layer
+                              }
+                              isSelected={
+                                selectedId ===
+                                layer.id
+                              }
+                              onSelect={() =>
+                                setSelectedId(
+                                  layer.id,
+                                )
+                              }
+                              updateLayer={
+                                updateLayer
+                              }
+                              onEdit={
+                                editTextLayer
+                              }
+                            />
+                          ),
+                      )}
+                    </Group>
+                  </Layer>
+                </Stage>
+
+                {/* PRINT AREA */}
+                <div
+                  className="pointer-events-none absolute z-30 box-border rounded-[18px] border-2 border-dashed border-[#60a5fa]/80"
+                  style={{
+                    left: "50.5%",
+                    top: "51%",
+                    width: "30%",
+                    height: "39%",
+                    transform:
+                      "translate(-50%, -50%)",
+                  }}
+                />
+              </div>
+
+              {/* NOTICE */}
+              <p className="mt-5 rounded-[20px] border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-semibold text-[#cbd5e1]">
+                {notice}
+              </p>
+            </div>
           </div>
 
-          <aside className="flex flex-col gap-[18px] rounded-[28px] bg-white p-7 shadow-[0_10px_28px_rgba(0,0,0,0.05)] max-[860px]:rounded-3xl max-[860px]:p-[22px] max-[480px]:p-[18px]">
-            <h1 className="mb-2 text-[52px] font-black leading-[0.92] tracking-[-0.05em] max-[1100px]:text-[42px] max-[860px]:text-[34px] max-[480px]:text-3xl">
-              Customize T-Shirts
-            </h1>
-            <div className="h-px bg-black/5" />
+          {/* SIDEBAR */}
+          <aside className="flex flex-col gap-5 rounded-[34px] border border-white/10 bg-[#0f172a]/80 p-7 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#94a3b8]">
+                Customizer
+              </p>
 
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Upload Design(s)</label>
-            <input
-              className="w-full rounded-[20px] border-2 border-dashed border-indigo-500/20 bg-[#fafbff] p-[18px] text-base"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              multiple
-              onChange={handleUpload}
-            />
+              <h2 className="mt-3 text-4xl font-black tracking-[-0.05em] text-white">
+                Controls
+              </h2>
+            </div>
 
-            <button type="button" onClick={addText} className="prntd-gradient-btn">
+            {/* UPLOAD */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Upload Design(s)
+              </label>
+
+              <input
+                className="mt-3 w-full rounded-[22px] border border-dashed border-[#6366f1]/25 bg-[#020617] p-5 text-sm text-[#cbd5e1]"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                multiple
+                onChange={
+                  handleUpload
+                }
+              />
+            </div>
+
+            {/* BUTTONS */}
+            <button
+              type="button"
+              onClick={addText}
+              className="rounded-[20px] bg-[linear-gradient(135deg,#3b82f6,#6366f1,#8b5cf6)] px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-white shadow-[0_14px_40px_rgba(99,102,241,0.35)]"
+            >
               Add Text
             </button>
 
-            <div className="rounded-[22px] border border-[#e7eaf3] bg-[#f8faff] p-4">
-              <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Free Static QR Code</label>
-              <div className="mt-3 grid gap-2">
+            <button
+              type="button"
+              disabled={
+                isRemovingBg
+              }
+              onClick={
+                removeBackground
+              }
+              className="rounded-[20px] border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-black uppercase tracking-[0.08em] text-[#cbd5e1]"
+            >
+              {isRemovingBg
+                ? "Removing Background..."
+                : "Remove Background"}
+            </button>
+
+            {/* QR */}
+            <div className="rounded-[24px] border border-white/10 bg-[#020617] p-5">
+              <label className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Free QR Code
+              </label>
+
+              <div className="mt-4 grid gap-3">
                 <input
                   value={qrValue}
-                  onChange={(event) => setQrValue(event.target.value)}
-                  className="h-[52px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-sm"
-                  placeholder="https://example.com or plain text"
+                  onChange={(
+                    event,
+                  ) =>
+                    setQrValue(
+                      event.target
+                        .value,
+                    )
+                  }
+                  className="h-[54px] rounded-[18px] border border-white/10 bg-[#0f172a] px-4 text-sm text-white"
+                  placeholder="https://example.com"
                 />
-                <button type="button" onClick={addFreeQrCode} className="portal-action">
-                  Add Free QR Code
+
+                <button
+                  type="button"
+                  onClick={
+                    addFreeQrCode
+                  }
+                  className="rounded-[18px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.08em] text-[#cbd5e1]"
+                >
+                  Add QR Code
                 </button>
               </div>
             </div>
 
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Font and Text Color</label>
-            <select
-              value={fontFamily}
-              onChange={(event) => {
-                setFontFamily(event.target.value);
+            {/* FONT */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Font
+              </label>
 
-                if (selectedTextLayer) {
-                  updateLayer(selectedTextLayer.id, { fontFamily: event.target.value });
+              <select
+                value={fontFamily}
+                onChange={(
+                  event,
+                ) => {
+                  setFontFamily(
+                    event.target
+                      .value,
+                  );
+
+                  if (
+                    selectedTextLayer
+                  ) {
+                    updateLayer(
+                      selectedTextLayer.id,
+                      {
+                        fontFamily:
+                          event
+                            .target
+                            .value,
+                      },
+                    );
+                  }
+                }}
+                className="mt-3 h-[56px] w-full rounded-[18px] border border-white/10 bg-[#020617] px-4 text-sm text-white"
+              >
+                {fontFamilies.map(
+                  (font) => (
+                    <option
+                      key={font}
+                      value={
+                        font
+                      }
+                    >
+                      {font}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            {/* COLOR */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Text Color
+              </label>
+
+              <input
+                type="color"
+                value={textColor}
+                onChange={(
+                  event,
+                ) => {
+                  setTextColor(
+                    event.target
+                      .value,
+                  );
+
+                  if (
+                    selectedTextLayer
+                  ) {
+                    updateLayer(
+                      selectedTextLayer.id,
+                      {
+                        fill: event
+                          .target
+                          .value,
+                      },
+                    );
+                  }
+                }}
+                className="mt-3 h-[54px] w-full rounded-[18px] border border-white/10 bg-[#020617] p-2"
+              />
+            </div>
+
+            {/* QUANTITY */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Quantity
+              </label>
+
+              <input
+                className="mt-3 h-[56px] w-full rounded-[18px] border border-white/10 bg-[#020617] px-4 text-white"
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(
+                  event,
+                ) =>
+                  setQuantity(
+                    Math.max(
+                      1,
+                      Number(
+                        event
+                          .target
+                          .value,
+                      ),
+                    ),
+                  )
                 }
-              }}
-              className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base"
-            >
-              {fontFamilies.map((font) => (
-                <option key={font} value={font}>
-                  {font === "Brush Script MT" ? "Brush Script" : font === "Comic Sans MS" ? "Comic Sans" : font}
-                </option>
-              ))}
-            </select>
+              />
+            </div>
 
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Text Color</label>
-            <input
-              type="color"
-              value={textColor}
-              onChange={(event) => {
-                setTextColor(event.target.value);
+            {/* SIZE */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Size
+              </label>
 
-                if (selectedTextLayer) {
-                  updateLayer(selectedTextLayer.id, { fill: event.target.value });
+              <select
+                value={size}
+                onChange={(
+                  event,
+                ) =>
+                  setSize(
+                    event.target
+                      .value,
+                  )
                 }
-              }}
-              className="h-[52px] w-full rounded-2xl border border-slate-950/10 bg-white p-1.5"
-            />
-
-            {selectedTextLayer && (
-              <>
-                <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Selected Text</label>
-                <input
-                  value={selectedTextLayer.text ?? ""}
-                  onChange={(event) => updateLayer(selectedTextLayer.id, { text: event.target.value })}
-                  className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base"
-                />
-              </>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 max-[860px]:grid-cols-1">
-              <button type="button" onClick={undo} disabled={!undoStack.length} className="portal-action disabled:cursor-not-allowed disabled:opacity-50">
-                Undo
-              </button>
-              <button type="button" onClick={redo} disabled={!redoStack.length} className="portal-action disabled:cursor-not-allowed disabled:opacity-50">
-                Redo
-              </button>
+                className="mt-3 h-[56px] w-full rounded-[18px] border border-white/10 bg-[#020617] px-4 text-white"
+              >
+                {shirtSizes.map(
+                  (
+                    shirtSize,
+                  ) => (
+                    <option
+                      key={
+                        shirtSize
+                      }
+                      value={
+                        shirtSize
+                      }
+                    >
+                      {shirtSize}
+                    </option>
+                  ),
+                )}
+              </select>
             </div>
 
-            <button type="button" onClick={deleteSelectedLayer} className="min-h-[54px] rounded-[18px] border border-red-500/15 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-              Delete Selected Design
-            </button>
+            {/* COLORS */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Shirt Color
+              </label>
 
-            <Link
-              href="/designer"
-              className="relative flex min-h-14 w-full items-center justify-center overflow-hidden rounded-[20px] bg-[linear-gradient(135deg,#8b5cf6_0%,#6366f1_45%,#3b82f6_100%)] px-4 py-3 text-center text-[15px] font-extrabold tracking-[0.02em] text-white no-underline shadow-[0_14px_34px_rgba(99,102,241,0.24)] transition hover:-translate-y-0.5"
-            >
-              Create New Design
-            </Link>
-
-            <button type="button" disabled={isRemovingBg} onClick={removeBackground} className="prntd-gradient-btn disabled:cursor-not-allowed disabled:opacity-70">
-              {isRemovingBg ? (
-                <>
-                  <span className="inline-block h-[18px] w-[18px] animate-spin rounded-full border-2 border-white/25 border-t-white" />
-                  Removing Background...
-                </>
-              ) : (
-                "Remove Image Background - 2 Credits"
-              )}
-            </button>
-
-            <div className="grid grid-cols-2 gap-3 max-[860px]:grid-cols-1">
-              <button type="button" onClick={() => moveSelectedLayer("backward")} className="prntd-gradient-btn">
-                Send Backward
-              </button>
-              <button type="button" onClick={() => moveSelectedLayer("forward")} className="prntd-gradient-btn">
-                Bring Forward
-              </button>
-            </div>
-
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Quantity</label>
-            <input
-              className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-[18px] text-base"
-              type="number"
-              min={1}
-              value={quantity}
-              onChange={(event) => setQuantity(Math.max(1, Number(event.target.value)))}
-            />
-
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Size</label>
-            <select
-              value={size}
-              onChange={(event) => setSize(event.target.value)}
-              className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base"
-            >
-              {shirtSizes.map((shirtSize) => (
-                <option key={shirtSize} value={shirtSize}>
-                  {shirtSize}
-                </option>
-              ))}
-            </select>
-
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Shirt Color</label>
-            <div className="flex flex-wrap gap-3">
-              {shirtColors.map((shirtColor) => (
-                <button
-                  key={shirtColor.key}
-                  type="button"
-                  aria-label={`${shirtColor.name} Shirt`}
-                  title={shirtColor.name}
-                  onClick={() => setCurrentColorKey(shirtColor.key)}
-                  className={`h-11 w-11 rounded-full border-[3px] ${
-                    currentColorKey === shirtColor.key ? "border-[#7c3aed]" : "border-transparent"
-                  }`}
-                  style={{ background: shirtColor.swatch }}
-                />
-              ))}
-            </div>
-
-            <div className="mt-2 flex flex-col gap-[18px] rounded-3xl bg-[#f5f7fb] p-[22px]">
-              <div className="flex items-start justify-between gap-5 max-[640px]:flex-col">
-                <div>
-                  <p className="text-[15px] font-bold text-[#111827]">Estimated Total</p>
-                  <p className="mt-1 text-[13px] text-[#6b7280]">Pricing updates automatically</p>
-                </div>
-                <strong className="text-right text-[34px] font-extrabold leading-none text-[#111827] max-[640px]:text-left max-[640px]:text-[30px]">
-                  {formatMoney(price.lineTotal)}
-                  {price.perShirtDiscount > 0 && (
-                    <span className="block pt-2 text-sm font-bold text-[#7c3aed]">
-                      -{formatMoney(price.perShirtDiscount)}/shirt
-                    </span>
-                  )}
-                </strong>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {shirtColors.map(
+                  (
+                    shirtColor,
+                  ) => (
+                    <button
+                      key={
+                        shirtColor.key
+                      }
+                      type="button"
+                      aria-label={`${shirtColor.name} Shirt`}
+                      title={
+                        shirtColor.name
+                      }
+                      onClick={() =>
+                        setCurrentColorKey(
+                          shirtColor.key,
+                        )
+                      }
+                      className={`h-11 w-11 rounded-full border-[3px] transition ${
+                        currentColorKey ===
+                        shirtColor.key
+                          ? "border-[#818cf8] scale-110"
+                          : "border-transparent"
+                      }`}
+                      style={{
+                        background:
+                          shirtColor.swatch,
+                      }}
+                    />
+                  ),
+                )}
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
-                <div className="rounded-[18px] border border-violet-600/10 bg-white p-3.5 shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#7c3aed]">2+ Shirts</p>
-                  <p className="mt-1.5 text-base font-extrabold text-[#111827]">Save $11/shirt</p>
-                </div>
-                <div className="rounded-[18px] border border-violet-600/10 bg-white p-3.5 shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#7c3aed]">6+ Shirts</p>
-                  <p className="mt-1.5 text-base font-extrabold text-[#111827]">Save $20/shirt</p>
-                </div>
-              </div>
+            {/* PRICE */}
+            <div className="rounded-[30px] border border-white/10 bg-[#020617] p-6">
+              <p className="text-sm font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Estimated Total
+              </p>
 
-              <p className="rounded-[14px] bg-[#eef2ff] px-3.5 py-3 text-[13px] font-semibold text-[#4b5563]">
-                Double-sided printing costs extra. Current print type: {price.printType}.
+              <p className="mt-3 text-[42px] font-black leading-none text-white">
+                {formatMoney(
+                  price.lineTotal,
+                )}
+              </p>
+
+              <p className="mt-4 rounded-[16px] bg-[#0f172a] px-4 py-3 text-sm text-[#cbd5e1]">
+                Current print type:
+                {" "}
+                {
+                  price.printType
+                }
               </p>
             </div>
 
-            <button type="button" onClick={addToCart} className="prntd-gradient-btn">
+            {/* ACTIONS */}
+            <div className="grid gap-3">
+              <button
+                type="button"
+                onClick={undo}
+                disabled={
+                  !undoStack.length
+                }
+                className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-4 text-sm font-black uppercase tracking-[0.08em] text-[#cbd5e1] disabled:opacity-40"
+              >
+                Undo
+              </button>
+
+              <button
+                type="button"
+                onClick={redo}
+                disabled={
+                  !redoStack.length
+                }
+                className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-4 text-sm font-black uppercase tracking-[0.08em] text-[#cbd5e1] disabled:opacity-40"
+              >
+                Redo
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  deleteSelectedLayer
+                }
+                className="rounded-[18px] border border-red-500/20 bg-red-500/10 px-4 py-4 text-sm font-black uppercase tracking-[0.08em] text-red-300"
+              >
+                Delete Selected
+              </button>
+            </div>
+
+            {/* CTA */}
+            <button
+              type="button"
+              onClick={addToCart}
+              className="rounded-[20px] bg-[linear-gradient(135deg,#3b82f6,#6366f1,#8b5cf6)] px-5 py-5 text-sm font-black uppercase tracking-[0.12em] text-white shadow-[0_14px_40px_rgba(99,102,241,0.35)]"
+            >
               Add To Cart
             </button>
 
-            <div className="rounded-[18px] border border-orange-600/10 bg-[#fff7ed] px-[18px] py-4 text-[13px] leading-[1.55] text-[#7c2d12]">
-              <p>By uploading or creating a design, you confirm that:</p>
-              <ul className="ml-[18px] mt-2.5 list-disc space-y-1.5">
-                <li>You own the rights to the artwork, logo, image, text, or content uploaded.</li>
-                <li>Or you have obtained proper permission or licensing to use it.</li>
-                <li>Your design does not infringe any copyright, trademark, intellectual property, or third-party rights.</li>
-                <li>Your content does not contain illegal, hateful, explicit, or prohibited material.</li>
-              </ul>
-              <p className="mt-2.5">
-                PRNTD reserves the right to refuse, cancel, or remove any order(s) containing content believed to violate
-                intellectual property rights or applicable laws.
+            {/* LEGAL */}
+            <div className="rounded-[22px] border border-orange-500/15 bg-orange-500/10 px-[18px] py-4 text-[13px] leading-[1.55] text-orange-100">
+              <p>
+                By uploading or
+                creating a design,
+                you confirm that:
               </p>
+
+              <ul className="ml-[18px] mt-2.5 list-disc space-y-1.5">
+                <li>
+                  You own the
+                  rights to the
+                  artwork or
+                  content.
+                </li>
+
+                <li>
+                  Your design does
+                  not infringe
+                  copyrights or
+                  trademarks.
+                </li>
+
+                <li>
+                  Your content does
+                  not contain
+                  prohibited
+                  material.
+                </li>
+              </ul>
             </div>
           </aside>
         </div>
       </section>
-    </main>
-  );
-}
+    </div>
+  </main>
+);
