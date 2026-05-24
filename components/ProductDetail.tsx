@@ -22,9 +22,21 @@ type StoredDesign = {
 };
 
 const productFeatures: Record<string, string[]> = {
-  "classic-tee": ["Soft cotton feel", "Front and back print-ready", "Best for merch, staff shirts, and events"],
-  "die-cut-stickers": ["Durable vinyl material", "Waterproof and weather-resistant", "Vibrant long-lasting color"],
-  "business-cards": ["Front and back card design", "Premium business-ready finish", "Built for QR codes and brand details"],
+  "classic-tee": [
+    "Premium soft cotton finish",
+    "Front and back print-ready",
+    "Perfect for merch and brands",
+  ],
+  "die-cut-stickers": [
+    "Waterproof premium vinyl",
+    "Scratch resistant coating",
+    "Long-lasting vibrant colors",
+  ],
+  "business-cards": [
+    "Luxury business finish",
+    "Double-sided print support",
+    "Professional networking quality",
+  ],
 };
 
 const checkerboardBackground = {
@@ -41,12 +53,18 @@ function compressUpload(file: File) {
 
     reader.onload = () => {
       const image = new Image();
+
       image.onload = () => {
         const maxSize = 1400;
-        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const scale = Math.min(
+          1,
+          maxSize / Math.max(image.width, image.height),
+        );
+
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(image.width * scale));
         canvas.height = Math.max(1, Math.round(image.height * scale));
+
         const ctx = canvas.getContext("2d");
 
         if (!ctx) {
@@ -55,29 +73,59 @@ function compressUpload(file: File) {
         }
 
         ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/webp", 0.9));
+
+        resolve(canvas.toDataURL("image/webp", 0.92));
       };
+
       image.onerror = reject;
       image.src = String(reader.result ?? "");
     };
+
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-export default function ProductDetail({ product, reviews = [] }: { product: Product; reviews?: Review[] }) {
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0] ?? "");
-  const [selectedColor, setSelectedColor] = useState(product.colors[0]);
-  const [quantity, setQuantity] = useState(product.minimumQuantity);
-  const [design, setDesign] = useState<StoredDesign | null>(null);
-  const [uploadedDesign, setUploadedDesign] = useState("");
-  const [status, setStatus] = useState("");
-  const [reviewStatus, setReviewStatus] = useState("");
-  const [adminBasePrice, setAdminBasePrice] = useState(product.basePrice);
+export default function ProductDetail({
+  product,
+  reviews = [],
+}: {
+  product: Product;
+  reviews?: Review[];
+}) {
+  const [selectedSize, setSelectedSize] = useState(
+    product.sizes[0] ?? "",
+  );
 
-  const designPreview = uploadedDesign || design?.image || "";
-  const isSticker = product.id === "die-cut-stickers";
-  const isBusinessCard = product.id === "business-cards";
+  const [selectedColor, setSelectedColor] = useState(
+    product.colors[0],
+  );
+
+  const [quantity, setQuantity] = useState(
+    product.minimumQuantity,
+  );
+
+  const [design, setDesign] =
+    useState<StoredDesign | null>(null);
+
+  const [uploadedDesign, setUploadedDesign] = useState("");
+
+  const [status, setStatus] = useState("");
+
+  const [reviewStatus, setReviewStatus] = useState("");
+
+  const [adminBasePrice, setAdminBasePrice] = useState(
+    product.basePrice,
+  );
+
+  const designPreview =
+    uploadedDesign || design?.image || "";
+
+  const isSticker =
+    product.id === "die-cut-stickers";
+
+  const isBusinessCard =
+    product.id === "business-cards";
 
   const frontLayers = useMemo<DesignLayer[]>(() => {
     if (!designPreview) return [];
@@ -97,12 +145,29 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
     ];
   }, [designPreview]);
 
-  const pricedProduct = useMemo(() => ({ ...product, basePrice: adminBasePrice }), [adminBasePrice, product]);
-  const price = useMemo(() => priceDesign(pricedProduct, quantity, frontLayers, []), [frontLayers, pricedProduct, quantity]);
+  const pricedProduct = useMemo(
+    () => ({
+      ...product,
+      basePrice: adminBasePrice,
+    }),
+    [adminBasePrice, product],
+  );
+
+  const price = useMemo(
+    () =>
+      priceDesign(
+        pricedProduct,
+        quantity,
+        frontLayers,
+        [],
+      ),
+    [frontLayers, pricedProduct, quantity],
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const raw = localStorage.getItem("prntd_design");
+
       if (!raw) return;
 
       try {
@@ -120,12 +185,25 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
 
     fetch("/api/products/pricing")
       .then((response) => response.json())
-      .then((pricing: Record<string, { price?: number }>) => {
-        const nextPrice = pricing[product.id]?.price;
-        if (active && typeof nextPrice === "number" && nextPrice > 0) {
-          setAdminBasePrice(nextPrice);
-        }
-      })
+      .then(
+        (
+          pricing: Record<
+            string,
+            { price?: number }
+          >,
+        ) => {
+          const nextPrice =
+            pricing[product.id]?.price;
+
+          if (
+            active &&
+            typeof nextPrice === "number" &&
+            nextPrice > 0
+          ) {
+            setAdminBasePrice(nextPrice);
+          }
+        },
+      )
       .catch(() => undefined);
 
     return () => {
@@ -133,17 +211,26 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
     };
   }, [product.id]);
 
-  async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
+  async function handleUpload(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
     const file = event.target.files?.[0];
+
     if (!file) return;
 
     try {
-      setStatus("Preparing attached artwork...");
-      const preparedImage = await compressUpload(file);
+      setStatus("Preparing artwork...");
+
+      const preparedImage =
+        await compressUpload(file);
+
       setUploadedDesign(preparedImage);
-      setStatus("Design attached to this product.");
+
+      setStatus("Artwork attached.");
     } catch {
-      setStatus("Could not prepare that image. Try a smaller PNG, JPG, or WEBP.");
+      setStatus(
+        "Could not process that image.",
+      );
     } finally {
       event.target.value = "";
     }
@@ -153,17 +240,25 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
     setDesign(null);
     setUploadedDesign("");
     localStorage.removeItem("prntd_design");
+
     setStatus("Design removed.");
   }
 
   function openCustomizer() {
     if (designPreview) {
-      localStorage.setItem("prntd_generated_image", designPreview);
+      localStorage.setItem(
+        "prntd_generated_image",
+        designPreview,
+      );
     }
 
     window.location.href = isBusinessCard
-      ? `/business-card-designer?product=${encodeURIComponent(product.id)}`
-      : `/designer?product=${encodeURIComponent(product.id)}`;
+      ? `/business-card-designer?product=${encodeURIComponent(
+          product.id,
+        )}`
+      : `/designer?product=${encodeURIComponent(
+          product.id,
+        )}`;
   }
 
   async function addToCart() {
@@ -171,7 +266,9 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
       const item: CartItem = {
         id: crypto.randomUUID(),
         productId: product.id,
-        productName: designPreview ? `Custom ${product.name}` : product.name,
+        productName: designPreview
+          ? `Custom ${product.name}`
+          : product.name,
         size: selectedSize,
         color: selectedColor,
         quantity,
@@ -185,245 +282,403 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
         createdAt: new Date().toISOString(),
       };
 
-      setStatus("Preparing cart item...");
+      setStatus("Adding to cart...");
+
       await addCartItem(item);
+
       trackStorefrontEvent("added_to_cart", {
         product_id: product.id,
         product_name: product.name,
         quantity,
         line_total: price.lineTotal,
       });
-      setStatus("Added to cart. Opening checkout...");
+
       window.location.href = "/cart";
     } catch {
-      setStatus("Could not add this artwork to cart. Try a smaller image or refresh and upload again.");
+      setStatus("Could not add item.");
     }
   }
 
-  async function submitReview(event: FormEvent<HTMLFormElement>) {
+  async function submitReview(
+    event: FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
+
     const form = event.currentTarget;
+
     const formData = new FormData(form);
 
     setReviewStatus("Submitting review...");
 
     try {
-      const response = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: product.id,
-          customerName: String(formData.get("customerName") ?? ""),
-          customerEmail: String(formData.get("customerEmail") ?? ""),
-          rating: Number(formData.get("rating") ?? 5),
-          title: String(formData.get("title") ?? ""),
-          body: String(formData.get("body") ?? ""),
-        }),
-      });
-      const data = (await response.json()) as { message?: string; error?: string };
+      const response = await fetch(
+        "/api/reviews",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            productId: product.id,
+            customerName: String(
+              formData.get("customerName") ??
+                "",
+            ),
+            customerEmail: String(
+              formData.get("customerEmail") ??
+                "",
+            ),
+            rating: Number(
+              formData.get("rating") ?? 5,
+            ),
+            title: String(
+              formData.get("title") ?? "",
+            ),
+            body: String(
+              formData.get("body") ?? "",
+            ),
+          }),
+        },
+      );
 
-      if (!response.ok) throw new Error(data.error ?? "Review failed");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ?? "Review failed",
+        );
+      }
 
       form.reset();
-      setReviewStatus(data.message ?? "Thanks. Your review is waiting for approval.");
+
+      setReviewStatus(
+        data.message ??
+          "Review submitted.",
+      );
     } catch (error) {
-      setReviewStatus(error instanceof Error ? error.message : "Review could not be submitted.");
+      setReviewStatus(
+        error instanceof Error
+          ? error.message
+          : "Review failed.",
+      );
     }
   }
 
   return (
-    <section className="bg-[#f5f7fb] px-5 py-8 pb-20">
-      <div className="mx-auto grid w-full max-w-[1320px] gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)]">
-        <div className="grid gap-4">
-          <div className="overflow-hidden rounded-[30px] border border-white/70 bg-white shadow-[0_12px_38px_rgba(0,0,0,0.06)]">
-            <ProductMockup product={product} label={designPreview ? "YOUR DESIGN" : product.name} />
+    <section className="relative overflow-hidden bg-[#020617] px-5 py-10 text-white">
+      {/* BACKGROUND */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-[-10%] top-[-10%] h-[500px] w-[500px] rounded-full bg-[#4f46e5]/20 blur-[140px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] h-[500px] w-[500px] rounded-full bg-[#2563eb]/20 blur-[140px]" />
+      </div>
+
+      <div className="relative z-10 mx-auto grid w-full max-w-[1400px] gap-8 lg:grid-cols-[minmax(0,1fr)_460px]">
+        {/* LEFT */}
+        <div className="grid gap-5">
+          <div className="overflow-hidden rounded-[36px] border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-[0_25px_80px_rgba(0,0,0,0.45)]">
+            <ProductMockup
+              product={product}
+              label={
+                designPreview
+                  ? "YOUR DESIGN"
+                  : product.name
+              }
+            />
           </div>
-          <div className={`grid gap-4 ${isSticker ? "" : "sm:grid-cols-2"}`}>
+
+          <div
+            className={`grid gap-5 ${
+              isSticker
+                ? ""
+                : "sm:grid-cols-2"
+            }`}
+          >
             {!isSticker && (
-              <div className="overflow-hidden rounded-[24px] border border-white/70 bg-white shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-                <ProductMockup product={product} color={product.colors[1]?.value ?? selectedColor.value} label="PRINT" />
+              <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+                <ProductMockup
+                  product={product}
+                  color={
+                    product.colors[1]?.value ??
+                    selectedColor.value
+                  }
+                  label="PRINT"
+                />
               </div>
             )}
-            <div className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#4f46e5]">Production</p>
-              <h2 className="mt-2 text-2xl font-black">{product.productionDays}</h2>
-              <p className="mt-3 text-sm leading-6 text-[#6b7280]">
-                Minimum quantity {product.minimumQuantity}. Artwork can be uploaded, generated, or built in the product customizer.
+
+            <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#818cf8]">
+                Production
+              </p>
+
+              <h2 className="mt-3 text-4xl font-black">
+                {product.productionDays}
+              </h2>
+
+              <p className="mt-4 text-sm leading-7 text-[#94a3b8]">
+                Built for premium print
+                production with high-quality
+                finishing and fast turnaround.
               </p>
             </div>
           </div>
         </div>
 
-        <aside className="h-fit rounded-[30px] border border-white/70 bg-white p-6 shadow-[0_12px_38px_rgba(0,0,0,0.06)] lg:sticky lg:top-5">
-          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#4f46e5]">{product.category}</p>
-          <h1 className="mt-3 text-[clamp(34px,4vw,52px)] font-black leading-[1.02] tracking-normal">{product.name}</h1>
-          <p className="mt-4 text-[15px] leading-7 text-[#6b7280]">{product.description}</p>
+        {/* RIGHT */}
+        <aside className="h-fit rounded-[36px] border border-white/10 bg-white/[0.04] p-7 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,0.5)] lg:sticky lg:top-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#818cf8]">
+            {product.category}
+          </p>
 
-          <div className="my-5 h-px bg-[#e5e7eb]" />
+          <h1 className="mt-4 text-[clamp(42px,5vw,72px)] font-black leading-[0.95] tracking-[-0.04em]">
+            {product.name}
+          </h1>
 
-          <div className="rounded-[22px] bg-[#f5f7fb] p-5">
-            <p className="text-sm font-extrabold text-[#111827]">Your Design</p>
+          <p className="mt-5 text-[15px] leading-8 text-[#94a3b8]">
+            {product.description}
+          </p>
+
+          {/* DESIGN BOX */}
+          <div className="mt-8 rounded-[28px] border border-white/10 bg-[#0f172a]/80 p-5">
+            <p className="text-sm font-black">
+              Your Design
+            </p>
+
             {designPreview ? (
               <div className="mt-4">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={designPreview}
-                  alt="Attached design preview"
-                  className="max-h-[260px] w-full rounded-[18px] border border-[#e5e7eb] bg-white object-contain p-3"
-                  style={isSticker ? checkerboardBackground : undefined}
+                  alt="Preview"
+                  className="max-h-[260px] w-full rounded-[20px] border border-white/10 bg-white object-contain p-4"
+                  style={
+                    isSticker
+                      ? checkerboardBackground
+                      : undefined
+                  }
                 />
-                <p className="mt-3 break-words text-xs leading-5 text-[#6b7280]">
-                  {design?.designPath ? `Saved design: ${design.designPath}` : "Uploaded design attached locally."}
-                </p>
-                <button type="button" onClick={removeDesign} className="design-utility-btn mt-3">
+
+                <button
+                  type="button"
+                  onClick={removeDesign}
+                  className="mt-4 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-black transition hover:bg-white/10"
+                >
                   Remove Design
                 </button>
               </div>
             ) : (
-              <p className="mt-2 text-sm leading-6 text-[#6b7280]">Attach a saved design or upload artwork before adding to cart.</p>
+              <>
+                <p className="mt-2 text-sm leading-7 text-[#94a3b8]">
+                  Upload artwork or attach a
+                  saved design before adding
+                  to cart.
+                </p>
+
+                <label className="mt-5 flex cursor-pointer items-center justify-center rounded-[22px] border-2 border-dashed border-[#6366f1]/40 bg-white/[0.03] px-5 py-6 text-center text-sm font-black text-[#c7d2fe] transition hover:bg-white/[0.06]">
+                  Upload Artwork
+
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleUpload}
+                    className="hidden"
+                  />
+                </label>
+              </>
             )}
-            <label className="mt-4 block cursor-pointer rounded-[18px] border-2 border-dashed border-[#c7d2fe] bg-white p-4 text-center text-sm font-extrabold text-[#4338ca]">
-              Upload Artwork
-              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleUpload} className="hidden" />
-            </label>
           </div>
 
-          <div className="mt-5 grid gap-4">
+          {/* OPTIONS */}
+          <div className="mt-6 grid gap-5">
             {!isBusinessCard && (
-              <>
-                <label className="grid gap-2">
-                  <span className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Size</span>
-                  <select value={selectedSize} onChange={(event) => setSelectedSize(event.target.value)} className="portal-field">
-                    {product.sizes.map((size) => (
-                      <option key={size} value={size}>
+              <label className="grid gap-2">
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                  Size
+                </span>
+
+                <select
+                  value={selectedSize}
+                  onChange={(event) =>
+                    setSelectedSize(
+                      event.target.value,
+                    )
+                  }
+                  className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
+                >
+                  {product.sizes.map(
+                    (size) => (
+                      <option
+                        key={size}
+                        value={size}
+                      >
                         {size}
                       </option>
-                    ))}
-                  </select>
-                </label>
-
-                {isSticker ? (
-                  <label className="grid gap-2">
-                    <span className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Material Finish</span>
-                    <select
-                      value={selectedColor.name}
-                      onChange={(event) => {
-                        const nextColor = product.colors.find((color) => color.name === event.target.value) ?? product.colors[0];
-                        setSelectedColor(nextColor);
-                      }}
-                      className="portal-field"
-                    >
-                      {product.colors.map((color) => (
-                        <option key={color.name} value={color.name}>
-                          {color.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : (
-                  <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Color / Finish</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {product.colors.map((color) => (
-                        <button
-                          key={color.name}
-                          type="button"
-                          onClick={() => setSelectedColor(color)}
-                          className={`h-11 w-11 rounded-full border-[3px] ${
-                            color.name === selectedColor.name ? "border-[#7c3aed]" : "border-transparent"
-                          } shadow-sm`}
-                          style={{ background: color.value }}
-                          aria-label={color.name}
-                          title={color.name}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
+                    ),
+                  )}
+                </select>
+              </label>
             )}
 
             <label className="grid gap-2">
-              <span className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Quantity</span>
+              <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                Quantity
+              </span>
+
               <input
                 value={quantity}
                 type="number"
                 min={product.minimumQuantity}
-                onChange={(event) => setQuantity(Math.max(product.minimumQuantity, Number(event.target.value) || product.minimumQuantity))}
-                className="portal-field"
+                onChange={(event) =>
+                  setQuantity(
+                    Math.max(
+                      product.minimumQuantity,
+                      Number(
+                        event.target.value,
+                      ) ||
+                        product.minimumQuantity,
+                    ),
+                  )
+                }
+                className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
               />
             </label>
           </div>
 
-          <div className="my-5 rounded-[22px] bg-[#eef2ff] p-5">
-            <p className="text-sm font-bold text-[#4338ca]">Estimated Total</p>
-            <p className="mt-1 text-[36px] font-black leading-none">{formatMoney(price.lineTotal)}</p>
-            <p className="mt-2 text-sm text-[#6b7280]">{formatMoney(price.unitPrice)} each</p>
+          {/* PRICE */}
+          <div className="mt-7 overflow-hidden rounded-[30px] border border-[#6366f1]/30 bg-[linear-gradient(135deg,#1e293b_0%,#312e81_100%)] p-6 shadow-[0_20px_60px_rgba(79,70,229,0.35)]">
+            <p className="text-sm font-black uppercase tracking-[0.14em] text-[#c7d2fe]">
+              Estimated Total
+            </p>
+
+            <p className="mt-3 text-[52px] font-black leading-none">
+              {formatMoney(price.lineTotal)}
+            </p>
+
+            <p className="mt-2 text-sm text-[#cbd5e1]">
+              {formatMoney(price.unitPrice)} each
+            </p>
           </div>
 
-          <div className="grid gap-2">
-            {isSticker ? null : (
-              <button type="button" onClick={openCustomizer} className="design-main-btn !mt-0">
-                {isBusinessCard ? "Customize Business Card" : "Customize Product"}
+          {/* ACTIONS */}
+          <div className="mt-7 grid gap-3">
+            {!isSticker && (
+              <button
+                type="button"
+                onClick={openCustomizer}
+                className="rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-5 py-4 text-sm font-black text-white shadow-[0_12px_40px_rgba(99,102,241,0.45)] transition hover:-translate-y-1"
+              >
+                {isBusinessCard
+                  ? "Customize Business Card"
+                  : "Customize Product"}
               </button>
             )}
-            {isSticker ? (
-              <button type="button" onClick={addToCart} className="design-main-btn !mt-0">
-                Add To Cart
-              </button>
-            ) : null}
-            <Link href="/design-generator" className="rounded-full border border-[#e5e7eb] bg-white px-5 py-4 text-center text-sm font-extrabold text-[#111827] no-underline transition hover:bg-[#f9fafb]">
+
+            <button
+              type="button"
+              onClick={addToCart}
+              className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-black text-white transition hover:bg-white/[0.08]"
+            >
+              Add To Cart
+            </button>
+
+            <Link
+              href="/design-generator"
+              className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-center text-sm font-black text-white no-underline transition hover:bg-[#111827]"
+            >
               Create New Design
             </Link>
           </div>
 
-          <ul className="mt-6 grid gap-2 text-sm leading-6 text-[#4b5563]">
-            {(productFeatures[product.id] ?? []).map((feature) => (
-              <li key={feature}>✓ {feature}</li>
+          {/* FEATURES */}
+          <ul className="mt-8 grid gap-3">
+            {(productFeatures[
+              product.id
+            ] ?? []).map((feature) => (
+              <li
+                key={feature}
+                className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm font-semibold text-[#cbd5e1]"
+              >
+                ✦ {feature}
+              </li>
             ))}
           </ul>
 
-          <div className="mt-6 rounded-[22px] bg-[#f8faff] p-5">
-            <p className="text-sm font-black text-[#111827]">Customer Reviews</p>
-            <div className="mt-3 grid gap-3">
+          {/* REVIEWS */}
+          <div className="mt-8 rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+            <p className="text-lg font-black">
+              Customer Reviews
+            </p>
+
+            <div className="mt-5 grid gap-4">
               {reviews.length ? (
                 reviews.map((review) => (
-                  <article key={review.id} className="rounded-[18px] border border-[#e7eaf3] bg-white p-4">
+                  <article
+                    key={review.id}
+                    className="rounded-[22px] border border-white/10 bg-[#0f172a]/80 p-4"
+                  >
                     <div className="flex items-center justify-between gap-3">
-                      <p className="font-black">{review.title || "PRNTD customer"}</p>
-                      <p className="text-sm font-black text-[#4f46e5]">{review.rating}/5</p>
+                      <p className="font-black">
+                        {review.title ||
+                          "PRNTD customer"}
+                      </p>
+
+                      <p className="text-sm font-black text-[#818cf8]">
+                        {review.rating}/5
+                      </p>
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-[#4b5563]">{review.body}</p>
-                    <p className="mt-2 text-xs font-bold text-[#6b7280]">{review.customer_name || "Verified customer"}</p>
+
+                    <p className="mt-3 text-sm leading-7 text-[#cbd5e1]">
+                      {review.body}
+                    </p>
                   </article>
                 ))
               ) : (
-                <p className="text-sm leading-6 text-[#6b7280]">Customer reviews will appear here after they are approved in admin.</p>
+                <p className="text-sm text-[#94a3b8]">
+                  Reviews will appear here.
+                </p>
               )}
             </div>
-            <form onSubmit={submitReview} className="mt-5 grid gap-3 rounded-[18px] border border-[#e7eaf3] bg-white p-4">
-              <p className="text-sm font-black text-[#111827]">Leave a review</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input name="customerName" required placeholder="Name" className="portal-field min-w-0" />
-                <input name="customerEmail" type="email" placeholder="Email" className="portal-field min-w-0" />
-              </div>
-              <select name="rating" defaultValue="5" className="portal-field">
-                <option value="5">5 stars</option>
-                <option value="4">4 stars</option>
-                <option value="3">3 stars</option>
-                <option value="2">2 stars</option>
-                <option value="1">1 star</option>
-              </select>
-              <input name="title" placeholder="Short title" className="portal-field" />
-              <textarea name="body" required minLength={8} rows={4} placeholder="Tell us what you thought" className="portal-field" />
-              <button type="submit" className="rounded-[16px] bg-[#111827] px-4 py-3 text-sm font-black text-white">
-                Submit For Approval
+
+            {/* REVIEW FORM */}
+            <form
+              onSubmit={submitReview}
+              className="mt-6 grid gap-4"
+            >
+              <input
+                name="customerName"
+                required
+                placeholder="Name"
+                className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
+              />
+
+              <textarea
+                name="body"
+                required
+                rows={4}
+                placeholder="Tell us what you thought"
+                className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
+              />
+
+              <button
+                type="submit"
+                className="rounded-2xl bg-white px-5 py-4 text-sm font-black text-black transition hover:opacity-90"
+              >
+                Submit Review
               </button>
-              {reviewStatus && <p className="text-sm font-semibold text-[#4f46e5]">{reviewStatus}</p>}
+
+              {reviewStatus && (
+                <p className="text-sm font-semibold text-[#818cf8]">
+                  {reviewStatus}
+                </p>
+              )}
             </form>
           </div>
 
-          {status && <p className="mt-4 rounded-[16px] bg-[#f5f7fb] px-4 py-3 text-sm font-semibold text-[#6b7280]">{status}</p>}
+          {status && (
+            <p className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-semibold text-[#cbd5e1]">
+              {status}
+            </p>
+          )}
         </aside>
       </div>
     </section>
