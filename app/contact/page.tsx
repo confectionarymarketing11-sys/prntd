@@ -1,35 +1,111 @@
-import ShopHeader from "@/components/ShopHeader";
-import { getSiteSettings } from "@/features/site-settings/data/site-settings";
+```tsx
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
+const Card = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] text-white shadow-[0_25px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl transition duration-300",
+      "before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.18),transparent_45%)] before:opacity-100 before:pointer-events-none",
+      "hover:-translate-y-1 hover:border-[#6366f1]/30 hover:shadow-[0_30px_90px_rgba(79,70,229,0.28)]",
+      className,
+    )}
+    {...props}
+  />
+));
 
-export default async function ContactPage() {
-  const settings = await getSiteSettings();
+Card.displayName = "Card";
 
-  return (
-    <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
-      <ShopHeader />
-      <section className="mx-auto grid w-full max-w-5xl gap-6 px-5 py-12">
-        <div className="rounded-[30px] border border-white/70 bg-white p-8 shadow-[0_12px_38px_rgba(0,0,0,0.06)]">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#4f46e5]">Contact</p>
-          <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] sm:text-5xl">Talk to PRNTD</h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-[#6b7280]">{settings.contact_body}</p>
-        </div>
+const CardHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "relative z-10 flex flex-col space-y-2 p-7",
+      className,
+    )}
+    {...props}
+  />
+));
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {[
-            ["Email", settings.contact_email],
-            ["Phone", settings.contact_phone],
-            ["Address", settings.contact_address],
-            ["Hours", settings.contact_hours],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-[24px] border border-white/70 bg-white p-6 shadow-[0_10px_28px_rgba(0,0,0,0.05)]">
-              <p className="text-xs font-black uppercase tracking-wide text-[#6b7280]">{label}</p>
-              <p className="mt-2 text-lg font-black">{value || "Not set"}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-    </main>
-  );
-}
+CardHeader.displayName = "CardHeader";
+
+const CardTitle = React.forwardRef<
+  HTMLHeadingElement,
+  React.HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={cn(
+      "text-[22px] font-black tracking-[-0.03em] text-white",
+      className,
+    )}
+    {...props}
+  />
+));
+
+CardTitle.displayName = "CardTitle";
+
+const CardDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={cn(
+      "text-sm leading-7 text-[#cbd5e1]",
+      className,
+    )}
+    {...props}
+  />
+));
+
+CardDescription.displayName = "CardDescription";
+
+const CardContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "relative z-10 px-7 pb-7",
+      className,
+    )}
+    {...props}
+  />
+));
+
+CardContent.displayName = "CardContent";
+
+const CardFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "relative z-10 flex items-center gap-3 px-7 pb-7",
+      className,
+    )}
+    {...props}
+  />
+));
+
+CardFooter.displayName = "CardFooter";
+
+export {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+};
+```
