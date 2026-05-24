@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import ProductMockup from "@/components/ProductMockup";
 import {
   CART_STORAGE_KEY,
@@ -12,6 +12,7 @@ import {
   priceDesign,
 } from "@/data/shop";
 import type { Review } from "@/features/reviews/data/reviews";
+import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 
 type StoredDesign = {
   image?: string;
@@ -33,6 +34,8 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
   const [design, setDesign] = useState<StoredDesign | null>(null);
   const [uploadedDesign, setUploadedDesign] = useState("");
   const [status, setStatus] = useState("");
+  const [reviewStatus, setReviewStatus] = useState("");
+  const [adminBasePrice, setAdminBasePrice] = useState(product.basePrice);
 
   const designPreview = uploadedDesign || design?.image || "";
   const isSticker = product.id === "die-cut-stickers";
@@ -56,7 +59,8 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
     ];
   }, [designPreview]);
 
-  const price = useMemo(() => priceDesign(product, quantity, frontLayers, []), [frontLayers, product, quantity]);
+  const pricedProduct = useMemo(() => ({ ...product, basePrice: adminBasePrice }), [adminBasePrice, product]);
+  const price = useMemo(() => priceDesign(pricedProduct, quantity, frontLayers, []), [frontLayers, pricedProduct, quantity]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -72,6 +76,24 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
 
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/products/pricing")
+      .then((response) => response.json())
+      .then((pricing: Record<string, { price?: number }>) => {
+        const nextPrice = pricing[product.id]?.price;
+        if (active && typeof nextPrice === "number" && nextPrice > 0) {
+          setAdminBasePrice(nextPrice);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [product.id]);
 
   function handleUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -122,7 +144,44 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
     const currentCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[];
 
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([...currentCart, item]));
+    trackStorefrontEvent("added_to_cart", {
+      product_id: product.id,
+      product_name: product.name,
+      quantity,
+      line_total: price.lineTotal,
+    });
     window.location.href = "/cart";
+  }
+
+  async function submitReview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    setReviewStatus("Submitting review...");
+
+    try {
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          customerName: String(formData.get("customerName") ?? ""),
+          customerEmail: String(formData.get("customerEmail") ?? ""),
+          rating: Number(formData.get("rating") ?? 5),
+          title: String(formData.get("title") ?? ""),
+          body: String(formData.get("body") ?? ""),
+        }),
+      });
+      const data = (await response.json()) as { message?: string; error?: string };
+
+      if (!response.ok) throw new Error(data.error ?? "Review failed");
+
+      form.reset();
+      setReviewStatus(data.message ?? "Thanks. Your review is waiting for approval.");
+    } catch (error) {
+      setReviewStatus(error instanceof Error ? error.message : "Review could not be submitted.");
+    }
   }
 
   return (
@@ -272,6 +331,26 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
                 <p className="text-sm leading-6 text-[#6b7280]">Customer reviews will appear here after they are approved in admin.</p>
               )}
             </div>
+            <form onSubmit={submitReview} className="mt-5 grid gap-3 rounded-[18px] border border-[#e7eaf3] bg-white p-4">
+              <p className="text-sm font-black text-[#111827]">Leave a review</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input name="customerName" required placeholder="Name" className="portal-field min-w-0" />
+                <input name="customerEmail" type="email" placeholder="Email" className="portal-field min-w-0" />
+              </div>
+              <select name="rating" defaultValue="5" className="portal-field">
+                <option value="5">5 stars</option>
+                <option value="4">4 stars</option>
+                <option value="3">3 stars</option>
+                <option value="2">2 stars</option>
+                <option value="1">1 star</option>
+              </select>
+              <input name="title" placeholder="Short title" className="portal-field" />
+              <textarea name="body" required minLength={8} rows={4} placeholder="Tell us what you thought" className="portal-field" />
+              <button type="submit" className="rounded-[16px] bg-[#111827] px-4 py-3 text-sm font-black text-white">
+                Submit For Approval
+              </button>
+              {reviewStatus && <p className="text-sm font-semibold text-[#4f46e5]">{reviewStatus}</p>}
+            </form>
           </div>
 
           {status && <p className="mt-4 rounded-[16px] bg-[#f5f7fb] px-4 py-3 text-sm font-semibold text-[#6b7280]">{status}</p>}

@@ -7,6 +7,7 @@ import { Group, Layer, Stage } from "react-konva";
 import ShopHeader from "@/components/ShopHeader";
 import URLImage from "@/components/customizer/URLImage";
 import URLText from "@/components/customizer/URLText";
+import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 import {
   CART_STORAGE_KEY,
   CartItem,
@@ -24,6 +25,11 @@ type ShirtColor = {
   name: string;
   swatch: string;
   images: Record<ShirtSide, string>;
+};
+
+type DesignerSnapshot = {
+  frontLayers: DesignLayer[];
+  backLayers: DesignLayer[];
 };
 
 const shirtColors: ShirtColor[] = [
@@ -193,7 +199,6 @@ const fontFamilies = [
 
 const shirtSizes = ["Small", "Medium", "Large"];
 const oneSidePrice = 35;
-const twoSidePrice = 45;
 
 function getPrintArea(width: number, height: number) {
   const areaWidth = width * 0.3;
@@ -209,20 +214,6 @@ function getPrintArea(width: number, height: number) {
 
 function layerHasArt(layers: DesignLayer[]) {
   return layers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
-}
-
-function calculateShirtPrice(quantity: number, frontLayers: DesignLayer[], backLayers: DesignLayer[]) {
-  const isDoubleSided = layerHasArt(frontLayers) && layerHasArt(backLayers);
-  const basePrice = isDoubleSided ? twoSidePrice : oneSidePrice;
-  const discount = quantity >= 6 ? 20 : quantity >= 2 ? 11 : 0;
-  const unitPrice = Math.max(basePrice - discount, 0);
-
-  return {
-    printType: isDoubleSided ? "2 Side" : "1 Side",
-    perShirtDiscount: discount,
-    unitPrice,
-    lineTotal: roundMoney(unitPrice * quantity),
-  };
 }
 
 function readImage(src: string) {
@@ -309,6 +300,9 @@ export default function DesignerPage() {
   const [stageWidth, setStageWidth] = useState(720);
   const [notice, setNotice] = useState("Keep everything inside the blue-lined card.");
   const [isRemovingBg, setIsRemovingBg] = useState(false);
+  const [undoStack, setUndoStack] = useState<DesignerSnapshot[]>([]);
+  const [redoStack, setRedoStack] = useState<DesignerSnapshot[]>([]);
+  const [adminBasePrice, setAdminBasePrice] = useState(oneSidePrice);
   const stageWrapRef = useRef<HTMLDivElement | null>(null);
   const generatedImageLoadedRef = useRef(false);
 
@@ -319,7 +313,19 @@ export default function DesignerPage() {
   const layers = currentView === "front" ? frontLayers : backLayers;
   const selectedLayer = layers.find((layer) => layer.id === selectedId);
   const selectedTextLayer = selectedLayer?.type === "text" ? selectedLayer : null;
-  const price = useMemo(() => calculateShirtPrice(quantity, frontLayers, backLayers), [quantity, frontLayers, backLayers]);
+  const price = useMemo(() => {
+    const isDoubleSided = layerHasArt(frontLayers) && layerHasArt(backLayers);
+    const basePrice = isDoubleSided ? adminBasePrice + 10 : adminBasePrice;
+    const discount = quantity >= 6 ? 20 : quantity >= 2 ? 11 : 0;
+    const unitPrice = Math.max(basePrice - discount, 0);
+
+    return {
+      printType: isDoubleSided ? "2 Side" : "1 Side",
+      perShirtDiscount: discount,
+      unitPrice,
+      lineTotal: roundMoney(unitPrice * quantity),
+    };
+  }, [adminBasePrice, quantity, frontLayers, backLayers]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -328,6 +334,24 @@ export default function DesignerPage() {
     }, 0);
 
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/products/pricing")
+      .then((response) => response.json())
+      .then((pricing: Record<string, { price?: number }>) => {
+        const nextPrice = pricing["classic-tee"]?.price;
+        if (active && typeof nextPrice === "number" && nextPrice > 0) {
+          setAdminBasePrice(nextPrice);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -394,7 +418,48 @@ export default function DesignerPage() {
     return () => window.removeEventListener("keydown", handleDelete);
   });
 
-  function updateLayers(nextLayers: DesignLayer[]) {
+  function currentSnapshot(): DesignerSnapshot {
+    return {
+      frontLayers,
+      backLayers,
+    };
+  }
+
+  function rememberSnapshot() {
+    const snapshot = currentSnapshot();
+    setUndoStack((current) => [...current.slice(-24), snapshot]);
+    setRedoStack([]);
+  }
+
+  function applySnapshot(snapshot: DesignerSnapshot) {
+    setFrontLayers(snapshot.frontLayers);
+    setBackLayers(snapshot.backLayers);
+    setSelectedId(null);
+  }
+
+  function undo() {
+    const previous = undoStack.at(-1);
+    if (!previous) return;
+
+    setUndoStack((current) => current.slice(0, -1));
+    setRedoStack((current) => [...current.slice(-24), currentSnapshot()]);
+    applySnapshot(previous);
+    setNotice("Last customizer action undone.");
+  }
+
+  function redo() {
+    const next = redoStack.at(-1);
+    if (!next) return;
+
+    setRedoStack((current) => current.slice(0, -1));
+    setUndoStack((current) => [...current.slice(-24), currentSnapshot()]);
+    applySnapshot(next);
+    setNotice("Customizer action redone.");
+  }
+
+  function updateLayers(nextLayers: DesignLayer[], recordHistory = true) {
+    if (recordHistory) rememberSnapshot();
+
     if (currentView === "front") {
       setFrontLayers(nextLayers);
     } else {
@@ -685,6 +750,13 @@ export default function DesignerPage() {
     const currentCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[];
 
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([...currentCart, item]));
+    trackStorefrontEvent("added_to_cart", {
+      product_id: selectedProduct.id,
+      product_name: selectedProduct.name,
+      quantity,
+      print_type: price.printType,
+      line_total: price.lineTotal,
+    });
     window.location.href = "/cart";
   }
 
@@ -861,6 +933,15 @@ export default function DesignerPage() {
                 />
               </>
             )}
+
+            <div className="grid grid-cols-2 gap-3 max-[860px]:grid-cols-1">
+              <button type="button" onClick={undo} disabled={!undoStack.length} className="portal-action disabled:cursor-not-allowed disabled:opacity-50">
+                Undo
+              </button>
+              <button type="button" onClick={redo} disabled={!redoStack.length} className="portal-action disabled:cursor-not-allowed disabled:opacity-50">
+                Redo
+              </button>
+            </div>
 
             <button type="button" onClick={deleteSelectedLayer} className="min-h-[54px] rounded-[18px] border border-red-500/15 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
               Delete Selected Design

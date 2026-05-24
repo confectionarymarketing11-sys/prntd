@@ -3,16 +3,16 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { Search, ShoppingCart, UserRound } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { SiteSettings } from "@/features/site-settings/types";
 
 const navItems = [
-  { href: "/search", label: "Search" },
-  { href: "/products", label: "Products" },
-  { href: "/design-tools", label: "Design Tools" },
-  { href: "/contact", label: "Contact" },
   { href: "/dashboard", label: "Customer Portal" },
-  { href: "/cart", label: "Cart" },
+  { href: "/products/classic-tee", label: "Custom T-Shirts" },
+  { href: "/products/business-cards", label: "Custom Business Cards" },
+  { href: "/products/die-cut-stickers", label: "Custom Stickers" },
+  { href: "/contact", label: "Contact Us" },
 ];
 
 export default function ShopHeader() {
@@ -66,13 +66,6 @@ export default function ShopHeader() {
     };
   }, []);
 
-  async function logout() {
-    const supabase = createSupabaseBrowserClient();
-    await supabase.auth.signOut();
-    setUser(null);
-    window.location.href = "/";
-  }
-
   return (
     <header className="border-b border-stone-200 bg-white/95">
       {settings?.announcement_enabled && settings.announcement_text ? (
@@ -91,7 +84,7 @@ export default function ShopHeader() {
           {settings.test_mode_notice}
         </div>
       ) : null}
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between xl:px-8">
         <Link href="/" className="flex items-center gap-3">
           {settings?.logo_image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -108,47 +101,24 @@ export default function ShopHeader() {
             </span>
           </span>
         </Link>
-        <nav className="flex flex-wrap gap-2">
+        <nav className="flex flex-wrap items-center gap-2">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="rounded border border-stone-200 px-3 py-2 text-sm font-semibold text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+              className="rounded-full border border-stone-200 px-3 py-2 text-sm font-semibold text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
             >
               {item.label}
             </Link>
           ))}
-          {user ? (
-            <button
-              type="button"
-              onClick={logout}
-              className="rounded border border-stone-200 px-3 py-2 text-sm font-semibold text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-            >
-              Logout
-            </button>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="rounded border border-stone-200 px-3 py-2 text-sm font-semibold text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-              >
-                Login
-              </Link>
-              <Link
-                href="/signup"
-                className="rounded bg-stone-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-stone-800"
-              >
-                Sign Up
-              </Link>
-            </>
-          )}
           <select
             value={currency}
             onChange={(event) => {
               setCurrency(event.target.value);
               window.localStorage.setItem("prntd_currency", event.target.value);
+              window.dispatchEvent(new Event("prntd_currency_change"));
             }}
-            className="rounded border border-stone-200 bg-white px-2 py-2 text-sm font-semibold text-stone-700"
+            className="rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700"
             aria-label="Currency"
           >
             {(settings?.supported_currencies?.length ? settings.supported_currencies : ["CAD", "USD"]).map((item) => (
@@ -163,7 +133,7 @@ export default function ShopHeader() {
               setLanguage(event.target.value);
               window.localStorage.setItem("prntd_language", event.target.value);
             }}
-            className="rounded border border-stone-200 bg-white px-2 py-2 text-sm font-semibold text-stone-700"
+            className="rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700"
             aria-label="Language"
           >
             {(settings?.supported_languages?.length ? settings.supported_languages : ["en", "fr"]).map((item) => (
@@ -172,6 +142,27 @@ export default function ShopHeader() {
               </option>
             ))}
           </select>
+          <Link
+            href="/search"
+            aria-label="Search"
+            className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 text-stone-800 transition hover:border-stone-950"
+          >
+            <Search className="h-4 w-4" />
+          </Link>
+          <Link
+            href={user ? "/dashboard" : "/login"}
+            aria-label={user ? "Customer account" : "Login"}
+            className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 text-stone-800 transition hover:border-stone-950"
+          >
+            <UserRound className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/cart"
+            aria-label="Cart"
+            className="grid h-10 w-10 place-items-center rounded-full bg-stone-950 text-white transition hover:bg-stone-800"
+          >
+            <ShoppingCart className="h-4 w-4" />
+          </Link>
         </nav>
       </div>
     </header>

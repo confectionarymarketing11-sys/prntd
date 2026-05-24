@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import ShopHeader from "@/components/ShopHeader";
+import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 import {
   CART_STORAGE_KEY,
   CartItem,
@@ -15,6 +16,10 @@ import {
 const fonts = ["Arial", "Impact", "Helvetica", "Verdana", "Georgia", "Times New Roman", "Courier New"];
 const sides = ["front", "back"] as const;
 type CardSide = (typeof sides)[number];
+type DesignerSnapshot = {
+  frontLayers: DesignLayer[];
+  backLayers: DesignLayer[];
+};
 
 function sideHasContent(layers: DesignLayer[]) {
   return layers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
@@ -55,14 +60,79 @@ export default function BusinessCardDesignerPage() {
   const [size] = useState(product.sizes[0] ?? "Standard");
   const [finish] = useState(product.colors[0]);
   const [notice, setNotice] = useState("Keep all artwork inside the card edge.");
+  const [undoStack, setUndoStack] = useState<DesignerSnapshot[]>([]);
+  const [redoStack, setRedoStack] = useState<DesignerSnapshot[]>([]);
+  const [adminBasePrice, setAdminBasePrice] = useState(product.basePrice);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ layerId: string; offsetX: number; offsetY: number } | null>(null);
 
   const layers = side === "front" ? frontLayers : backLayers;
   const selectedLayer = layers.find((layer) => layer.id === selectedId);
   const selectedTextLayer = selectedLayer?.type === "text" ? selectedLayer : null;
   const selectedImageLayer = selectedLayer?.type === "image" ? selectedLayer : null;
-  const price = useMemo(() => priceDesign(product, quantity, frontLayers, backLayers), [product, quantity, frontLayers, backLayers]);
+  const pricedProduct = useMemo(() => ({ ...product, basePrice: adminBasePrice }), [adminBasePrice, product]);
+  const price = useMemo(() => priceDesign(pricedProduct, quantity, frontLayers, backLayers), [pricedProduct, quantity, frontLayers, backLayers]);
 
-  function setCurrentLayers(nextLayers: DesignLayer[]) {
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/products/pricing")
+      .then((response) => response.json())
+      .then((pricing: Record<string, { price?: number }>) => {
+        const nextPrice = pricing[product.id]?.price;
+        if (active && typeof nextPrice === "number" && nextPrice > 0) {
+          setAdminBasePrice(nextPrice);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [product.id]);
+
+  function currentSnapshot(): DesignerSnapshot {
+    return {
+      frontLayers,
+      backLayers,
+    };
+  }
+
+  function rememberSnapshot() {
+    const snapshot = currentSnapshot();
+    setUndoStack((current) => [...current.slice(-24), snapshot]);
+    setRedoStack([]);
+  }
+
+  function applySnapshot(snapshot: DesignerSnapshot) {
+    setFrontLayers(snapshot.frontLayers);
+    setBackLayers(snapshot.backLayers);
+    setSelectedId(null);
+  }
+
+  function undo() {
+    const previous = undoStack.at(-1);
+    if (!previous) return;
+
+    setUndoStack((current) => current.slice(0, -1));
+    setRedoStack((current) => [...current.slice(-24), currentSnapshot()]);
+    applySnapshot(previous);
+    setNotice("Last customizer action undone.");
+  }
+
+  function redo() {
+    const next = redoStack.at(-1);
+    if (!next) return;
+
+    setRedoStack((current) => current.slice(0, -1));
+    setUndoStack((current) => [...current.slice(-24), currentSnapshot()]);
+    applySnapshot(next);
+    setNotice("Customizer action redone.");
+  }
+
+  function setCurrentLayers(nextLayers: DesignLayer[], recordHistory = true) {
+    if (recordHistory) rememberSnapshot();
+
     if (side === "front") {
       setFrontLayers(nextLayers);
     } else {
@@ -72,7 +142,41 @@ export default function BusinessCardDesignerPage() {
 
   function updateLayer(id: string, updates: Partial<DesignLayer>) {
     const next = layers.map((layer) => (layer.id === id ? { ...layer, ...updates } : layer));
-    setCurrentLayers(next);
+    setCurrentLayers(next, false);
+  }
+
+  function handleLayerPointerDown(event: PointerEvent<HTMLButtonElement>, layer: DesignLayer) {
+    const card = cardRef.current;
+    if (!card) return;
+
+    const rect = card.getBoundingClientRect();
+    dragRef.current = {
+      layerId: layer.id,
+      offsetX: event.clientX - rect.left - layer.x,
+      offsetY: event.clientY - rect.top - layer.y,
+    };
+    setSelectedId(layer.id);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleLayerPointerMove(event: PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    const card = cardRef.current;
+    if (!drag || !card) return;
+
+    const rect = card.getBoundingClientRect();
+    const nextX = Math.max(0, Math.min(rect.width - 20, event.clientX - rect.left - drag.offsetX));
+    const nextY = Math.max(0, Math.min(rect.height - 20, event.clientY - rect.top - drag.offsetY));
+    updateLayer(drag.layerId, { x: nextX, y: nextY });
+  }
+
+  function handleLayerPointerUp(event: PointerEvent<HTMLButtonElement>) {
+    dragRef.current = null;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
   }
 
   function addText() {
@@ -223,6 +327,14 @@ export default function BusinessCardDesignerPage() {
     };
     const currentCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[];
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([...currentCart, item]));
+    trackStorefrontEvent("added_to_cart", {
+      product_id: product.id,
+      product_name: product.name,
+      quantity,
+      line_total: price.lineTotal,
+      front_layers: frontLayers.length,
+      back_layers: backLayers.length,
+    });
     window.location.href = "/cart";
   }
 
@@ -251,14 +363,17 @@ export default function BusinessCardDesignerPage() {
             </div>
 
             <div className="grid min-h-[520px] place-items-center rounded-[28px] bg-[#eef2f7] p-6">
-              <div className="relative aspect-[1.75/1] w-full max-w-[760px] overflow-hidden rounded-[26px] border border-white/70 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
+              <div ref={cardRef} className="relative aspect-[1.75/1] w-full max-w-[760px] overflow-hidden rounded-[26px] border border-white/70 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
                 <div className="absolute inset-5 rounded-[20px] border-2 border-dashed border-blue-500/70" />
                 {layers.map((layer) => (
                   <button
                     key={layer.id}
                     type="button"
-                    onClick={() => setSelectedId(layer.id)}
-                    className={`absolute text-left ${selectedId === layer.id ? "outline outline-2 outline-[#7c3aed]" : ""}`}
+                    onPointerDown={(event) => handleLayerPointerDown(event, layer)}
+                    onPointerMove={handleLayerPointerMove}
+                    onPointerUp={handleLayerPointerUp}
+                    onPointerCancel={handleLayerPointerUp}
+                    className={`absolute cursor-move touch-none select-none text-left ${selectedId === layer.id ? "outline outline-2 outline-[#7c3aed]" : ""}`}
                     style={{
                       left: layer.x,
                       top: layer.y,
@@ -343,6 +458,15 @@ export default function BusinessCardDesignerPage() {
                 </div>
               </div>
             )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={undo} disabled={!undoStack.length} className="portal-action disabled:cursor-not-allowed disabled:opacity-50">
+                Undo
+              </button>
+              <button type="button" onClick={redo} disabled={!redoStack.length} className="portal-action disabled:cursor-not-allowed disabled:opacity-50">
+                Redo
+              </button>
+            </div>
 
             <button type="button" onClick={deleteSelectedLayer} className="min-h-[54px] rounded-[18px] border border-red-500/15 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
               Delete Selected Design

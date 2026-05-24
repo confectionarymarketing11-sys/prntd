@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { DesignLayer, getAvailableShippingMethods, Order } from "@/data/shop";
 import { calculateDiscount } from "@/features/discounts/data/discounts";
 import { getSiteSettings } from "@/features/site-settings/data/site-settings";
+import { getOrCreateCustomerForEmail } from "@/lib/auth/customer";
 import { createSupabaseAdminClient } from "@/lib/supabase/service";
 
 function stripeProductType(productId: string) {
@@ -181,6 +182,119 @@ async function uploadOrderPrintAssets(order: Order) {
   return uploadIds;
 }
 
+async function finalizeTestModeOrder({
+  order,
+  uploadIds,
+  discountAmountCents,
+  shippingDiscountCents,
+  shippingCents,
+  subtotalCents,
+  totalCents,
+}: {
+  order: Order;
+  uploadIds: string[];
+  discountAmountCents: number;
+  shippingDiscountCents: number;
+  shippingCents: number;
+  subtotalCents: number;
+  totalCents: number;
+}) {
+  const supabase = createSupabaseAdminClient();
+  const customer = await getOrCreateCustomerForEmail({
+    email: order.customer.email,
+    name: order.customer.name,
+  });
+  const now = new Date().toISOString();
+  const shippingAddress = {
+    line1: order.customer.address,
+    city: order.customer.city,
+    state: order.customer.region,
+    postal_code: order.customer.postal,
+    country: "CA",
+  };
+  const orderPayload = {
+    order_number: order.id,
+    customer_id: customer.id,
+    auth_user_id: customer.auth_user_id ?? null,
+    customer_email: order.customer.email,
+    customer_name: order.customer.name,
+    customer_phone: order.customer.phone,
+    shipping_address: shippingAddress,
+    billing_address: shippingAddress,
+    production_status: "pending",
+    payment_status: "paid",
+    subtotal_cents: subtotalCents,
+    discount_cents: discountAmountCents + shippingDiscountCents,
+    shipping_cents: shippingCents,
+    tax_cents: 0,
+    total_cents: totalCents,
+    tax_breakdown: {
+      test_mode: true,
+      note: "No payment collected. Stripe Tax is bypassed for this internal test order.",
+    },
+    shipping_method: order.shippingMethod ?? null,
+    shipping_cost_cents: shippingCents,
+    checkout_session_id: `test_${order.id}`,
+    guest_checkout: !customer.auth_user_id,
+    currency: "CAD",
+    notes: `TEST MODE - no payment collected.\n${order.customer.notes ?? ""}`.trim(),
+    source: "storefront",
+    external_order_id: `test_${order.id}`,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const { data: createdOrder, error: orderError } = await supabase
+    .from("orders")
+    .insert(orderPayload)
+    .select("id")
+    .single<{ id: string }>();
+
+  if (orderError || !createdOrder) {
+    throw orderError ?? new Error("Test order could not be created.");
+  }
+
+  const orderItems = order.items.map((item) => ({
+    order_id: createdOrder.id,
+    product_id: item.productId,
+    product_name: item.productName,
+    sku: `${item.productId}-${item.size}`.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
+    quantity: item.quantity,
+    unit_price_cents: Math.round(item.unitPrice * 100),
+    line_total_cents: Math.round(item.lineTotal * 100),
+    customization: {
+      size: item.size,
+      color: item.color,
+      front_layers: item.frontLayers,
+      back_layers: item.backLayers,
+      front_print_area_url: item.frontPreview,
+      back_print_area_url: item.backPreview,
+      mockup_preview_url: item.mockupPreview,
+      uploaded_print_asset_ids: uploadIds,
+      test_mode: true,
+    },
+  }));
+
+  if (orderItems.length) {
+    const { error: itemError } = await supabase.from("order_items").insert(orderItems);
+    if (itemError) throw itemError;
+  }
+
+  await supabase
+    .from("uploads")
+    .update({ order_id: createdOrder.id, updated_at: now })
+    .in("id", uploadIds);
+
+  await supabase.from("production_status_history").insert({
+    order_id: createdOrder.id,
+    status: "pending",
+    notes: "Test mode order created without payment. Use this to verify artwork, clipping, printing, packing, and shipping workflow.",
+    changed_by: "test_mode",
+  });
+
+  return createdOrder.id;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const order = (await req.json()) as Order;
@@ -191,12 +305,6 @@ export async function POST(req: NextRequest) {
     }
 
     const settings = await getSiteSettings();
-    const stripeKey = settings.test_mode_enabled && process.env.STRIPE_TEST_SECRET_KEY ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY;
-
-    if (!stripeKey) {
-      return NextResponse.json({ error: "Stripe is not configured." }, { status: 503 });
-    }
-
     const firstItem = order.items[0];
     const designReferences = order.items.flatMap((item) => [item.frontPreview, item.backPreview].filter(Boolean));
     const subtotalCents = Math.round(order.subtotal * 100);
@@ -217,6 +325,29 @@ export async function POST(req: NextRequest) {
     const finalShippingCents = discount.finalShippingCents;
     const estimatedTotalCents = discount.finalSubtotalCents + finalShippingCents;
     const uploadIds = await uploadOrderPrintAssets(order);
+
+    if (settings.test_mode_enabled) {
+      const dbOrderId = await finalizeTestModeOrder({
+        order,
+        uploadIds,
+        discountAmountCents: discount.discountAmountCents,
+        shippingDiscountCents: discount.shippingDiscountCents,
+        shippingCents: finalShippingCents,
+        subtotalCents,
+        totalCents: estimatedTotalCents,
+      });
+
+      return NextResponse.json({
+        mode: "test",
+        url: `${origin}/success?order=${encodeURIComponent(order.id)}&mode=test&db_order=${encodeURIComponent(dbOrderId)}`,
+      });
+    }
+
+    const stripeKey = settings.test_mode_enabled && process.env.STRIPE_TEST_SECRET_KEY ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY;
+
+    if (!stripeKey) {
+      return NextResponse.json({ error: "Stripe is not configured." }, { status: 503 });
+    }
     const params = new URLSearchParams({
       mode: "payment",
       success_url: `${origin}/success?order=${encodeURIComponent(order.id)}&mode=stripe&session_id={CHECKOUT_SESSION_ID}`,

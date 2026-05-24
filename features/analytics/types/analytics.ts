@@ -4,6 +4,10 @@ export type TimeSeriesPoint = {
   label: string;
   revenueCents: number;
   orders: number;
+  visitors?: number;
+  addedToCart?: number;
+  reachedCheckout?: number;
+  checkoutCompleted?: number;
 };
 
 export type TopProductMetric = {
@@ -21,6 +25,19 @@ export type TopCustomerMetric = {
 };
 
 export type AnalyticsSummary = {
+  dailyVisitors: number;
+  addedToCart: number;
+  reachedCheckout: number;
+  checkoutCompleted: number;
+  conversionRate: number;
+  liveVisitors: Array<{
+    sessionId: string;
+    visitorId: string;
+    pathname: string | null;
+    eventType: string;
+    customerEmail: string | null;
+    lastSeenAt: string;
+  }>;
   revenueCents: number;
   paidOrders: number;
   averageOrderValueCents: number;

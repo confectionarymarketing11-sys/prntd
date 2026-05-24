@@ -23,6 +23,19 @@ export async function getAnalytics(range: DateRangeKey): Promise<AnalyticsSummar
     supabase.from("order_items").select("product_name, quantity, line_total_cents, created_at").gte("created_at", start.toISOString()),
     supabase.from("production_status_history").select("*").gte("created_at", start.toISOString()).order("created_at", { ascending: false }).limit(12),
   ]);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const liveSince = new Date(Date.now() - 5 * 60 * 1000);
+  const [{ data: storefrontEvents, error: storefrontError }, { data: todayEvents }, { data: liveEvents }] = await Promise.all([
+    supabase.from("storefront_events").select("*").gte("created_at", start.toISOString()).order("created_at", { ascending: true }).limit(5000),
+    supabase.from("storefront_events").select("visitor_id, event_type").gte("created_at", today.toISOString()).limit(5000),
+    supabase
+      .from("storefront_events")
+      .select("session_id, visitor_id, customer_email, pathname, event_type, created_at")
+      .gte("created_at", liveSince.toISOString())
+      .order("created_at", { ascending: false })
+      .limit(250),
+  ]);
 
   const orderRows = (orders ?? []) as Array<{
     id: string;
@@ -51,7 +64,7 @@ export async function getAnalytics(range: DateRangeKey): Promise<AnalyticsSummar
     const date = new Date(start);
     date.setDate(start.getDate() + i);
     const key = date.toISOString().slice(0, 10);
-    seriesMap.set(key, { label: key.slice(5), revenueCents: 0, orders: 0 });
+    seriesMap.set(key, { label: key.slice(5), revenueCents: 0, orders: 0, visitors: 0, addedToCart: 0, reachedCheckout: 0, checkoutCompleted: 0 });
   }
   paidOrders.forEach((order) => {
     const key = dateKey(order.created_at);
@@ -60,6 +73,67 @@ export async function getAnalytics(range: DateRangeKey): Promise<AnalyticsSummar
     point.revenueCents += Number(order.total_cents ?? 0);
     point.orders += 1;
   });
+
+  const eventsAvailable = storefrontError?.code !== "42P01";
+  const eventRows = eventsAvailable
+    ? ((storefrontEvents ?? []) as Array<{
+        event_type: string;
+        visitor_id: string;
+        session_id: string;
+        customer_email: string | null;
+        pathname: string | null;
+        created_at: string;
+      }>)
+    : [];
+  const dailyVisitorCount = new Set((todayEvents ?? []).map((event) => (event as { visitor_id?: string }).visitor_id).filter(Boolean)).size;
+  const addedToCart = eventRows.filter((event) => event.event_type === "added_to_cart").length;
+  const reachedCheckout = eventRows.filter((event) => event.event_type === "reached_checkout").length;
+  const checkoutCompleted = eventRows.filter((event) => event.event_type === "checkout_completed").length;
+  const visitorSeries = new Map<string, Set<string>>();
+
+  for (const event of eventRows) {
+    const key = dateKey(event.created_at);
+    const point = seriesMap.get(key);
+    if (!point) continue;
+
+    if (event.event_type === "page_view") {
+      const visitors = visitorSeries.get(key) ?? new Set<string>();
+      visitors.add(event.visitor_id);
+      visitorSeries.set(key, visitors);
+    }
+    if (event.event_type === "added_to_cart") point.addedToCart = Number(point.addedToCart ?? 0) + 1;
+    if (event.event_type === "reached_checkout") point.reachedCheckout = Number(point.reachedCheckout ?? 0) + 1;
+    if (event.event_type === "checkout_completed") point.checkoutCompleted = Number(point.checkoutCompleted ?? 0) + 1;
+  }
+
+  for (const [key, visitors] of visitorSeries.entries()) {
+    const point = seriesMap.get(key);
+    if (point) point.visitors = visitors.size;
+  }
+
+  const liveBySession = new Map<
+    string,
+    { sessionId: string; visitorId: string; pathname: string | null; eventType: string; customerEmail: string | null; lastSeenAt: string }
+  >();
+
+  for (const event of (liveEvents ?? []) as Array<{
+    session_id: string;
+    visitor_id: string;
+    customer_email: string | null;
+    pathname: string | null;
+    event_type: string;
+    created_at: string;
+  }>) {
+    if (liveBySession.has(event.session_id)) continue;
+    liveBySession.set(event.session_id, {
+      sessionId: event.session_id,
+      visitorId: event.visitor_id,
+      pathname: event.pathname,
+      eventType: event.event_type,
+      customerEmail: event.customer_email,
+      lastSeenAt: event.created_at,
+    });
+  }
 
   const productMap = new Map<string, TopProductMetric>();
   (orderItems ?? []).forEach((item) => {
@@ -86,6 +160,12 @@ export async function getAnalytics(range: DateRangeKey): Promise<AnalyticsSummar
   });
 
   return {
+    dailyVisitors: dailyVisitorCount,
+    addedToCart,
+    reachedCheckout,
+    checkoutCompleted,
+    conversionRate: dailyVisitorCount ? Math.round((checkoutCompleted / dailyVisitorCount) * 1000) / 10 : 0,
+    liveVisitors: Array.from(liveBySession.values()).slice(0, 20),
     revenueCents,
     paidOrders: paidOrders.length,
     averageOrderValueCents,

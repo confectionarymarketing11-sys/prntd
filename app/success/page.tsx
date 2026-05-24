@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ShopHeader from "@/components/ShopHeader";
 import { Order, formatMoney } from "@/data/shop";
+import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 
 export default function SuccessPage() {
   const [order, setOrder] = useState<Order | null>(null);
@@ -13,7 +14,19 @@ export default function SuccessPage() {
       const rawOrder = localStorage.getItem("prntd_last_order");
 
       if (rawOrder) {
-        setOrder(JSON.parse(rawOrder) as Order);
+        const parsedOrder = JSON.parse(rawOrder) as Order;
+        setOrder(parsedOrder);
+        trackStorefrontEvent("checkout_completed", {
+          order_id: parsedOrder.id,
+          total: parsedOrder.total,
+          item_count: parsedOrder.items.length,
+        });
+      } else {
+        const params = new URLSearchParams(window.location.search);
+        trackStorefrontEvent("checkout_completed", {
+          order_id: params.get("order"),
+          mode: params.get("mode"),
+        });
       }
     }, 0);
 

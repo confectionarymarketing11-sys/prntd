@@ -110,7 +110,7 @@ export type FulfillmentOrder = {
   confirmation_email_sent_at?: string | null;
   currency: string;
   notes: string | null;
-  source: "storefront" | "shopify" | "manual" | "api";
+  source: "storefront" | "shopify" | "manual" | "api" | "test_mode";
   external_order_id: string | null;
   created_at: string;
   updated_at: string;

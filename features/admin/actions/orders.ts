@@ -5,6 +5,7 @@ import { requireAdmin } from "@/features/admin/data/auth";
 import { updateOrderStatus, updatePaymentStatus } from "@/features/admin/data/orders";
 import { upsertShipment } from "@/features/admin/data/shipments";
 import { shippingConfirmationTemplate, sendTransactionalEmail } from "@/lib/email";
+import { getStripe } from "@/lib/stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { PaymentStatus, ProductionStatus, ShipmentStatus } from "@/features/admin/types/database";
 
@@ -73,6 +74,65 @@ export async function updateShipmentAction(formData: FormData) {
       });
     }
   }
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/orders/${orderId}`);
+}
+
+export async function refundOrderAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const orderId = String(formData.get("orderId") ?? "");
+  if (!orderId) throw new Error("Missing order id.");
+
+  const supabase = createSupabaseAdminClient();
+  const { data: order, error } = await supabase
+    .from("orders")
+    .select("id, checkout_session_id, external_order_id, source, payment_status")
+    .eq("id", orderId)
+    .maybeSingle<{
+      id: string;
+      checkout_session_id: string | null;
+      external_order_id: string | null;
+      source: string | null;
+      payment_status: string | null;
+    }>();
+
+  if (error || !order) throw error ?? new Error("Order not found.");
+
+  const isTestOrder = (order.external_order_id ?? "").startsWith("test_") || (order.checkout_session_id ?? "").startsWith("test_");
+
+  if (!isTestOrder) {
+    const sessionId = order.checkout_session_id || order.external_order_id;
+    if (!sessionId) throw new Error("This order does not have a Stripe checkout session.");
+
+    const stripe = getStripe();
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const paymentIntent = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+
+    if (!paymentIntent) throw new Error("Stripe payment intent was not found.");
+
+    await stripe.refunds.create(
+      {
+        payment_intent: paymentIntent,
+        reason: "requested_by_customer",
+        metadata: {
+          order_id: orderId,
+          changed_by: admin.email,
+        },
+      },
+      {
+        idempotencyKey: `refund:${orderId}`,
+      }
+    );
+  }
+
+  await supabase.from("orders").update({ payment_status: "refunded", updated_at: new Date().toISOString() }).eq("id", orderId);
+  await supabase.from("production_status_history").insert({
+    order_id: orderId,
+    status: "completed",
+    notes: isTestOrder ? "Test mode order marked refunded." : "Stripe refund created from admin.",
+    changed_by: admin.email,
+  });
 
   revalidatePath("/admin");
   revalidatePath(`/admin/orders/${orderId}`);

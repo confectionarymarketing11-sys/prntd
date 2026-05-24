@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import ProductMockup from "@/components/ProductMockup";
 import ShopHeader from "@/components/ShopHeader";
 import { usePrntdAccount } from "@/hooks/usePrntdAccount";
+import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 import {
   CART_STORAGE_KEY,
   CartItem,
@@ -47,6 +48,8 @@ export default function CartPage() {
   } | null>(null);
   const shippingMethods = useMemo(() => getAvailableShippingMethods(items), [items]);
   const [shippingMethod, setShippingMethod] = useState("tracked");
+  const [testModeEnabled, setTestModeEnabled] = useState(false);
+  const [adminPricing, setAdminPricing] = useState<Record<string, { price?: number }>>({});
 
   const baseTotals = useMemo(() => {
     const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
@@ -95,6 +98,45 @@ export default function CartPage() {
   }, []);
 
   useEffect(() => {
+    if (!items.length) return;
+
+    trackStorefrontEvent("reached_checkout", {
+      item_count: items.length,
+      subtotal: baseTotals.subtotal,
+    });
+  }, [items.length, baseTotals.subtotal]);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/products/pricing")
+      .then((response) => response.json())
+      .then((pricing: Record<string, { price?: number }>) => {
+        if (active) setAdminPricing(pricing);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/site-settings")
+      .then((response) => response.json())
+      .then((settings: { test_mode_enabled?: boolean }) => {
+        if (active) setTestModeEnabled(Boolean(settings.test_mode_enabled));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!email) return;
     const timer = window.setTimeout(() => {
       setCustomer((current) => ({ ...current, email }));
@@ -114,7 +156,19 @@ export default function CartPage() {
 
         const product = getProduct(item.productId);
         const quantity = Math.max(product.minimumQuantity, nextQuantity);
-        const price = priceDesign(product, quantity, item.frontLayers, item.backLayers);
+        const adminBasePrice = adminPricing[item.productId]?.price;
+        const pricedProduct = typeof adminBasePrice === "number" && adminBasePrice > 0 ? { ...product, basePrice: adminBasePrice } : product;
+        const frontHasArt = item.frontLayers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
+        const backHasArt = item.backLayers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
+        const price =
+          item.productId === "classic-tee"
+            ? (() => {
+                const basePrice = (adminBasePrice ?? item.unitPrice) + (frontHasArt && backHasArt ? 10 : 0);
+                const discount = quantity >= 6 ? 20 : quantity >= 2 ? 11 : 0;
+                const unitPrice = Math.max(basePrice - discount, 0);
+                return { unitPrice, lineTotal: roundMoney(unitPrice * quantity) };
+              })()
+            : priceDesign(pricedProduct, quantity, item.frontLayers, item.backLayers);
 
         return {
           ...item,
@@ -215,7 +269,13 @@ export default function CartPage() {
       createdAt: new Date().toISOString(),
     };
     setIsCheckingOut(true);
-    setStatus("Creating secure Stripe checkout...");
+    setStatus(testModeEnabled ? "Creating a no-payment test order..." : "Creating secure Stripe checkout...");
+    trackStorefrontEvent("reached_checkout", {
+      checkout_submit: true,
+      item_count: items.length,
+      total: totals.total,
+      test_mode: testModeEnabled,
+    });
 
     try {
       const response = await fetch("/api/checkout", {
@@ -225,7 +285,7 @@ export default function CartPage() {
         },
         body: JSON.stringify(order),
       });
-      const data = (await response.json()) as { url?: string; mode?: "manual" | "stripe"; error?: string };
+      const data = (await response.json()) as { url?: string; mode?: "manual" | "stripe" | "test"; error?: string };
 
       if (!response.ok || !data.url) {
         throw new Error(data.error ?? "Checkout failed");
@@ -309,6 +369,32 @@ export default function CartPage() {
                           Remove
                         </button>
                       </div>
+                      {testModeEnabled && (item.frontPreview || item.backPreview) && (
+                        <div className="rounded-[18px] border border-dashed border-blue-400 bg-white p-3">
+                          <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-blue-700">
+                            Test Mode Print Files
+                          </p>
+                          <p className="mt-1 text-xs text-[#6b7280]">
+                            These clipped mask previews are uploaded to the uploads bucket when checkout runs.
+                          </p>
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                            {item.frontPreview && (
+                              <div className="rounded-[14px] border border-blue-200 bg-[#f8faff] p-2">
+                                <span className="mb-2 block text-xs font-bold text-blue-700">Front clipped area</span>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={item.frontPreview} alt="Front clipped print file" className="aspect-video w-full rounded-[10px] border border-dashed border-blue-300 object-contain p-2" />
+                              </div>
+                            )}
+                            {item.backPreview && (
+                              <div className="rounded-[14px] border border-blue-200 bg-[#f8faff] p-2">
+                                <span className="mb-2 block text-xs font-bold text-blue-700">Back clipped area</span>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={item.backPreview} alt="Back clipped print file" className="aspect-video w-full rounded-[10px] border border-dashed border-blue-300 object-contain p-2" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </article>
                 );
@@ -320,8 +406,15 @@ export default function CartPage() {
         <form onSubmit={handleCheckout} className="h-fit rounded-[30px] border border-white/70 bg-white p-5 shadow-[0_12px_38px_rgba(0,0,0,0.06)] sm:p-6 lg:sticky lg:top-5">
           <h2 className="text-2xl font-black">Secure Stripe Checkout</h2>
           <p className="mt-1 text-sm leading-6 text-[#6b7280]">
-            Your order is finalized only after Stripe confirms payment.
+            {testModeEnabled
+              ? "Test mode is on. This creates a paid test order with no money collected."
+              : "Your order is finalized only after Stripe confirms payment."}
           </p>
+          {testModeEnabled && (
+            <div className="mt-4 rounded-[18px] border border-amber-300 bg-amber-50 p-4 text-sm font-bold text-amber-900">
+              Internal test checkout is active. Use it to verify clipped artwork, packing, and shipping before launch.
+            </div>
+          )}
           <div className="mt-4 rounded-[20px] bg-[#eef2ff] p-4 text-sm font-semibold text-[#4338ca]">
             <p className="text-xs font-extrabold uppercase tracking-[0.12em]">Customer Account</p>
             <p className="mt-1 break-all">{email ? email : `Guest checkout (${accountStatus})`}</p>
@@ -462,7 +555,7 @@ export default function CartPage() {
             disabled={isCheckingOut}
             className="design-main-btn disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isCheckingOut ? "Opening Stripe..." : "Checkout With Stripe"}
+            {isCheckingOut ? (testModeEnabled ? "Creating Test Order..." : "Opening Stripe...") : testModeEnabled ? "Place Test Order" : "Checkout With Stripe"}
           </button>
         </form>
       </section>

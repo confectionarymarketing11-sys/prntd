@@ -6,6 +6,7 @@ import { PaymentStatusSelect, ProductionStatusSelect } from "@/features/admin/co
 import ProductionTimeline from "@/features/admin/components/production-timeline";
 import ShipmentForm from "@/features/admin/components/shipment-form";
 import { StatusBadge } from "@/features/admin/components/status-badge";
+import { refundOrderAction } from "@/features/admin/actions/orders";
 import { formatCents, getOrderById } from "@/features/admin/data/orders";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -142,6 +143,28 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           {order.tax_breakdown && Object.keys(order.tax_breakdown).length > 0 && (
             <JsonViewer title="Stripe Tax Breakdown" data={order.tax_breakdown} />
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm">
+              <p className="text-slate-500">
+                Refunds can be issued here for Stripe-paid orders. Test mode orders are marked refunded without contacting Stripe.
+              </p>
+              <form action={refundOrderAction}>
+                <input type="hidden" name="orderId" value={order.id} />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={order.payment_status === "refunded" || order.payment_status === "unpaid"}
+                  className="w-full border-red-200 text-red-700 hover:bg-red-50"
+                >
+                  {order.payment_status === "refunded" ? "Already Refunded" : "Process Refund"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
 
           <ShipmentForm order={order} />
           <ProductionTimeline events={order.production_status_events ?? []} />
