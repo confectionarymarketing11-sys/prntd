@@ -2,6 +2,18 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import {
+  ArrowUpRight,
+  BarChart3,
+  Brush,
+  CreditCard,
+  Globe,
+  QrCode,
+  ShoppingBag,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+
 import PortalSidebar from "@/components/PortalSidebar";
 import ShopHeader from "@/components/ShopHeader";
 import { usePrntdAccount } from "@/hooks/usePrntdAccount";
@@ -16,203 +28,489 @@ import {
 } from "@/lib/prntdClient";
 
 export default function DashboardPage() {
-  const { email, token, status: accountStatus, loadAccount } = usePrntdAccount();
+  const {
+    email,
+    token,
+    status: accountStatus,
+    loadAccount,
+  } = usePrntdAccount();
+
   const [status, setStatus] = useState("");
   const [credits, setCredits] = useState("--");
-  const [subscription, setSubscription] = useState<SubscriptionResponse | null>(null);
-  const [qrCount, setQrCount] = useState("--");
-  const [designCount, setDesignCount] = useState("--");
-  const [analytics, setAnalytics] = useState<QrAnalytics | null>(null);
-  const [lastSynced, setLastSynced] = useState("");
+  const [subscription, setSubscription] =
+    useState<SubscriptionResponse | null>(
+      null,
+    );
 
-  const refreshDashboard = useCallback(async () => {
-    const session = token && email ? { email, token } : await loadAccount();
+  const [qrCount, setQrCount] =
+    useState("--");
 
-    if (!session?.email || !session.token) {
-      setStatus("Sign in to load portal data.");
-      return;
-    }
+  const [designCount, setDesignCount] =
+    useState("--");
 
-    setStatus("Loading portal data...");
+  const [analytics, setAnalytics] =
+    useState<QrAnalytics | null>(null);
 
-    try {
-      const [creditData, subscriptionData, qrData, analyticsData, designData] = await Promise.all([
-        fetchCredits(session.token),
-        fetchSubscription(session.email, session.token),
-        fetchQrLinks(session.email, session.token),
-        fetchQrAnalytics(session.email, session.token),
-        fetchDesigns(session.token),
-      ]);
+  const [lastSynced, setLastSynced] =
+    useState("");
 
-      setCredits(String(creditData.total_credits ?? "--"));
-      setSubscription(subscriptionData);
-      setQrCount(Array.isArray(qrData) ? String(qrData.length) : "0");
-      setAnalytics(analyticsData);
-      setDesignCount(String(designData.designs?.length ?? 0));
-      setLastSynced(new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date()));
-      setStatus("Portal data loaded.");
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to load portal data.");
-    }
-  }, [email, token, loadAccount]);
+  const refreshDashboard =
+    useCallback(async () => {
+      const session =
+        token && email
+          ? { email, token }
+          : await loadAccount();
+
+      if (
+        !session?.email ||
+        !session.token
+      ) {
+        setStatus(
+          "Sign in to load portal data.",
+        );
+
+        return;
+      }
+
+      setStatus("Loading portal data...");
+
+      try {
+        const [
+          creditData,
+          subscriptionData,
+          qrData,
+          analyticsData,
+          designData,
+        ] = await Promise.all([
+          fetchCredits(session.token),
+
+          fetchSubscription(
+            session.email,
+            session.token,
+          ),
+
+          fetchQrLinks(
+            session.email,
+            session.token,
+          ),
+
+          fetchQrAnalytics(
+            session.email,
+            session.token,
+          ),
+
+          fetchDesigns(session.token),
+        ]);
+
+        setCredits(
+          String(
+            creditData.total_credits ??
+              "--",
+          ),
+        );
+
+        setSubscription(subscriptionData);
+
+        setQrCount(
+          Array.isArray(qrData)
+            ? String(qrData.length)
+            : "0",
+        );
+
+        setAnalytics(analyticsData);
+
+        setDesignCount(
+          String(
+            designData.designs?.length ??
+              0,
+          ),
+        );
+
+        setLastSynced(
+          new Intl.DateTimeFormat(
+            undefined,
+            {
+              hour: "numeric",
+              minute: "2-digit",
+            },
+          ).format(new Date()),
+        );
+
+        setStatus("Portal synced.");
+      } catch (error) {
+        setStatus(
+          error instanceof Error
+            ? error.message
+            : "Unable to load dashboard.",
+        );
+      }
+    }, [email, token, loadAccount]);
 
   useEffect(() => {
     if (!email || !token) return;
+
     const timer = window.setTimeout(() => {
       void refreshDashboard();
     }, 0);
 
-    return () => window.clearTimeout(timer);
+    return () =>
+      window.clearTimeout(timer);
   }, [email, token, refreshDashboard]);
 
   const stats = [
     {
-      title: "Subscription",
-      value: subscription?.subscription_active ? `${subscription.plan_type ?? "Active"} Plan` : "No Active Plan",
-      detail: subscription?.payment_status ?? "Status unavailable",
-    },
-    {
       title: "Credits",
-      value: `${credits} Credits`,
-      detail: "Design and image tools",
+      value: `${credits}`,
+      detail: "Available AI credits",
+      accent:
+        "from-[#3b82f6] to-[#6366f1]",
     },
-    {
-      title: "Active QR Codes",
-      value: qrCount,
-      detail: `${subscription?.remaining_slots ?? 0} slots remaining`,
-    },
+
     {
       title: "Saved Designs",
       value: designCount,
-      detail: "Generated brand assets",
+      detail: "Stored assets",
+      accent:
+        "from-[#8b5cf6] to-[#ec4899]",
     },
+
+    {
+      title: "QR Campaigns",
+      value: qrCount,
+      detail: "Live smart redirects",
+      accent:
+        "from-[#06b6d4] to-[#3b82f6]",
+    },
+
     {
       title: "Monthly Scans",
-      value: String(analytics?.monthlyScansTotal ?? 0),
-      detail: "Smart QR traffic",
+      value: String(
+        analytics?.monthlyScansTotal ??
+          0,
+      ),
+      detail: "QR traffic",
+      accent:
+        "from-[#14b8a6] to-[#06b6d4]",
     },
+  ];
+
+  const actions = [
     {
-      title: "Top Country",
-      value: analytics?.topCountry ?? "-",
-      detail: "QR audience",
+      title: "Create Designs",
+      detail:
+        "Generate premium graphics and print-ready artwork.",
+      href: "/design-generator",
+      icon: Brush,
+      glow:
+        "from-[#8b5cf6] to-[#ec4899]",
     },
+
     {
-      title: "Top Device",
-      value: analytics?.topDevice ?? "-",
-      detail: "Scan device type",
+      title: "QR Manager",
+      detail:
+        "Track scans and update smart redirects.",
+      href: "/qr-dashboard",
+      icon: QrCode,
+      glow:
+        "from-[#06b6d4] to-[#3b82f6]",
     },
+
     {
-      title: "URL Health",
-      value: analytics?.urlHealth ?? "-",
-      detail: "Latest redirect check",
+      title: "Shop Products",
+      detail:
+        "Launch apparel, stickers, and cards.",
+      href: "/products",
+      icon: ShoppingBag,
+      glow:
+        "from-[#3b82f6] to-[#6366f1]",
+    },
+
+    {
+      title: "Saved Assets",
+      detail:
+        "Reuse and download generated assets.",
+      href: "/my-designs",
+      icon: Sparkles,
+      glow:
+        "from-[#6366f1] to-[#8b5cf6]",
     },
   ];
 
   return (
-    <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
-      <ShopHeader />
-      <div className="mx-auto flex max-w-[1440px] gap-6 px-5 py-8 max-[900px]:flex-col">
-        <PortalSidebar />
+    <main className="min-h-screen overflow-hidden bg-[#020617] text-white">
+      {/* BACKGROUND */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-[-10%] top-[-10%] h-[520px] w-[520px] rounded-full bg-[#4f46e5]/20 blur-[140px]" />
 
-        <section className="min-w-0 flex-1">
-          <div className="relative mb-5 overflow-hidden rounded-[30px] bg-[#111827] p-6 text-white shadow-[0_18px_50px_rgba(17,24,39,0.18)] sm:p-8">
-            <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,.55),transparent_45%),radial-gradient(circle_at_bottom,rgba(59,130,246,.38),transparent_44%)]" />
-            <div className="relative grid gap-6 lg:grid-cols-[1fr_320px] lg:items-end">
-              <div>
-                <div className="mb-4 inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] text-white/80">
-                  PRNTD Customer Portal
-                </div>
-                <h1 className="max-w-[740px] text-[clamp(34px,4.2vw,62px)] font-black leading-[1.02] tracking-normal">
-                  Welcome back{email ? `, ${email.split("@")[0]}` : ""}
-                </h1>
-                <p className="mt-4 max-w-[680px] text-[16px] leading-7 text-white/72">
-                  Manage credits, saved designs, QR campaigns, and print-ready assets from one clean workspace.
-                </p>
-              </div>
-              <div className="grid gap-3 rounded-[24px] border border-white/12 bg-white/10 p-5 backdrop-blur">
+        <div className="absolute bottom-[-15%] right-[-10%] h-[520px] w-[520px] rounded-full bg-[#2563eb]/20 blur-[160px]" />
+      </div>
+
+      <div className="relative z-10">
+        <ShopHeader />
+
+        <div className="mx-auto flex max-w-[1600px] gap-6 px-5 py-8 max-[980px]:flex-col">
+          <PortalSidebar />
+
+          <section className="min-w-0 flex-1">
+            {/* HERO */}
+            <div className="relative overflow-hidden rounded-[38px] border border-white/10 bg-[linear-gradient(135deg,#0f172a_0%,#111827_45%,#312e81_100%)] p-8 shadow-[0_35px_120px_rgba(0,0,0,0.45)] sm:p-10">
+              <div className="absolute right-[-5%] top-[-5%] h-[340px] w-[340px] rounded-full bg-[#8b5cf6]/20 blur-[120px]" />
+
+              <div className="relative grid gap-8 xl:grid-cols-[1fr_340px]">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">Available Credits</p>
-                  <p className="mt-1 text-[42px] font-black leading-none">{credits}</p>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-5 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#c7d2fe] backdrop-blur">
+                    <Zap className="h-3.5 w-3.5" />
+                    PRNTD Workspace
+                  </div>
+
+                  <h1 className="mt-7 text-[clamp(52px,7vw,92px)] font-black leading-[0.92] tracking-[-0.06em]">
+                    Welcome back
+                    <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
+                      {email
+                        ? email.split("@")[0]
+                        : "Creator"}
+                    </span>
+                  </h1>
+
+                  <p className="mt-6 max-w-2xl text-lg leading-9 text-[#cbd5e1]">
+                    Manage print assets,
+                    AI tools, QR campaigns,
+                    ecommerce workflows,
+                    and customer projects
+                    from one premium
+                    workspace.
+                  </p>
+
+                  <div className="mt-8 flex flex-wrap gap-4">
+                    <Link
+                      href="/products"
+                      className="inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-7 py-4 text-sm font-black text-white no-underline shadow-[0_15px_50px_rgba(99,102,241,0.45)] transition hover:-translate-y-1"
+                    >
+                      Shop Products
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void refreshDashboard()
+                      }
+                      className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] px-7 py-4 text-sm font-black text-white transition hover:bg-white/[0.08]"
+                    >
+                      Refresh Portal
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm leading-6 text-white/70">
-                  {lastSynced ? `Synced at ${lastSynced}` : "Sign in to sync live account data."}
+
+                {/* ACCOUNT PANEL */}
+                <div className="rounded-[30px] border border-white/10 bg-white/[0.06] p-6 backdrop-blur-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#94a3b8]">
+                        Account Status
+                      </p>
+
+                      <p className="mt-3 text-2xl font-black">
+                        {subscription?.subscription_active
+                          ? "Active"
+                          : "Starter"}
+                      </p>
+                    </div>
+
+                    <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] shadow-[0_15px_50px_rgba(99,102,241,0.45)]">
+                      <CreditCard className="h-6 w-6" />
+                    </div>
+                  </div>
+
+                  <div className="mt-8 grid gap-4">
+                    <div className="rounded-2xl border border-white/10 bg-[#0f172a]/80 p-5">
+                      <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                        Available Credits
+                      </p>
+
+                      <p className="mt-3 text-5xl font-black">
+                        {credits}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#0f172a]/80 p-5">
+                      <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                        Last Sync
+                      </p>
+
+                      <p className="mt-3 text-lg font-black">
+                        {lastSynced ||
+                          "Waiting"}
+                      </p>
+
+                      <p className="mt-2 text-sm leading-6 text-[#94a3b8]">
+                        {status ||
+                          accountStatus}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* STATS */}
+            <div className="mt-6 grid grid-cols-4 gap-4 max-[1200px]:grid-cols-2 max-[640px]:grid-cols-1">
+              {stats.map((stat) => (
+                <article
+                  key={stat.title}
+                  className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-[#6366f1]/30"
+                >
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${stat.accent} opacity-[0.08]`}
+                  />
+
+                  <div className="relative">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#94a3b8]">
+                      {stat.title}
+                    </p>
+
+                    <p className="mt-5 text-[44px] font-black leading-none">
+                      {stat.value}
+                    </p>
+
+                    <p className="mt-4 text-sm text-[#cbd5e1]">
+                      {stat.detail}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {/* ACTIONS */}
+            <div className="mt-6 grid grid-cols-2 gap-5 max-[900px]:grid-cols-1">
+              {actions.map((action) => {
+                const Icon = action.icon;
+
+                return (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    className="group relative overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] p-7 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-[#6366f1]/30 hover:shadow-[0_25px_70px_rgba(99,102,241,0.18)]"
+                  >
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${action.glow} opacity-[0.08]`}
+                    />
+
+                    <div className="relative">
+                      <div className="flex items-start justify-between">
+                        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] shadow-[0_15px_50px_rgba(99,102,241,0.35)]">
+                          <Icon className="h-7 w-7 text-white" />
+                        </div>
+
+                        <ArrowUpRight className="h-6 w-6 text-[#94a3b8] transition group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-white" />
+                      </div>
+
+                      <h2 className="mt-7 text-3xl font-black tracking-[-0.03em]">
+                        {action.title}
+                      </h2>
+
+                      <p className="mt-4 max-w-xl text-[15px] leading-8 text-[#cbd5e1]">
+                        {action.detail}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* LOWER PANELS */}
+            <div className="mt-6 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+              <article className="rounded-[32px] border border-white/10 bg-white/[0.04] p-7 backdrop-blur-xl">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[linear-gradient(135deg,#06b6d4,#3b82f6)]">
+                    <BarChart3 className="h-6 w-6" />
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#94a3b8]">
+                      Portal Analytics
+                    </p>
+
+                    <h2 className="mt-1 text-3xl font-black">
+                      Workspace Health
+                    </h2>
+                  </div>
+                </div>
+
+                <p className="mt-6 max-w-3xl text-[15px] leading-8 text-[#cbd5e1]">
+                  Monitor QR performance,
+                  design usage, account
+                  status, and smart
+                  campaign activity from
+                  one centralized portal.
                 </p>
-              </div>
-            </div>
-          </div>
 
-          <div className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Customer Account</p>
-                <p className="mt-2 text-lg font-black">{email || "Loading..."}</p>
-                <p className="mt-1 text-sm text-[#6b7280]">{status || accountStatus}</p>
-              </div>
-              <button type="button" onClick={() => void refreshDashboard()} className="portal-action">
-                Refresh Portal
-              </button>
-            </div>
-          </div>
+                <div className="mt-8">
+                  <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-[linear-gradient(135deg,#3b82f6,#6366f1,#8b5cf6)]"
+                      style={{
+                        width:
+                          subscription?.max_qr_limit
+                            ? `${Math.min(
+                                ((subscription.active_qr_count ??
+                                  0) /
+                                  subscription.max_qr_limit) *
+                                  100,
+                                100,
+                              )}%`
+                            : "0%",
+                      }}
+                    />
+                  </div>
 
-          <div className="my-6 grid grid-cols-3 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-            {[
-              ["Create New Design", "Generate artwork for print products.", "/design-generator"],
-              ["Remove Background", "Clean product and apparel images.", "/background-remover"],
-              ["Saved Designs", "Reuse or download generated assets.", "/my-designs"],
-              ["Manage QR Codes", "Update redirects and track scans.", "/qr-dashboard"],
-              ["Shop Print Products", "Apply designs to stickers and apparel.", "/products"],
-              ["Open Cart", "Review quantities and checkout.", "/cart"],
-            ].map(([title, detail, href]) => (
-              <Link key={href} href={href} className="group rounded-[22px] border border-white/70 bg-white p-5 text-[#111827] shadow-[0_10px_30px_rgba(0,0,0,0.045)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(99,102,241,.12)]">
-                <span className="block text-[17px] font-black">{title}</span>
-                <span className="mt-2 block text-sm leading-6 text-[#6b7280]">{detail}</span>
-                <span className="mt-4 inline-flex text-sm font-extrabold text-[#4f46e5]">Open</span>
-              </Link>
-            ))}
-          </div>
+                  <div className="mt-4 flex items-center justify-between text-sm">
+                    <span className="text-[#94a3b8]">
+                      QR Usage
+                    </span>
 
-          <div className="grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2 max-[640px]:grid-cols-1">
-            {stats.map((stat) => (
-              <article key={stat.title} className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-                <h3 className="mb-3 text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">{stat.title}</h3>
-                <p className="text-[28px] font-black leading-none text-[#111827]">{stat.value}</p>
-                <p className="mt-3 text-sm leading-6 text-[#6b7280]">{stat.detail}</p>
+                    <span className="font-black">
+                      {
+                        subscription?.active_qr_count
+                      }
+                      /
+                      {
+                        subscription?.max_qr_limit
+                      }
+                    </span>
+                  </div>
+                </div>
               </article>
-            ))}
-          </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
-            <article className="rounded-[26px] border border-white/70 bg-white p-6 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-              <h2 className="text-[24px] font-black">Portal Status</h2>
-              <p className="mt-2 text-sm leading-6 text-[#6b7280]">
-                Live reads use Supabase when your public policies allow it. Protected credit and design actions still use the
-                authenticated PRNTD API proxy.
-              </p>
-              <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#eef2ff]">
-                <div
-                  className="h-full rounded-full bg-[linear-gradient(135deg,#3b82f6,#6366f1,#7c3aed)]"
-                  style={{
-                    width: subscription?.max_qr_limit
-                      ? `${Math.min(((subscription.active_qr_count ?? 0) / subscription.max_qr_limit) * 100, 100)}%`
-                      : "0%",
-                  }}
-                />
-              </div>
-              <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[#6b7280]">
-                QR usage {subscription?.active_qr_count ?? 0}/{subscription?.max_qr_limit ?? 0}
-              </p>
-            </article>
-            <article className="rounded-[26px] border border-white/70 bg-white p-6 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-              <h2 className="text-[24px] font-black">Next Best Step</h2>
-              <p className="mt-2 text-sm leading-6 text-[#6b7280]">
-                Keep a saved design ready, then open a print product and attach it before checkout.
-              </p>
-              <Link href="/products" className="design-main-btn">
-                Choose Product
-              </Link>
-            </article>
-          </div>
-        </section>
+              <article className="rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,#111827_0%,#1e1b4b_100%)] p-7 shadow-[0_25px_80px_rgba(0,0,0,0.35)]">
+                <div className="grid h-16 w-16 place-items-center rounded-2xl bg-[linear-gradient(135deg,#8b5cf6,#ec4899)] shadow-[0_20px_60px_rgba(139,92,246,0.35)]">
+                  <Globe className="h-7 w-7 text-white" />
+                </div>
+
+                <h2 className="mt-7 text-[40px] font-black leading-[1] tracking-[-0.04em]">
+                  Ready To
+                  <span className="block text-[#a5b4fc]">
+                    Launch?
+                  </span>
+                </h2>
+
+                <p className="mt-5 text-[15px] leading-8 text-[#cbd5e1]">
+                  Create products, attach
+                  saved assets, and launch
+                  premium branded
+                  experiences directly from
+                  your workspace.
+                </p>
+
+                <Link
+                  href="/products"
+                  className="mt-8 inline-flex items-center justify-center rounded-2xl bg-white px-7 py-4 text-sm font-black text-[#111827] no-underline transition hover:scale-[1.02]"
+                >
+                  Open Product Catalog
+                </Link>
+              </article>
+            </div>
+          </section>
+        </div>
       </div>
     </main>
   );
