@@ -764,10 +764,10 @@ export default function DesignerPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
+    <main className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-[#111827]">
       <ShopHeader />
 
-      <section className="mx-auto w-full max-w-7xl px-[22px] py-10">
+      <section className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-[22px] sm:py-10">
         <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] max-[1100px]:gap-7 max-[860px]:grid-cols-1">
           <div className="relative rounded-[32px] bg-[#f5f7fb] p-7 max-[860px]:rounded-3xl max-[860px]:p-[18px]">
             <div className="mb-[18px] flex gap-2.5 overflow-auto max-[860px]:w-full">

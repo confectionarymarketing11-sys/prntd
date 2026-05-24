@@ -226,10 +226,14 @@ export default function CartPage() {
   useEffect(() => {
     if (!email) return;
 
-    setCustomer((current) => ({
-      ...current,
-      email,
-    }));
+    const timer = window.setTimeout(() => {
+      setCustomer((current) => ({
+        ...current,
+        email,
+      }));
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [email]);
 
   function updateCustomer(
@@ -466,7 +470,7 @@ export default function CartPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#020617] text-white">
+    <main className="min-h-screen overflow-x-hidden bg-[#020617] text-white">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute left-[-10%] top-[-10%] h-[520px] w-[520px] rounded-full bg-[#4f46e5]/20 blur-[140px]" />
 
@@ -476,9 +480,9 @@ export default function CartPage() {
       <div className="relative z-10">
         <ShopHeader />
 
-        <section className="mx-auto grid w-full max-w-[1700px] gap-6 px-5 py-8 pb-20 xl:grid-cols-[minmax(0,1fr)_460px]">
+        <section className="mx-auto grid w-full max-w-[1700px] gap-5 px-4 py-6 pb-16 sm:gap-6 sm:px-5 sm:py-8 sm:pb-20 xl:grid-cols-[minmax(0,1fr)_460px]">
           {/* LEFT */}
-          <div className="rounded-[38px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-2xl shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
+          <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-2xl shadow-[0_35px_120px_rgba(0,0,0,0.45)] sm:rounded-[38px] sm:p-6">
             {/* HERO */}
             <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,#0f172a_0%,#111827_45%,#312e81_100%)] p-8">
               <div className="absolute right-[-5%] top-[-5%] h-[240px] w-[240px] rounded-full bg-[#8b5cf6]/20 blur-[100px]" />
@@ -515,7 +519,7 @@ export default function CartPage() {
                 return (
                   <article
                     key={item.id}
-                    className="group overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl transition duration-300 hover:border-[#6366f1]/30 hover:shadow-[0_25px_70px_rgba(99,102,241,0.12)]"
+                    className="group overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl transition duration-300 hover:border-[#6366f1]/30 hover:shadow-[0_25px_70px_rgba(99,102,241,0.12)] sm:rounded-[30px] sm:p-5"
                   >
                     <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
                       <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white">
@@ -554,7 +558,7 @@ export default function CartPage() {
                               }
                             </p>
 
-                            <h2 className="mt-2 text-3xl font-black tracking-[-0.03em]">
+                            <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] sm:text-3xl">
                               {
                                 item.productName
                               }
@@ -572,8 +576,8 @@ export default function CartPage() {
                             </p>
                           </div>
 
-                          <div className="text-right">
-                            <p className="text-[38px] font-black leading-none">
+                          <div className="w-full text-left sm:w-auto sm:text-right">
+                            <p className="text-[32px] font-black leading-none sm:text-[38px]">
                               {formatMoney(
                                 item.lineTotal,
                               )}
@@ -639,7 +643,7 @@ export default function CartPage() {
           {/* SIDEBAR */}
           <form
             onSubmit={handleCheckout}
-            className="sticky top-5 h-fit overflow-hidden rounded-[38px] border border-white/10 bg-[linear-gradient(135deg,#111827_0%,#1e1b4b_100%)] p-7 shadow-[0_35px_120px_rgba(0,0,0,0.45)]"
+            className="h-fit overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(135deg,#111827_0%,#1e1b4b_100%)] p-5 shadow-[0_35px_120px_rgba(0,0,0,0.45)] sm:rounded-[38px] sm:p-7 xl:sticky xl:top-5"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -647,7 +651,7 @@ export default function CartPage() {
                   Stripe Protected
                 </p>
 
-                <h2 className="mt-3 text-[42px] font-black leading-[0.95] tracking-[-0.04em]">
+                <h2 className="mt-3 text-[34px] font-black leading-[0.95] tracking-[-0.04em] sm:text-[42px]">
                   Checkout
                 </h2>
               </div>
@@ -891,7 +895,7 @@ export default function CartPage() {
                   </strong>
                 </div>
 
-                <div className="mt-4 flex justify-between border-t border-white/10 pt-5 text-[28px] font-black">
+                <div className="mt-4 flex justify-between gap-4 border-t border-white/10 pt-5 text-[24px] font-black sm:text-[28px]">
                   <span>Total</span>
 
                   <strong>

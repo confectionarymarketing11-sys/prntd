@@ -366,17 +366,17 @@ export default function ProductDetail({
   }
 
   return (
-    <section className="relative overflow-hidden bg-[#020617] px-5 py-10 text-white">
+    <section className="relative overflow-x-hidden bg-[#020617] px-4 py-6 text-white sm:px-5 sm:py-10">
       {/* BACKGROUND */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-[-10%] top-[-10%] h-[500px] w-[500px] rounded-full bg-[#4f46e5]/20 blur-[140px]" />
         <div className="absolute bottom-[-20%] right-[-10%] h-[500px] w-[500px] rounded-full bg-[#2563eb]/20 blur-[140px]" />
       </div>
 
-      <div className="relative z-10 mx-auto grid w-full max-w-[1400px] gap-8 lg:grid-cols-[minmax(0,1fr)_460px]">
+      <div className="relative z-10 mx-auto grid w-full max-w-[1400px] gap-6 lg:grid-cols-[minmax(0,1fr)_460px] sm:gap-8">
         {/* LEFT */}
         <div className="grid gap-5">
-          <div className="overflow-hidden rounded-[36px] border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-[0_25px_80px_rgba(0,0,0,0.45)]">
+          <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-[0_25px_80px_rgba(0,0,0,0.45)] sm:rounded-[36px]">
             <ProductMockup
               product={product}
               label={
@@ -395,7 +395,7 @@ export default function ProductDetail({
             }`}
           >
             {!isSticker && (
-              <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+              <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:rounded-[28px]">
                 <ProductMockup
                   product={product}
                   color={
@@ -407,7 +407,7 @@ export default function ProductDetail({
               </div>
             )}
 
-            <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:rounded-[28px] sm:p-6">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-[#818cf8]">
                 Production
               </p>
@@ -426,12 +426,12 @@ export default function ProductDetail({
         </div>
 
         {/* RIGHT */}
-        <aside className="h-fit rounded-[36px] border border-white/10 bg-white/[0.04] p-7 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,0.5)] lg:sticky lg:top-5">
+        <aside className="h-fit rounded-[28px] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,0.5)] sm:rounded-[36px] sm:p-7 lg:sticky lg:top-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#818cf8]">
             {product.category}
           </p>
 
-          <h1 className="mt-4 text-[clamp(42px,5vw,72px)] font-black leading-[0.95] tracking-[-0.04em]">
+          <h1 className="mt-4 text-[clamp(34px,12vw,72px)] font-black leading-[0.98] tracking-[-0.035em] sm:leading-[0.95] sm:tracking-[-0.04em]">
             {product.name}
           </h1>
 
@@ -550,7 +550,7 @@ export default function ProductDetail({
               Estimated Total
             </p>
 
-            <p className="mt-3 text-[52px] font-black leading-none">
+            <p className="mt-3 text-[clamp(38px,13vw,52px)] font-black leading-none">
               {formatMoney(price.lineTotal)}
             </p>
 

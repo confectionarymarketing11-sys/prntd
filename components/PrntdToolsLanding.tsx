@@ -48,7 +48,7 @@ function PrimaryButton({
   return (
     <Link
       href={href}
-      className="inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#7c3aed_100%)] px-7 py-4 text-sm font-black text-white no-underline shadow-[0_10px_30px_rgba(99,102,241,0.35)] transition duration-200 hover:-translate-y-1"
+      className="inline-flex w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#7c3aed_100%)] px-7 py-4 text-sm font-black text-white no-underline shadow-[0_10px_30px_rgba(99,102,241,0.35)] transition duration-200 hover:-translate-y-1 sm:w-auto"
     >
       {children}
     </Link>
@@ -65,7 +65,7 @@ function SecondaryButton({
   return (
     <Link
       href={href}
-      className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-7 py-4 text-sm font-black text-white no-underline backdrop-blur transition duration-200 hover:-translate-y-1 hover:bg-white/10"
+      className="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-7 py-4 text-sm font-black text-white no-underline backdrop-blur transition duration-200 hover:-translate-y-1 hover:bg-white/10 sm:w-auto"
     >
       {children}
     </Link>
@@ -74,10 +74,10 @@ function SecondaryButton({
 
 function ToolCardView({ card }: { card: ToolCard }) {
   return (
-    <article className="group relative overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.04] p-8 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-[#6366f1]/50 hover:bg-white/[0.06] hover:shadow-[0_20px_60px_rgba(79,70,229,0.18)]">
+    <article className="group relative overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-[#6366f1]/50 hover:bg-white/[0.06] hover:shadow-[0_20px_60px_rgba(79,70,229,0.18)] sm:rounded-[30px] sm:p-8">
       <div className="absolute inset-x-0 top-0 h-[2px] bg-[linear-gradient(90deg,#3b82f6,#6366f1,#7c3aed)] opacity-0 transition group-hover:opacity-100" />
 
-      <h3 className="text-3xl font-black tracking-tight text-white">
+      <h3 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
         {card.title}
       </h3>
 
@@ -96,7 +96,7 @@ function ToolCardView({ card }: { card: ToolCard }) {
 
 export default function PrntdToolsLanding() {
   return (
-    <div className="min-h-screen overflow-hidden bg-[#020617] text-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#020617] text-white">
       {/* Background Effects */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-[-10%] top-[-10%] h-[500px] w-[500px] rounded-full bg-[#4f46e5]/30 blur-[140px]" />
@@ -104,27 +104,27 @@ export default function PrntdToolsLanding() {
       </div>
 
       {/* HERO */}
-      <section className="relative z-10 px-6 pb-24 pt-24">
+      <section className="relative z-10 px-4 pb-16 pt-16 sm:px-6 sm:pb-24 sm:pt-24">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-5xl text-center">
             <div className="mb-8 inline-flex items-center rounded-full border border-[#6366f1]/30 bg-white/5 px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#a5b4fc] backdrop-blur">
               Premium Print + AI Business Platform
             </div>
 
-            <h1 className="text-[clamp(58px,8vw,110px)] font-black leading-[0.92] tracking-[-0.04em] text-white">
+            <h1 className="text-[clamp(42px,15vw,110px)] font-black leading-[0.95] tracking-[-0.035em] text-white sm:leading-[0.92] sm:tracking-[-0.04em]">
               Build a Stronger Brand
               <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
                 Online and In Person
               </span>
             </h1>
 
-            <p className="mx-auto mt-10 max-w-[900px] text-[20px] leading-[1.9] text-[#94a3b8]">
+            <p className="mx-auto mt-7 max-w-[900px] text-base leading-8 text-[#94a3b8] sm:mt-10 sm:text-[20px] sm:leading-[1.9]">
               PRNTD combines premium custom printing with AI-powered design
-              tools, QR systems, customer portals, and ecommerce automation —
+              tools, QR systems, customer portals, and ecommerce automation -
               all in one modern platform.
             </p>
 
-            <div className="mt-12 flex flex-wrap justify-center gap-5">
+            <div className="mt-10 flex flex-wrap justify-center gap-4 sm:mt-12 sm:gap-5">
               <PrimaryButton href="/products">
                 Shop Products
               </PrimaryButton>
@@ -138,10 +138,10 @@ export default function PrntdToolsLanding() {
       </section>
 
       {/* TOOL GRID */}
-      <section className="relative z-10 px-6 pb-24">
+      <section className="relative z-10 px-4 pb-16 sm:px-6 sm:pb-24">
         <div className="mx-auto max-w-7xl">
           <div className="mb-14 text-center">
-            <h2 className="text-[clamp(42px,5vw,72px)] font-black leading-none tracking-[-0.03em]">
+            <h2 className="text-[clamp(34px,10vw,72px)] font-black leading-tight tracking-[-0.03em] sm:leading-none">
               Print Products + Smart Tools
             </h2>
 
@@ -160,13 +160,13 @@ export default function PrntdToolsLanding() {
       </section>
 
       {/* CTA SECTION */}
-      <section className="relative z-10 px-6 pb-28">
+      <section className="relative z-10 px-4 pb-20 sm:px-6 sm:pb-28">
         <div className="mx-auto max-w-7xl">
-          <div className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[linear-gradient(135deg,#0f172a_0%,#111827_40%,#312e81_100%)] px-10 py-20 text-center shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
+          <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(135deg,#0f172a_0%,#111827_40%,#312e81_100%)] px-5 py-12 text-center shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:rounded-[40px] sm:px-10 sm:py-20">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.35),transparent_45%)]" />
 
             <div className="relative z-10">
-              <h2 className="text-[clamp(44px,5vw,78px)] font-black leading-[0.95] tracking-[-0.04em]">
+              <h2 className="text-[clamp(34px,12vw,78px)] font-black leading-[0.98] tracking-[-0.035em] sm:leading-[0.95] sm:tracking-[-0.04em]">
                 Launch Your Brand
                 <span className="block text-[#a5b4fc]">
                   With PRNTD
@@ -178,7 +178,7 @@ export default function PrntdToolsLanding() {
                 business tools built for creators, startups, and growing brands.
               </p>
 
-              <div className="mt-12 flex flex-wrap justify-center gap-5">
+              <div className="mt-10 flex flex-wrap justify-center gap-4 sm:mt-12 sm:gap-5">
                 <PrimaryButton href="/products">
                   Start Shopping
                 </PrimaryButton>

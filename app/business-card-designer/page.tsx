@@ -918,7 +918,7 @@ export default function BusinessCardDesignerPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#020617] text-white">
+    <main className="min-h-screen overflow-x-hidden bg-[#020617] text-white">
       {/* BG */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute left-[-10%] top-[-10%] h-[520px] w-[520px] rounded-full bg-[#4f46e5]/15 blur-[140px]" />
@@ -929,10 +929,10 @@ export default function BusinessCardDesignerPage() {
       <div className="relative z-10">
         <ShopHeader />
 
-        <section className="mx-auto w-full max-w-7xl px-[22px] py-10">
-          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_420px] max-[860px]:grid-cols-1">
+        <section className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-[22px] sm:py-10">
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px] max-[860px]:grid-cols-1 sm:gap-8">
             {/* DESIGN AREA */}
-            <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[#0f172a]/80 p-7 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+            <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0f172a]/80 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:rounded-[34px] sm:p-7">
               <div className="absolute right-[-10%] top-[-10%] h-[260px] w-[260px] rounded-full bg-[#6366f1]/15 blur-[90px]" />
 
               <div className="relative z-10">
@@ -942,7 +942,7 @@ export default function BusinessCardDesignerPage() {
                     Business Card Designer
                   </p>
 
-                  <h1 className="mt-5 text-[clamp(40px,5vw,72px)] font-black leading-[0.92] tracking-[-0.06em]">
+                  <h1 className="mt-5 text-[clamp(34px,11vw,72px)] font-black leading-[0.96] tracking-[-0.04em] sm:leading-[0.92] sm:tracking-[-0.06em]">
                     Create
                     <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
                       Premium Cards
@@ -986,7 +986,7 @@ export default function BusinessCardDesignerPage() {
                           cardSide
                             ? "bg-[linear-gradient(135deg,#3b82f6,#6366f1,#8b5cf6)] text-white shadow-[0_10px_30px_rgba(99,102,241,0.35)]"
                             : "border border-white/10 bg-white/[0.04] text-[#cbd5e1]"
-                        }`}
+                          } flex-1 sm:flex-none`}
                       >
                         {
                           cardSide
@@ -997,12 +997,12 @@ export default function BusinessCardDesignerPage() {
                 </div>
 
                 {/* STAGE */}
-                <div className="grid min-h-[520px] place-items-center rounded-[30px] border border-white/10 bg-[#020617] p-5">
+                <div className="grid min-h-[280px] place-items-center rounded-[24px] border border-white/10 bg-[#020617] p-3 sm:min-h-[420px] sm:rounded-[30px] sm:p-5 lg:min-h-[520px]">
                   <div
                     ref={
                       stageWrapRef
                     }
-                    className="relative aspect-[1.75/1] w-full max-w-[760px] overflow-hidden rounded-[28px] border border-white/10 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
+                    className="relative aspect-[1.75/1] w-full max-w-[760px] overflow-hidden rounded-[20px] border border-white/10 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:rounded-[28px]"
                   >
                     <Stage
                       width={
@@ -1107,13 +1107,13 @@ export default function BusinessCardDesignerPage() {
             </div>
 
             {/* SIDEBAR */}
-            <aside className="flex flex-col gap-5 rounded-[34px] border border-white/10 bg-[#0f172a]/80 p-7 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+            <aside className="flex flex-col gap-5 rounded-[28px] border border-white/10 bg-[#0f172a]/80 p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:rounded-[34px] sm:p-7">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#94a3b8]">
                   Customizer
                 </p>
 
-                <h2 className="mt-3 text-4xl font-black tracking-[-0.05em] text-white">
+                <h2 className="mt-3 text-3xl font-black tracking-[-0.05em] text-white sm:text-4xl">
                   Controls
                 </h2>
               </div>
@@ -1275,7 +1275,7 @@ export default function BusinessCardDesignerPage() {
                     Layer
                   </p>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 max-[420px]:grid-cols-1">
                     <input
                       className="h-[52px] rounded-[18px] border border-white/10 bg-[#0f172a] px-4 text-sm text-white"
                       type="number"
@@ -1376,7 +1376,7 @@ export default function BusinessCardDesignerPage() {
               )}
 
               {/* ACTIONS */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 max-[420px]:grid-cols-1">
                 <button
                   type="button"
                   onClick={
@@ -1455,7 +1455,7 @@ export default function BusinessCardDesignerPage() {
                   Total
                 </p>
 
-                <p className="mt-3 text-[42px] font-black leading-none text-white">
+                <p className="mt-3 text-[clamp(32px,12vw,42px)] font-black leading-none text-white">
                   {formatMoney(
                     price.lineTotal,
                   )}

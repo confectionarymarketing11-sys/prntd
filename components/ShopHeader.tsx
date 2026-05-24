@@ -133,11 +133,11 @@ export default function ShopHeader() {
         ) : null}
 
         {/* MAIN NAV */}
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-6 px-5 py-4">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-6 sm:px-5 sm:py-4">
           {/* LOGO */}
           <Link
             href="/"
-            className="group flex items-center gap-4 no-underline"
+            className="group flex min-w-0 items-center gap-3 no-underline sm:gap-4"
           >
             {settings?.logo_image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -149,10 +149,10 @@ export default function ShopHeader() {
                   settings.logo_text ||
                   "PRNTD"
                 }
-                className="h-12 w-12 rounded-2xl border border-white/10 object-cover shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+              className="h-11 w-11 shrink-0 rounded-2xl border border-white/10 object-cover shadow-[0_12px_40px_rgba(0,0,0,0.35)] sm:h-12 sm:w-12"
               />
             ) : (
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-sm font-black tracking-tight text-white shadow-[0_12px_40px_rgba(99,102,241,0.45)]">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-sm font-black tracking-tight text-white shadow-[0_12px_40px_rgba(99,102,241,0.45)] sm:h-12 sm:w-12">
                 {(
                   settings?.logo_text ||
                   "PRNTD"
@@ -162,13 +162,13 @@ export default function ShopHeader() {
               </div>
             )}
 
-            <div>
-              <span className="block text-[22px] font-black tracking-[-0.03em] text-white">
+            <div className="min-w-0">
+              <span className="block truncate text-[18px] font-black tracking-[-0.03em] text-white sm:text-[22px]">
                 {settings?.logo_text ||
                   "PRNTD"}
               </span>
 
-              <span className="block text-[11px] font-bold uppercase tracking-[0.22em] text-[#94a3b8]">
+              <span className="block max-w-[120px] truncate text-[10px] font-bold uppercase tracking-[0.16em] text-[#94a3b8] sm:max-w-none sm:text-[11px] sm:tracking-[0.22em]">
                 {settings?.logo_subtitle ||
                   "Premium Print Shop"}
               </span>
@@ -189,11 +189,11 @@ export default function ShopHeader() {
           </nav>
 
           {/* RIGHT ACTIONS */}
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <Link
               href="/search"
               aria-label="Search"
-              className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:border-[#6366f1]/40 hover:bg-white/[0.08]"
+              className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:border-[#6366f1]/40 hover:bg-white/[0.08] sm:h-11 sm:w-11"
             >
               <Search className="h-4 w-4" />
             </Link>
@@ -209,7 +209,7 @@ export default function ShopHeader() {
                   ? "Customer account"
                   : "Login"
               }
-              className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:border-[#6366f1]/40 hover:bg-white/[0.08]"
+              className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:border-[#6366f1]/40 hover:bg-white/[0.08] sm:h-11 sm:w-11"
             >
               <UserRound className="h-4 w-4" />
             </Link>
@@ -217,7 +217,7 @@ export default function ShopHeader() {
             <Link
               href="/cart"
               aria-label="Cart"
-              className="grid h-11 w-11 place-items-center rounded-full bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_12px_40px_rgba(99,102,241,0.45)] transition hover:scale-105"
+              className="grid h-10 w-10 place-items-center rounded-full bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_12px_40px_rgba(99,102,241,0.45)] transition hover:scale-105 sm:h-11 sm:w-11"
             >
               <ShoppingCart className="h-4 w-4" />
             </Link>
@@ -230,7 +230,7 @@ export default function ShopHeader() {
                   !mobileOpen,
                 )
               }
-              className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:bg-white/[0.08] xl:hidden"
+              className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:bg-white/[0.08] sm:h-11 sm:w-11 xl:hidden"
             >
               {mobileOpen ? (
                 <X className="h-5 w-5" />

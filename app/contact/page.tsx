@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import ShopHeader from "@/components/ShopHeader";
 import { getSiteSettings } from "@/features/site-settings/data/site-settings";
 
@@ -153,12 +155,12 @@ export default async function ContactPage() {
                 Email PRNTD
               </a>
 
-              <a
+              <Link
                 href="/products"
                 className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-7 py-4 text-sm font-black text-white no-underline transition hover:bg-white/[0.08]"
               >
                 Shop Products
-              </a>
+              </Link>
             </div>
           </div>
         </section>

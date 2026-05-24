@@ -397,9 +397,13 @@ export default function DesignGeneratorPage() {
   useEffect(() => {
     if (!accountToken) return;
 
-    void loadDesignCredits(
-      accountToken,
-    );
+    const timer = window.setTimeout(() => {
+      void loadDesignCredits(
+        accountToken,
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [
     accountToken,
     loadDesignCredits,
