@@ -1,601 +1,308 @@
-"use client";
+return (
+  <main className="min-h-screen overflow-hidden bg-[#020617] text-white">
+    <ShopHeader />
 
-import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import ProductMockup from "@/components/ProductMockup";
-import ShopHeader from "@/components/ShopHeader";
-import { usePrntdAccount } from "@/hooks/usePrntdAccount";
-import { loadCartItems, saveCartItems } from "@/lib/cart-storage";
-import { trackStorefrontEvent } from "@/lib/storefront-analytics";
-import {
-  CART_STORAGE_KEY,
-  CartItem,
-  Customer,
-  Order,
-  ProductPricing,
-  findPricingVariant,
-  SHIPPING_RATE,
-  createOrderId,
-  formatMoney,
-  getAvailableShippingMethods,
-  getProduct,
-  priceDesign,
-  roundMoney,
-} from "@/data/shop";
+    {/* BACKGROUND */}
+    <div className="pointer-events-none fixed inset-0 overflow-hidden">
+      <div className="absolute left-[-10%] top-[-10%] h-[520px] w-[520px] rounded-full bg-[#4f46e5]/20 blur-[140px]" />
+      <div className="absolute bottom-[-15%] right-[-10%] h-[520px] w-[520px] rounded-full bg-[#2563eb]/20 blur-[160px]" />
+    </div>
 
-const emptyCustomer: Customer = {
-  name: "",
-  email: "",
-  phone: "",
-  company: "",
-  address: "",
-  city: "",
-  region: "",
-  postal: "",
-  notes: "",
-};
+    <section className="relative z-10 mx-auto grid w-full max-w-[1700px] gap-6 px-5 py-8 pb-20 xl:grid-cols-[minmax(0,1fr)_460px]">
+      {/* CART */}
+      <div className="rounded-[36px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-2xl shadow-[0_30px_120px_rgba(0,0,0,0.45)]">
+        {/* HEADER */}
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-6">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#818cf8]">
+              Secure Checkout
+            </p>
 
-export default function CartPage() {
-  const { email, status: accountStatus } = usePrntdAccount();
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [customer, setCustomer] = useState<Customer>(emptyCustomer);
-  const [status, setStatus] = useState("");
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [discountCode, setDiscountCode] = useState("");
-  const [discountPreview, setDiscountPreview] = useState<{
-    code: string | null;
-    title: string | null;
-    discountAmount: number;
-    shippingDiscount: number;
-    message?: string | null;
-  } | null>(null);
-  const shippingMethods = useMemo(() => getAvailableShippingMethods(items), [items]);
-  const [shippingMethod, setShippingMethod] = useState("tracked");
-  const [testModeEnabled, setTestModeEnabled] = useState(false);
-  const [adminPricing, setAdminPricing] = useState<Record<string, ProductPricing>>({});
+            <h1 className="mt-3 text-[clamp(42px,5vw,72px)] font-black leading-[0.95] tracking-[-0.05em]">
+              Finalize
+              <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
+                Your Order
+              </span>
+            </h1>
 
-  const baseTotals = useMemo(() => {
-    const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
-    const selectedShipping = shippingMethods.find((method) => method.code === shippingMethod) ?? shippingMethods[0];
-    const shipping = items.length > 0 ? selectedShipping?.price ?? SHIPPING_RATE : 0;
-
-    return {
-      subtotal,
-      shipping,
-    };
-  }, [items, shippingMethod, shippingMethods]);
-
-  const totals = useMemo(() => {
-    const discountAmount = roundMoney(discountPreview?.discountAmount ?? 0);
-    const shippingDiscount = roundMoney(discountPreview?.shippingDiscount ?? 0);
-    const discountedSubtotal = Math.max(baseTotals.subtotal - discountAmount, 0);
-    const discountedShipping = Math.max(baseTotals.shipping - shippingDiscount, 0);
-
-    return {
-      subtotal: baseTotals.subtotal,
-      shipping: discountedShipping,
-      tax: 0,
-      discountAmount,
-      shippingDiscount,
-      total: roundMoney(discountedSubtotal + discountedShipping),
-    };
-  }, [baseTotals, discountPreview]);
-
-  useEffect(() => {
-    if (!shippingMethods.length) return;
-    if (!shippingMethods.some((method) => method.code === shippingMethod)) {
-      const timer = window.setTimeout(() => {
-        setShippingMethod(shippingMethods[0].code);
-      }, 0);
-
-      return () => window.clearTimeout(timer);
-    }
-  }, [shippingMethod, shippingMethods]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      loadCartItems()
-        .then(setItems)
-        .catch(() => setItems(JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[]));
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!items.length) return;
-
-    trackStorefrontEvent("reached_checkout", {
-      item_count: items.length,
-      subtotal: baseTotals.subtotal,
-    });
-  }, [items.length, baseTotals.subtotal]);
-
-  useEffect(() => {
-    let active = true;
-
-    fetch("/api/products/pricing")
-      .then((response) => response.json())
-      .then((pricing: Record<string, ProductPricing>) => {
-        if (active) setAdminPricing(pricing);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
-    fetch("/api/site-settings")
-      .then((response) => response.json())
-      .then((settings: { test_mode_enabled?: boolean }) => {
-        if (active) setTestModeEnabled(Boolean(settings.test_mode_enabled));
-      })
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!email) return;
-    const timer = window.setTimeout(() => {
-      setCustomer((current) => ({ ...current, email }));
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [email]);
-
-  function updateCustomer(field: keyof Customer, value: string) {
-    setCustomer((current) => ({ ...current, [field]: value }));
-  }
-
-  function updateQuantity(itemId: string, nextQuantity: number) {
-    setItems((current) => {
-      const updated = current.map((item) => {
-        if (item.id !== itemId) return item;
-
-        const product = getProduct(item.productId);
-        const quantity = Math.max(product.minimumQuantity, nextQuantity);
-        const adminBasePrice = adminPricing[item.productId]?.price;
-        const pricedProduct = typeof adminBasePrice === "number" && adminBasePrice > 0 ? { ...product, basePrice: adminBasePrice } : product;
-        const frontHasArt = item.frontLayers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
-        const backHasArt = item.backLayers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
-        const printType = frontHasArt && backHasArt ? "2 Side" : "1 Side";
-        const printVariant = findPricingVariant(adminPricing[item.productId], "Print Sides", printType);
-        const price =
-          item.productId === "classic-tee"
-            ? (() => {
-                const basePrice = printVariant?.price ?? (adminBasePrice ?? item.unitPrice) + (frontHasArt && backHasArt ? 10 : 0);
-                const discount = quantity >= 6 ? 20 : quantity >= 2 ? 11 : 0;
-                const unitPrice = Math.max(basePrice - discount, 0);
-                return { unitPrice, lineTotal: roundMoney(unitPrice * quantity) };
-              })()
-            : priceDesign(pricedProduct, quantity, item.frontLayers, item.backLayers);
-
-        return {
-          ...item,
-          quantity,
-          unitPrice: price.unitPrice,
-          lineTotal: price.lineTotal,
-        };
-      });
-
-      void saveCartItems(updated).catch(() => {
-        setStatus("Cart updated, but artwork storage could not be refreshed.");
-      });
-      return updated;
-    });
-  }
-
-  function removeItem(itemId: string) {
-    setItems((current) => {
-      const updated = current.filter((item) => item.id !== itemId);
-      void saveCartItems(updated).catch(() => {
-        setStatus("Cart updated, but artwork storage could not be refreshed.");
-      });
-      return updated;
-    });
-  }
-
-  async function applyDiscount() {
-    if (!items.length) {
-      setStatus("Add an item before applying a discount.");
-      return;
-    }
-
-    setStatus("Checking discount...");
-
-    try {
-      const response = await fetch("/api/discounts/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: discountCode,
-          customerEmail: email,
-          subtotal: baseTotals.subtotal,
-          shipping: baseTotals.shipping,
-          items: items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            lineTotal: item.lineTotal,
-          })),
-        }),
-      });
-      const data = (await response.json()) as {
-        code: string | null;
-        title: string | null;
-        discountAmount: number;
-        shippingDiscount: number;
-        message?: string | null;
-        error?: string;
-      };
-
-      if (!response.ok) throw new Error(data.error ?? "Discount failed");
-
-      setDiscountPreview(data);
-      setStatus(data.message ?? (data.title ? `${data.title} applied.` : "No eligible discount found."));
-    } catch (error) {
-      setDiscountPreview(null);
-      setStatus(error instanceof Error ? error.message : "Discount failed");
-    }
-  }
-
-  async function handleCheckout(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (items.length === 0) {
-      setStatus("Add a custom product before checking out.");
-      return;
-    }
-
-    const checkoutEmail = email || customer.email;
-
-    if (!customer.name || !checkoutEmail || !customer.address) {
-      setStatus("Name, email, and shipping address are required.");
-      return;
-    }
-
-    const order: Order = {
-      id: createOrderId(),
-      customer: {
-        ...customer,
-        email: checkoutEmail,
-      },
-      items,
-      subtotal: totals.subtotal,
-      shipping: totals.shipping,
-      tax: totals.tax,
-      total: totals.total,
-      discountCode: discountCode || undefined,
-      discountAmount: totals.discountAmount,
-      shippingDiscount: totals.shippingDiscount,
-      shippingMethod: shippingMethod as Order["shippingMethod"],
-      status: "New",
-      paymentMode: "stripe",
-      createdAt: new Date().toISOString(),
-    };
-    setIsCheckingOut(true);
-    setStatus(testModeEnabled ? "Creating a no-payment test order..." : "Creating secure Stripe checkout...");
-    trackStorefrontEvent("reached_checkout", {
-      checkout_submit: true,
-      item_count: items.length,
-      total: totals.total,
-      test_mode: testModeEnabled,
-    });
-
-    try {
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(order),
-      });
-      const data = (await response.json()) as { url?: string; mode?: "manual" | "stripe" | "test"; error?: string };
-
-      if (!response.ok || !data.url) {
-        throw new Error(data.error ?? "Checkout failed");
-      }
-
-      const lightweightOrder = {
-        ...order,
-        items: order.items.map((item) => ({
-          id: item.id,
-          productId: item.productId,
-          productName: item.productName,
-          size: item.size,
-          color: item.color,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          lineTotal: item.lineTotal,
-          createdAt: item.createdAt,
-          frontLayers: item.frontLayers.map((layer) => ({ ...layer, preview: undefined, originalPreview: undefined })),
-          backLayers: item.backLayers.map((layer) => ({ ...layer, preview: undefined, originalPreview: undefined })),
-          mockupPreview: null,
-          frontPreview: null,
-          backPreview: null,
-        })),
-      };
-
-      try {
-        localStorage.setItem("prntd_pending_cart", JSON.stringify(lightweightOrder));
-        localStorage.setItem("prntd_last_order", JSON.stringify(lightweightOrder));
-      } catch {
-        localStorage.removeItem("prntd_pending_cart");
-        localStorage.removeItem("prntd_last_order");
-      }
-      localStorage.removeItem(CART_STORAGE_KEY);
-      window.location.href = data.url;
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Checkout failed");
-      setIsCheckingOut(false);
-    }
-  }
-
-  return (
-    <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
-      <ShopHeader />
-
-      <section className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-8 pb-20 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="rounded-[30px] border border-white/70 bg-white p-5 shadow-[0_12px_38px_rgba(0,0,0,0.06)] sm:p-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="text-[clamp(34px,4vw,54px)] font-black leading-none tracking-normal">Checkout</h1>
-              <p className="mt-2 text-sm text-[#6b7280]">Review artwork mockups, quantities, and Stripe-ready pricing.</p>
-            </div>
-            <Link href="/products" className="portal-action text-center">
-              Add another item
-            </Link>
+            <p className="mt-4 max-w-2xl text-[15px] leading-8 text-[#cbd5e1]">
+              Review premium print products, artwork previews,
+              shipping options, and secure Stripe checkout.
+            </p>
           </div>
 
-          {items.length === 0 ? (
-            <div className="mt-6 rounded-[24px] border border-dashed border-[#c7d2fe] bg-[#f8faff] p-8 text-center">
-              <p className="font-bold">Your cart is empty.</p>
-              <Link href="/products" className="design-main-btn mx-auto max-w-xs">
-                Choose a product
+          <Link
+            href="/products"
+            className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-4 text-sm font-black text-white no-underline transition hover:bg-white/[0.08]"
+          >
+            Add More Products
+          </Link>
+        </div>
+
+        {/* EMPTY */}
+        {items.length === 0 ? (
+          <div className="mt-8 grid min-h-[400px] place-items-center rounded-[32px] border border-dashed border-[#6366f1]/30 bg-[#0f172a]/60 p-10 text-center">
+            <div>
+              <h2 className="text-3xl font-black">
+                Your Cart Is Empty
+              </h2>
+
+              <p className="mt-4 text-[#94a3b8]">
+                Add products before checkout.
+              </p>
+
+              <Link
+                href="/products"
+                className="mt-6 inline-flex rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-7 py-4 text-sm font-black text-white no-underline shadow-[0_15px_50px_rgba(99,102,241,0.35)]"
+              >
+                Browse Products
               </Link>
             </div>
-          ) : (
-            <div className="mt-6 grid gap-4">
-              {items.map((item) => {
-                const product = getProduct(item.productId);
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-5">
+            {items.map((item) => {
+              const product = getProduct(item.productId);
 
-                return (
-                  <article key={item.id} className="grid gap-4 rounded-[24px] border border-[#e7eaf3] bg-[#fbfcff] p-4 md:grid-cols-[190px_minmax(0,1fr)]">
-                    <div className="overflow-hidden rounded-[20px] border border-white/80 bg-white">
+              return (
+                <article
+                  key={item.id}
+                  className="group overflow-hidden rounded-[32px] border border-white/10 bg-[#0f172a]/80 p-5 transition duration-300 hover:border-[#6366f1]/30 hover:shadow-[0_25px_70px_rgba(99,102,241,0.12)]"
+                >
+                  <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+                    <div className="overflow-hidden rounded-[26px] border border-white/10 bg-white">
                       {item.mockupPreview ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={item.mockupPreview} alt={`${item.productName} customizer mockup`} className="aspect-square w-full object-contain p-4" />
+                        <img
+                          src={item.mockupPreview}
+                          alt={`${item.productName} preview`}
+                          className="aspect-square w-full object-contain p-4"
+                        />
                       ) : (
-                        <ProductMockup product={product} color={item.color.value} label={item.frontLayers[0]?.text ?? item.productName} />
+                        <ProductMockup
+                          product={product}
+                          color={item.color.value}
+                          label={
+                            item.frontLayers[0]?.text ??
+                            item.productName
+                          }
+                        />
                       )}
                     </div>
-                    <div className="grid gap-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+
+                    <div className="flex flex-col justify-between gap-5">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#4f46e5]">{product.category}</p>
-                          <h2 className="text-xl font-black">{item.productName}</h2>
-                          <p className="mt-1 text-sm text-[#6b7280]">
-                            {item.size} / {item.color.name} / {item.frontLayers.length} front layers / {item.backLayers.length} back layers
+                          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#818cf8]">
+                            {product.category}
+                          </p>
+
+                          <h2 className="mt-2 text-3xl font-black tracking-[-0.03em]">
+                            {item.productName}
+                          </h2>
+
+                          <p className="mt-4 text-sm leading-7 text-[#cbd5e1]">
+                            {item.size} • {item.color.name} •{" "}
+                            {item.frontLayers.length} front layers •{" "}
+                            {item.backLayers.length} back layers
                           </p>
                         </div>
-                        <p className="text-lg font-black">{formatMoney(item.lineTotal)}</p>
+
+                        <div className="text-right">
+                          <p className="text-[36px] font-black leading-none">
+                            {formatMoney(item.lineTotal)}
+                          </p>
+
+                          <p className="mt-2 text-sm text-[#94a3b8]">
+                            {formatMoney(item.unitPrice)} each
+                          </p>
+                        </div>
                       </div>
+
                       <div className="flex flex-wrap items-center gap-3">
-                        <label className="flex items-center gap-2 text-sm font-bold">
+                        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black">
                           Qty
+
                           <input
                             type="number"
                             min={product.minimumQuantity}
                             value={item.quantity}
-                            onChange={(event) => updateQuantity(item.id, Number(event.target.value))}
-                            className="w-24 rounded-[14px] border border-[#dbe0ea] px-3 py-2"
+                            onChange={(event) =>
+                              updateQuantity(
+                                item.id,
+                                Number(event.target.value),
+                              )
+                            }
+                            className="w-24 rounded-xl border border-white/10 bg-[#020617] px-3 py-2 text-white"
                           />
                         </label>
-                        <span className="text-sm text-[#6b7280]">{formatMoney(item.unitPrice)} each</span>
+
                         <button
                           type="button"
                           onClick={() => removeItem(item.id)}
-                          className="rounded-[14px] border border-red-500/15 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"
+                          className="rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-3 text-sm font-black text-red-300 transition hover:bg-red-500/20"
                         >
                           Remove
                         </button>
                       </div>
-                      {testModeEnabled && (item.frontPreview || item.backPreview) && (
-                        <div className="rounded-[18px] border border-dashed border-blue-400 bg-white p-3">
-                          <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-blue-700">
-                            Test Mode Print Files
-                          </p>
-                          <p className="mt-1 text-xs text-[#6b7280]">
-                            These clipped mask previews are uploaded to the uploads bucket when checkout runs.
-                          </p>
-                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                            {item.frontPreview && (
-                              <div className="rounded-[14px] border border-blue-200 bg-[#f8faff] p-2">
-                                <span className="mb-2 block text-xs font-bold text-blue-700">Front clipped area</span>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={item.frontPreview} alt="Front clipped print file" className="aspect-video w-full rounded-[10px] border border-dashed border-blue-300 object-contain p-2" />
-                              </div>
-                            )}
-                            {item.backPreview && (
-                              <div className="rounded-[14px] border border-blue-200 bg-[#f8faff] p-2">
-                                <span className="mb-2 block text-xs font-bold text-blue-700">Back clipped area</span>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={item.backPreview} alt="Back clipped print file" className="aspect-video w-full rounded-[10px] border border-dashed border-blue-300 object-contain p-2" />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* SIDEBAR */}
+      <form
+        onSubmit={handleCheckout}
+        className="sticky top-24 h-fit overflow-hidden rounded-[36px] border border-white/10 bg-[linear-gradient(135deg,#111827_0%,#1e1b4b_100%)] p-7 shadow-[0_35px_120px_rgba(0,0,0,0.45)]"
+      >
+        {/* TOP */}
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#c7d2fe]">
+            Secure Stripe Checkout
+          </p>
+
+          <h2 className="mt-4 text-[44px] font-black leading-[0.95] tracking-[-0.04em]">
+            Order
+            <span className="block text-[#a5b4fc]">
+              Summary
+            </span>
+          </h2>
+
+          <p className="mt-5 text-[15px] leading-8 text-[#cbd5e1]">
+            Complete your purchase securely using
+            Stripe-powered checkout.
+          </p>
         </div>
 
-        <form onSubmit={handleCheckout} className="h-fit rounded-[30px] border border-white/70 bg-white p-5 shadow-[0_12px_38px_rgba(0,0,0,0.06)] sm:p-6 lg:sticky lg:top-5">
-          <h2 className="text-2xl font-black">Secure Stripe Checkout</h2>
-          <p className="mt-1 text-sm leading-6 text-[#6b7280]">
-            {testModeEnabled
-              ? "Test mode is on. This creates a paid test order with no money collected."
-              : "Your order is finalized only after Stripe confirms payment."}
+        {/* ACCOUNT */}
+        <div className="mt-7 rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+            Customer Account
           </p>
-          {testModeEnabled && (
-            <div className="mt-4 rounded-[18px] border border-amber-300 bg-amber-50 p-4 text-sm font-bold text-amber-900">
-              Internal test checkout is active. Use it to verify clipped artwork, packing, and shipping before launch.
-            </div>
+
+          <p className="mt-3 break-all text-lg font-black">
+            {email
+              ? email
+              : `Guest checkout (${accountStatus})`}
+          </p>
+        </div>
+
+        {/* FORM */}
+        <div className="mt-7 grid gap-4">
+          <input
+            value={customer.name}
+            onChange={(event) =>
+              updateCustomer("name", event.target.value)
+            }
+            placeholder="Full Name"
+            className="h-[58px] rounded-2xl border border-white/10 bg-white/[0.04] px-5 text-white placeholder:text-[#64748b]"
+          />
+
+          {!email && (
+            <input
+              value={customer.email}
+              onChange={(event) =>
+                updateCustomer("email", event.target.value)
+              }
+              type="email"
+              placeholder="Email Address"
+              className="h-[58px] rounded-2xl border border-white/10 bg-white/[0.04] px-5 text-white placeholder:text-[#64748b]"
+            />
           )}
-          <div className="mt-4 rounded-[20px] bg-[#eef2ff] p-4 text-sm font-semibold text-[#4338ca]">
-            <p className="text-xs font-extrabold uppercase tracking-[0.12em]">Customer Account</p>
-            <p className="mt-1 break-all">{email ? email : `Guest checkout (${accountStatus})`}</p>
-          </div>
 
-          <div className="mt-5 grid gap-3">
-            <input
-              value={customer.name}
-              onChange={(event) => updateCustomer("name", event.target.value)}
-              placeholder="Customer name"
-              className="portal-field"
-            />
-            {!email && (
-              <input
-                value={customer.email}
-                onChange={(event) => updateCustomer("email", event.target.value)}
-                placeholder="Email for order confirmation"
-                type="email"
-                className="portal-field"
-              />
-            )}
-            <input
-              value={customer.phone}
-              onChange={(event) => updateCustomer("phone", event.target.value)}
-              placeholder="Phone"
-              className="portal-field"
-            />
-            <input
-              value={customer.company}
-              onChange={(event) => updateCustomer("company", event.target.value)}
-              placeholder="Company"
-              className="portal-field"
-            />
-            <input
-              value={customer.address}
-              onChange={(event) => updateCustomer("address", event.target.value)}
-              placeholder="Shipping address"
-              className="portal-field"
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                value={customer.city}
-                onChange={(event) => updateCustomer("city", event.target.value)}
-                placeholder="City"
-                className="portal-field min-w-0"
-              />
-              <input
-                value={customer.region}
-                onChange={(event) => updateCustomer("region", event.target.value)}
-                placeholder="State"
-                className="portal-field min-w-0"
-              />
-            </div>
-            <input
-              value={customer.postal}
-              onChange={(event) => updateCustomer("postal", event.target.value)}
-              placeholder="ZIP / postal"
-              className="portal-field"
-            />
-            <textarea
-              value={customer.notes}
-              onChange={(event) => updateCustomer("notes", event.target.value)}
-              placeholder="Order notes"
-              rows={4}
-              className="portal-field"
-            />
-          </div>
+          <input
+            value={customer.phone}
+            onChange={(event) =>
+              updateCustomer("phone", event.target.value)
+            }
+            placeholder="Phone Number"
+            className="h-[58px] rounded-2xl border border-white/10 bg-white/[0.04] px-5 text-white placeholder:text-[#64748b]"
+          />
 
-          <div className="mt-5 grid gap-2 border-t border-[#e7eaf3] pt-5 text-sm">
-            <div className="grid gap-2 rounded-[18px] bg-[#f8faff] p-3">
-              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#4f46e5]">Shipping method</p>
-              {shippingMethods.map((method) => (
-                <label key={method.code} className="flex cursor-pointer items-start justify-between gap-3 rounded-[14px] border border-[#e7eaf3] bg-white p-3">
-                  <span className="flex gap-2">
-                    <input
-                      type="radio"
-                      checked={shippingMethod === method.code}
-                      onChange={() => setShippingMethod(method.code)}
-                      className="mt-1"
-                    />
-                    <span>
-                      <span className="block font-black">{method.name}</span>
-                      <span className="block text-xs leading-5 text-[#6b7280]">{method.description}</span>
-                    </span>
-                  </span>
-                  <strong>{formatMoney(method.price)}</strong>
-                </label>
-              ))}
-            </div>
-            <div className="grid gap-2 rounded-[18px] bg-[#f8faff] p-3">
-              <label className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#4f46e5]">Discount code</label>
-              <div className="flex gap-2">
-                <input
-                  value={discountCode}
-                  onChange={(event) => setDiscountCode(event.target.value)}
-                  placeholder="SAVE10"
-                  className="portal-field min-w-0 flex-1"
-                />
-                <button type="button" onClick={applyDiscount} className="rounded-[16px] bg-[#111827] px-4 text-sm font-bold text-white">
-                  Apply
-                </button>
-              </div>
-            </div>
+          <input
+            value={customer.address}
+            onChange={(event) =>
+              updateCustomer("address", event.target.value)
+            }
+            placeholder="Shipping Address"
+            className="h-[58px] rounded-2xl border border-white/10 bg-white/[0.04] px-5 text-white placeholder:text-[#64748b]"
+          />
+
+          <textarea
+            value={customer.notes}
+            onChange={(event) =>
+              updateCustomer("notes", event.target.value)
+            }
+            rows={4}
+            placeholder="Order Notes"
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white placeholder:text-[#64748b]"
+          />
+        </div>
+
+        {/* TOTALS */}
+        <div className="mt-8 rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
+          <div className="grid gap-4 text-sm">
             <div className="flex justify-between">
-              <span>Subtotal</span>
-              <strong>{formatMoney(totals.subtotal)}</strong>
+              <span className="text-[#94a3b8]">
+                Subtotal
+              </span>
+
+              <strong>
+                {formatMoney(totals.subtotal)}
+              </strong>
             </div>
-            {totals.discountAmount > 0 && (
-              <div className="flex justify-between text-emerald-700">
-                <span>Discount</span>
-                <strong>-{formatMoney(totals.discountAmount)}</strong>
-              </div>
-            )}
+
             <div className="flex justify-between">
-              <span>Shipping</span>
-              <strong>{formatMoney(totals.shipping)}</strong>
+              <span className="text-[#94a3b8]">
+                Shipping
+              </span>
+
+              <strong>
+                {formatMoney(totals.shipping)}
+              </strong>
             </div>
-            {totals.shippingDiscount > 0 && (
-              <div className="flex justify-between text-emerald-700">
-                <span>Shipping discount</span>
-                <strong>-{formatMoney(totals.shippingDiscount)}</strong>
-              </div>
-            )}
+
             <div className="flex justify-between">
-              <span>Tax</span>
-              <strong>Calculated by Stripe</strong>
+              <span className="text-[#94a3b8]">
+                Tax
+              </span>
+
+              <strong>
+                Calculated by Stripe
+              </strong>
             </div>
-            <div className="mt-2 flex justify-between border-t border-[#e7eaf3] pt-4 text-xl">
-              <span className="font-black">Total</span>
-              <strong>{formatMoney(totals.total)}</strong>
+
+            <div className="mt-4 flex justify-between border-t border-white/10 pt-5 text-[28px] font-black">
+              <span>Total</span>
+
+              <strong>
+                {formatMoney(totals.total)}
+              </strong>
             </div>
           </div>
+        </div>
 
-          {status && <p className="mt-4 rounded-[16px] bg-[#f8faff] px-4 py-3 text-sm font-semibold text-[#4338ca]">{status}</p>}
+        {/* STATUS */}
+        {status && (
+          <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-semibold text-[#cbd5e1]">
+            {status}
+          </div>
+        )}
 
-          <button
-            type="submit"
-            disabled={isCheckingOut}
-            className="design-main-btn disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isCheckingOut ? (testModeEnabled ? "Creating Test Order..." : "Opening Stripe...") : testModeEnabled ? "Place Test Order" : "Checkout With Stripe"}
-          </button>
-        </form>
-      </section>
-    </main>
-  );
-}
+        {/* CTA */}
+        <button
+          type="submit"
+          disabled={isCheckingOut}
+          className="mt-7 w-full rounded-[24px] bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-7 py-5 text-lg font-black text-white shadow-[0_20px_60px_rgba(99,102,241,0.35)] transition hover:-translate-y-1 disabled:opacity-50"
+        >
+          {isCheckingOut
+            ? "Opening Stripe..."
+            : "Checkout Securely"}
+        </button>
+      </form>
+    </section>
+  </main>
+);
