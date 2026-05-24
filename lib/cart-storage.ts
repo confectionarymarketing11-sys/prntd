@@ -126,7 +126,13 @@ async function hydrateLayerAssets(layer: DesignLayer): Promise<DesignLayer> {
 }
 
 async function stripCartItemAssets(item: CartItem): Promise<CartItem> {
-  const [mockupPreview, frontPreview, backPreview, frontLayers, backLayers] = await Promise.all([
+  const [
+    mockupPreview,
+    frontPreview,
+    backPreview,
+    frontLayers,
+    backLayers,
+  ] = await Promise.all([
     putAsset(item.mockupPreview, item.mockupPreviewKey),
     putAsset(item.frontPreview, item.frontPreviewKey),
     putAsset(item.backPreview, item.backPreviewKey),
@@ -148,7 +154,13 @@ async function stripCartItemAssets(item: CartItem): Promise<CartItem> {
 }
 
 async function hydrateCartItemAssets(item: CartItem): Promise<CartItem> {
-  const [mockupPreview, frontPreview, backPreview, frontLayers, backLayers] = await Promise.all([
+  const [
+    mockupPreview,
+    frontPreview,
+    backPreview,
+    frontLayers,
+    backLayers,
+  ] = await Promise.all([
     item.mockupPreview ?? getAsset(item.mockupPreviewKey),
     item.frontPreview ?? getAsset(item.frontPreviewKey),
     item.backPreview ?? getAsset(item.backPreviewKey),

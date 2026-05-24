@@ -60,6 +60,9 @@ type DesignerSnapshot = {
 const CARD_ASPECT_RATIO =
   1.75;
 
+const SAFE_ZONE_INSET =
+  20;
+
 function sideHasContent(
   layers: DesignLayer[],
 ) {
@@ -757,6 +760,27 @@ export default function BusinessCardDesignerPage() {
       canvas.height,
     );
 
+    const safeZone = {
+      x: SAFE_ZONE_INSET,
+      y: SAFE_ZONE_INSET,
+      width:
+        canvas.width -
+        SAFE_ZONE_INSET * 2,
+      height:
+        canvas.height -
+        SAFE_ZONE_INSET * 2,
+    };
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(
+      safeZone.x,
+      safeZone.y,
+      safeZone.width,
+      safeZone.height,
+    );
+    ctx.clip();
+
     for (const layer of sideLayers) {
       if (
         layer.type ===
@@ -846,6 +870,8 @@ export default function BusinessCardDesignerPage() {
         ctx.restore();
       }
     }
+
+    ctx.restore();
 
     return canvas.toDataURL(
       "image/png",
@@ -1056,7 +1082,24 @@ export default function BusinessCardDesignerPage() {
                       }}
                     >
                       <Layer>
-                        <Group>
+                        <Group
+                          clipX={
+                            SAFE_ZONE_INSET
+                          }
+                          clipY={
+                            SAFE_ZONE_INSET
+                          }
+                          clipWidth={
+                            stageWidth -
+                            SAFE_ZONE_INSET *
+                              2
+                          }
+                          clipHeight={
+                            stageHeight -
+                            SAFE_ZONE_INSET *
+                              2
+                          }
+                        >
                           {layers.map(
                             (
                               layer,

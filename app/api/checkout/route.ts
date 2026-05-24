@@ -380,8 +380,8 @@ async function uploadOrderPrintAssets(order: Order) {
 
   for (const item of order.items) {
     const printAssets = [
-      { side: "front" as const, dataUrl: item.frontPreview },
-      { side: "back" as const, dataUrl: item.backPreview },
+      { side: "front" as const, role: "print_area" as const, dataUrl: item.frontPreview },
+      { side: "back" as const, role: "print_area" as const, dataUrl: item.backPreview },
     ];
 
     for (const asset of printAssets) {
@@ -390,10 +390,11 @@ async function uploadOrderPrintAssets(order: Order) {
         itemId: item.id,
         productId: item.productId,
         side: asset.side,
-        role: "print_area",
+        role: asset.role,
         dataUrl: asset.dataUrl,
         placement: {
-          description: "Flattened clipped printable area",
+          description: "Clean clipped printable area",
+          safe_zone_inset_px: 20,
         },
       });
 
