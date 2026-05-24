@@ -134,21 +134,53 @@ export const shopProducts: Product[] = [
     mockupImage: "/mockups/newclassic-tee.png",
   },
   {
-    id: "die-cut-stickers",
-    name: "Die Cut Stickers",
-    category: "Stickers",
-    description: "Weather-resistant vinyl stickers for packaging and promos.",
-    basePrice: 8,
-    productionDays: "2-4 days",
-    sizes: ['2"', '3"', '4"', '5"'],
-    colors: [
-      { name: "Glossy", value: "#ffffff" },
-      { name: "Matte", value: "#f5f1e8" },
-    ],
-    printAreas: ["front"],
-    minimumQuantity: 10,
-    mockupImage: "/mockups/newstickers.png",
-  },
+  id: "die-cut-stickers",
+  name: "Die Cut Stickers",
+  category: "Stickers",
+  description:
+    "Weather-resistant premium vinyl stickers with vibrant full-color printing.",
+  basePrice: 0,
+
+  stickerVariants: [
+    {
+      label: '10 Stickers - 3"',
+      quantity: 10,
+      size: '3"',
+      price: 6.74,
+    },
+    {
+      label: '25 Stickers - 3"',
+      quantity: 25,
+      size: '3"',
+      price: 8.99,
+    },
+    {
+      label: '50 Stickers - 3"',
+      quantity: 50,
+      size: '3"',
+      price: 17.99,
+    },
+    {
+      label: '100 Stickers - 3"',
+      quantity: 100,
+      size: '3"',
+      price: 29.99,
+    },
+  ],
+
+  colors: [
+    {
+      name: "White",
+      value: "#ffffff",
+    },
+  ],
+
+  sizes: ['3"'],
+
+  minimumQuantity: 10,
+
+  productionDays: "2-4 Business Days",
+},
   {
     id: "business-cards",
     name: "Business Cards",

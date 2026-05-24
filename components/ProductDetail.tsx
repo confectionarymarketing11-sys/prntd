@@ -101,9 +101,19 @@ export default function ProductDetail({
     product.colors[0],
   );
 
-  const [quantity, setQuantity] = useState(
+  const defaultStickerVariant =
+  isSticker &&
+  "stickerVariants" in product
+    ? product.stickerVariants?.[0]
+    : null;
+
+const [quantity, setQuantity] = useState(
+  defaultStickerVariant?.quantity ??
     product.minimumQuantity,
-  );
+);
+
+const [selectedStickerVariant, setSelectedStickerVariant] =
+  useState(defaultStickerVariant);
 
   const [design, setDesign] =
     useState<StoredDesign | null>(null);
@@ -153,14 +163,33 @@ export default function ProductDetail({
     [adminBasePrice, product],
   );
 
-  const price = useMemo(
-    () =>
-      priceDesign(
-        pricedProduct,
-        quantity,
-        frontLayers,
-        [],
-      ),
+  const price = useMemo(() => {
+  if (
+    isSticker &&
+    selectedStickerVariant
+  ) {
+    return {
+      unitPrice:
+        selectedStickerVariant.price /
+        selectedStickerVariant.quantity,
+      lineTotal:
+        selectedStickerVariant.price,
+    };
+  }
+
+  return priceDesign(
+    pricedProduct,
+    quantity,
+    frontLayers,
+    [],
+  );
+}, [
+  isSticker,
+  selectedStickerVariant,
+  pricedProduct,
+  quantity,
+  frontLayers,
+]);
     [frontLayers, pricedProduct, quantity],
   );
 
