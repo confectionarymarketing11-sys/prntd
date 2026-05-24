@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Group, Layer, Stage } from "react-konva";
 import ShopHeader from "@/components/ShopHeader";
+import URLImage from "@/components/customizer/URLImage";
+import URLText from "@/components/customizer/URLText";
 import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 import {
   CART_STORAGE_KEY,
@@ -20,17 +23,8 @@ type DesignerSnapshot = {
   frontLayers: DesignLayer[];
   backLayers: DesignLayer[];
 };
-type LayerInteraction =
-  | { mode: "drag"; layerId: string; offsetX: number; offsetY: number }
-  | {
-      mode: "resize";
-      layerId: string;
-      startX: number;
-      startY: number;
-      width: number;
-      height: number;
-      fontSize: number;
-    };
+
+const CARD_ASPECT_RATIO = 1.75;
 
 function sideHasContent(layers: DesignLayer[]) {
   return layers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
@@ -74,8 +68,9 @@ export default function BusinessCardDesignerPage() {
   const [undoStack, setUndoStack] = useState<DesignerSnapshot[]>([]);
   const [redoStack, setRedoStack] = useState<DesignerSnapshot[]>([]);
   const [adminBasePrice, setAdminBasePrice] = useState(product.basePrice);
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  const interactionRef = useRef<LayerInteraction | null>(null);
+  const stageWrapRef = useRef<HTMLDivElement | null>(null);
+  const [stageWidth, setStageWidth] = useState(700);
+  const stageHeight = Math.round(stageWidth / CARD_ASPECT_RATIO);
 
   const layers = side === "front" ? frontLayers : backLayers;
   const selectedLayer = layers.find((layer) => layer.id === selectedId);
@@ -101,6 +96,19 @@ export default function BusinessCardDesignerPage() {
       active = false;
     };
   }, [product.id]);
+
+  useEffect(() => {
+    const element = stageWrapRef.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setStageWidth(Math.min(760, Math.max(300, entry.contentRect.width)));
+    });
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
 
   function currentSnapshot(): DesignerSnapshot {
     return {
@@ -156,92 +164,16 @@ export default function BusinessCardDesignerPage() {
     setCurrentLayers(next, false);
   }
 
-  function handleLayerPointerDown(event: PointerEvent<HTMLButtonElement>, layer: DesignLayer) {
-    const card = cardRef.current;
-    if (!card) return;
-
+  function updateLayerWithHistory(id: string, updates: Partial<DesignLayer>) {
     rememberSnapshot();
-    const rect = card.getBoundingClientRect();
-    interactionRef.current = {
-      mode: "drag",
-      layerId: layer.id,
-      offsetX: event.clientX - rect.left - layer.x,
-      offsetY: event.clientY - rect.top - layer.y,
-    };
-    setSelectedId(layer.id);
-    event.currentTarget.setPointerCapture(event.pointerId);
+    updateLayer(id, updates);
   }
 
-  function handleLayerPointerMove(event: PointerEvent<HTMLButtonElement>) {
-    const interaction = interactionRef.current;
-    const card = cardRef.current;
-    if (!interaction || !card || interaction.mode !== "drag") return;
+  function editTextLayer(layer: DesignLayer) {
+    const nextText = window.prompt("Edit text", layer.text ?? "");
+    if (nextText === null) return;
 
-    const rect = card.getBoundingClientRect();
-    const nextX = Math.max(0, Math.min(rect.width - 20, event.clientX - rect.left - interaction.offsetX));
-    const nextY = Math.max(0, Math.min(rect.height - 20, event.clientY - rect.top - interaction.offsetY));
-    updateLayer(interaction.layerId, { x: nextX, y: nextY });
-  }
-
-  function handleLayerPointerUp(event: PointerEvent<HTMLButtonElement>) {
-    interactionRef.current = null;
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture may already be released by the browser.
-    }
-  }
-
-  function handleResizePointerDown(event: PointerEvent<HTMLElement>, layer: DesignLayer) {
-    event.stopPropagation();
-    rememberSnapshot();
-    interactionRef.current = {
-      mode: "resize",
-      layerId: layer.id,
-      startX: event.clientX,
-      startY: event.clientY,
-      width: layer.width ?? (layer.type === "text" ? 180 : 120),
-      height: layer.height ?? (layer.type === "text" ? (layer.fontSize ?? 22) * 1.4 : 120),
-      fontSize: layer.fontSize ?? 22,
-    };
-    setSelectedId(layer.id);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
-  function handleResizePointerMove(event: PointerEvent<HTMLElement>) {
-    const interaction = interactionRef.current;
-    if (!interaction || interaction.mode !== "resize") return;
-
-    event.stopPropagation();
-    const layer = layers.find((item) => item.id === interaction.layerId);
-    if (!layer) return;
-
-    const delta = Math.max(event.clientX - interaction.startX, event.clientY - interaction.startY);
-    const nextWidth = Math.max(34, interaction.width + delta);
-    const nextHeight = Math.max(24, interaction.height + delta * (interaction.height / Math.max(interaction.width, 1)));
-
-    if (layer.type === "text") {
-      updateLayer(layer.id, {
-        width: nextWidth,
-        height: nextHeight,
-        fontSize: Math.max(10, interaction.fontSize + delta / 4),
-      });
-    } else {
-      updateLayer(layer.id, {
-        width: nextWidth,
-        height: nextHeight,
-      });
-    }
-  }
-
-  function handleResizePointerUp(event: PointerEvent<HTMLElement>) {
-    event.stopPropagation();
-    interactionRef.current = null;
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture may already be released by the browser.
-    }
+    updateLayerWithHistory(layer.id, { text: nextText });
   }
 
   function addText() {
@@ -333,8 +265,8 @@ export default function BusinessCardDesignerPage() {
   async function flattenCardSide(cardSide: CardSide) {
     const sideLayers = cardSide === "front" ? frontLayers : backLayers;
     const canvas = document.createElement("canvas");
-    canvas.width = 700;
-    canvas.height = 400;
+    canvas.width = stageWidth;
+    canvas.height = stageHeight;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
@@ -429,53 +361,50 @@ export default function BusinessCardDesignerPage() {
               ))}
             </div>
 
-            <div className="grid min-h-[520px] place-items-center rounded-[28px] bg-[#eef2f7] p-6">
-              <div ref={cardRef} className="relative aspect-[1.75/1] w-full max-w-[760px] overflow-hidden rounded-[26px] border border-white/70 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
-                <div className="absolute inset-5 rounded-[20px] border-2 border-dashed border-blue-500/70" />
-                {layers.map((layer) => (
-                  <button
-                    key={layer.id}
-                    type="button"
-                    onPointerDown={(event) => handleLayerPointerDown(event, layer)}
-                    onPointerMove={handleLayerPointerMove}
-                    onPointerUp={handleLayerPointerUp}
-                    onPointerCancel={handleLayerPointerUp}
-                    className={`absolute cursor-move touch-none select-none text-left ${selectedId === layer.id ? "outline outline-2 outline-[#7c3aed]" : ""}`}
-                    style={{
-                      left: layer.x,
-                      top: layer.y,
-                      color: layer.fill,
-                      fontFamily: layer.fontFamily,
-                      fontSize: layer.fontSize,
-                      width: layer.width ?? (layer.type === "text" ? 180 : undefined),
-                      height: layer.height ?? (layer.type === "text" ? (layer.fontSize ?? 22) * 1.4 : undefined),
-                      transform: `rotate(${layer.rotation ?? 0}deg)`,
-                      whiteSpace: layer.type === "text" ? "nowrap" : undefined,
-                    }}
-                  >
-                    {layer.type === "image" && layer.preview ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={layer.preview} alt="Uploaded card art" className="h-full w-full object-contain" />
-                    ) : (
-                      <span>{layer.text}</span>
-                    )}
-                    {selectedId === layer.id && (
-                      <>
-                        <span className="pointer-events-none absolute -left-2 -top-2 h-4 w-4 rounded-full border-2 border-white bg-[#7c3aed] shadow" />
-                        <span className="pointer-events-none absolute -right-2 -top-2 h-4 w-4 rounded-full border-2 border-white bg-[#7c3aed] shadow" />
-                        <span className="pointer-events-none absolute -left-2 -bottom-2 h-4 w-4 rounded-full border-2 border-white bg-[#7c3aed] shadow" />
-                        <span
-                          role="presentation"
-                          onPointerDown={(event) => handleResizePointerDown(event, layer)}
-                          onPointerMove={handleResizePointerMove}
-                          onPointerUp={handleResizePointerUp}
-                          onPointerCancel={handleResizePointerUp}
-                          className="absolute -bottom-2 -right-2 h-5 w-5 cursor-se-resize rounded-full border-2 border-white bg-[#111827] shadow"
-                        />
-                      </>
-                    )}
-                  </button>
-                ))}
+            <div className="grid min-h-[520px] place-items-center rounded-[28px] bg-[#eef2f7] p-6 max-[860px]:min-h-0 max-[860px]:p-3">
+              <div ref={stageWrapRef} className="relative aspect-[1.75/1] w-full max-w-[760px] overflow-hidden rounded-[26px] border border-white/70 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
+                <Stage
+                  width={stageWidth}
+                  height={stageHeight}
+                  className="!absolute inset-0 z-10"
+                  onMouseDown={(event) => {
+                    if (event.target === event.target.getStage()) {
+                      setSelectedId(null);
+                    }
+                  }}
+                  onTouchStart={(event) => {
+                    if (event.target === event.target.getStage()) {
+                      setSelectedId(null);
+                    }
+                  }}
+                >
+                  <Layer>
+                    <Group>
+                      {layers.map((layer) =>
+                        layer.type === "image" ? (
+                          <URLImage
+                            key={layer.id}
+                            layer={layer}
+                            isSelected={selectedId === layer.id}
+                            onSelect={() => setSelectedId(layer.id)}
+                            updateLayer={updateLayerWithHistory}
+                          />
+                        ) : (
+                          <URLText
+                            key={layer.id}
+                            layer={layer}
+                            isSelected={selectedId === layer.id}
+                            onSelect={() => setSelectedId(layer.id)}
+                            updateLayer={updateLayerWithHistory}
+                            onEdit={editTextLayer}
+                          />
+                        )
+                      )}
+                    </Group>
+                  </Layer>
+                </Stage>
+
+                <div className="pointer-events-none absolute inset-5 z-20 rounded-[20px] border-2 border-dashed border-blue-500/70" />
               </div>
             </div>
 

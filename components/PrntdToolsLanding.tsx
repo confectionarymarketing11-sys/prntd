@@ -97,6 +97,67 @@ function SectionTitle({ title, description }: { title: string; description?: str
   );
 }
 
+function ProductPreviewRail() {
+  return (
+    <div className="mx-auto mt-14 grid max-w-5xl grid-cols-[1.1fr_0.9fr] gap-5 text-left max-[860px]:grid-cols-1">
+      <Link
+        href="/products/classic-tee"
+        className="group relative min-h-[330px] overflow-hidden rounded-[32px] border border-white/80 bg-white p-6 no-underline shadow-[0_18px_48px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_24px_58px_rgba(15,23,42,0.12)] max-md:min-h-[280px] max-md:rounded-3xl"
+      >
+        <div className="absolute inset-x-0 top-0 h-28 bg-[repeating-linear-gradient(45deg,#eef6ff_0_16px,#f9fafb_16px_32px)] opacity-90" />
+        <div className="relative z-10 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#4f46e5]">Custom Apparel</p>
+            <h3 className="mt-2 text-3xl font-black leading-none text-[#111827]">Print-ready shirt mockups</h3>
+          </div>
+          <span className="rounded-full bg-[#111827] px-4 py-2 text-sm font-bold text-white">Design</span>
+        </div>
+        <div className="absolute left-1/2 top-[54%] h-36 w-44 -translate-x-1/2 -translate-y-1/2 rounded-b-[28px] rounded-t-[18px] bg-[#111827] shadow-[0_18px_40px_rgba(15,23,42,0.24)] transition duration-300 group-hover:scale-[1.03]">
+          <div className="absolute -left-12 top-4 h-16 w-20 rotate-[-14deg] rounded-[22px] bg-[#111827]" />
+          <div className="absolute -right-12 top-4 h-16 w-20 rotate-[14deg] rounded-[22px] bg-[#111827]" />
+          <div className="absolute left-1/2 top-0 h-7 w-14 -translate-x-1/2 rounded-b-2xl bg-white/20" />
+          <div className="absolute left-1/2 top-16 -translate-x-1/2 rounded-md border border-white/80 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-white">
+            PRNTD
+          </div>
+        </div>
+        <p className="absolute bottom-6 left-6 right-6 text-sm leading-6 text-[#4b5563]">
+          Upload artwork, create a design, preview placement, and send production-ready files through checkout.
+        </p>
+      </Link>
+
+      <div className="grid gap-5">
+        <Link
+          href="/products/business-cards"
+          className="group relative overflow-hidden rounded-[28px] border border-white/80 bg-white p-6 no-underline shadow-[0_14px_38px_rgba(15,23,42,0.07)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(15,23,42,0.1)] max-md:rounded-3xl"
+        >
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#4f46e5]">Business Cards</p>
+          <h3 className="mt-2 text-2xl font-black leading-tight text-[#111827]">Front, back, QR, and brand details</h3>
+          <div className="mt-7 aspect-[1.75/1] rounded-[22px] border border-[#dbe4f0] bg-[linear-gradient(135deg,#ffffff,#f8fbff)] p-5 shadow-inner transition duration-300 group-hover:rotate-1">
+            <div className="h-full rounded-[16px] border-2 border-dashed border-blue-400/70 p-4">
+              <div className="h-5 w-28 rounded-full bg-[#111827]" />
+              <div className="mt-4 h-3 w-40 rounded-full bg-[#c7d2fe]" />
+              <div className="mt-2 h-3 w-28 rounded-full bg-[#dbeafe]" />
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/products/die-cut-stickers"
+          className="group relative overflow-hidden rounded-[28px] border border-white/80 bg-white p-6 no-underline shadow-[0_14px_38px_rgba(15,23,42,0.07)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(15,23,42,0.1)] max-md:rounded-3xl"
+        >
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#4f46e5]">Stickers</p>
+          <h3 className="mt-2 text-2xl font-black leading-tight text-[#111827]">Transparent previews, glossy or matte</h3>
+          <div className="mt-7 flex items-end gap-3">
+            <div className="h-20 w-20 rotate-[-8deg] rounded-[24px] bg-[#0f7490] shadow-[0_12px_22px_rgba(15,116,144,0.25)] transition group-hover:rotate-[-2deg]" />
+            <div className="h-24 w-24 rounded-[28px] bg-white shadow-[0_12px_28px_rgba(15,23,42,0.16)] transition group-hover:-translate-y-1" />
+            <div className="h-20 w-20 rotate-[8deg] rounded-[24px] bg-[#f97316] shadow-[0_12px_22px_rgba(249,115,22,0.2)] transition group-hover:rotate-[2deg]" />
+          </div>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function ToolCardView({ card }: { card: ToolCard }) {
   return (
     <article
@@ -147,6 +208,7 @@ export default function PrntdToolsLanding() {
               <PrimaryButton href="/products">Shop Products</PrimaryButton>
               <SecondaryButton href="/dashboard">Customer Portal</SecondaryButton>
             </div>
+            <ProductPreviewRail />
           </div>
         </div>
       </section>

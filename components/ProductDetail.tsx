@@ -27,6 +27,14 @@ const productFeatures: Record<string, string[]> = {
   "business-cards": ["Front and back card design", "Premium business-ready finish", "Built for QR codes and brand details"],
 };
 
+const checkerboardBackground = {
+  backgroundColor: "#ffffff",
+  backgroundImage:
+    "linear-gradient(45deg,#e5e7eb 25%,transparent 25%),linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e5e7eb 75%),linear-gradient(-45deg,transparent 75%,#e5e7eb 75%)",
+  backgroundSize: "24px 24px",
+  backgroundPosition: "0 0,0 12px,12px -12px,-12px 0",
+};
+
 function compressUpload(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -262,6 +270,7 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
                   src={designPreview}
                   alt="Attached design preview"
                   className="max-h-[260px] w-full rounded-[18px] border border-[#e5e7eb] bg-white object-contain p-3"
+                  style={isSticker ? checkerboardBackground : undefined}
                 />
                 <p className="mt-3 break-words text-xs leading-5 text-[#6b7280]">
                   {design?.designPath ? `Saved design: ${design.designPath}` : "Uploaded design attached locally."}
@@ -293,24 +302,44 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
                   </select>
                 </label>
 
-                <div>
-                  <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">{isSticker ? "Material Finish" : "Color / Finish"}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {product.colors.map((color) => (
-                      <button
-                        key={color.name}
-                        type="button"
-                        onClick={() => setSelectedColor(color)}
-                        className={`h-11 w-11 rounded-full border-[3px] ${
-                          color.name === selectedColor.name ? "border-[#7c3aed]" : "border-transparent"
-                        } shadow-sm`}
-                        style={{ background: color.value }}
-                        aria-label={color.name}
-                        title={color.name}
-                      />
-                    ))}
+                {isSticker ? (
+                  <label className="grid gap-2">
+                    <span className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Material Finish</span>
+                    <select
+                      value={selectedColor.name}
+                      onChange={(event) => {
+                        const nextColor = product.colors.find((color) => color.name === event.target.value) ?? product.colors[0];
+                        setSelectedColor(nextColor);
+                      }}
+                      className="portal-field"
+                    >
+                      {product.colors.map((color) => (
+                        <option key={color.name} value={color.name}>
+                          {color.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Color / Finish</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {product.colors.map((color) => (
+                        <button
+                          key={color.name}
+                          type="button"
+                          onClick={() => setSelectedColor(color)}
+                          className={`h-11 w-11 rounded-full border-[3px] ${
+                            color.name === selectedColor.name ? "border-[#7c3aed]" : "border-transparent"
+                          } shadow-sm`}
+                          style={{ background: color.value }}
+                          aria-label={color.name}
+                          title={color.name}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             )}
 

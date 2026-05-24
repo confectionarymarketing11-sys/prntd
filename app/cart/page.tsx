@@ -291,8 +291,33 @@ export default function CartPage() {
         throw new Error(data.error ?? "Checkout failed");
       }
 
-      localStorage.setItem("prntd_pending_cart", JSON.stringify(order));
-      localStorage.setItem("prntd_last_order", JSON.stringify(order));
+      const lightweightOrder = {
+        ...order,
+        items: order.items.map((item) => ({
+          id: item.id,
+          productId: item.productId,
+          productName: item.productName,
+          size: item.size,
+          color: item.color,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          lineTotal: item.lineTotal,
+          createdAt: item.createdAt,
+          frontLayers: item.frontLayers.map((layer) => ({ ...layer, preview: undefined, originalPreview: undefined })),
+          backLayers: item.backLayers.map((layer) => ({ ...layer, preview: undefined, originalPreview: undefined })),
+          mockupPreview: null,
+          frontPreview: null,
+          backPreview: null,
+        })),
+      };
+
+      try {
+        localStorage.setItem("prntd_pending_cart", JSON.stringify(lightweightOrder));
+        localStorage.setItem("prntd_last_order", JSON.stringify(lightweightOrder));
+      } catch {
+        localStorage.removeItem("prntd_pending_cart");
+        localStorage.removeItem("prntd_last_order");
+      }
       localStorage.removeItem(CART_STORAGE_KEY);
       window.location.href = data.url;
     } catch (error) {
