@@ -131,7 +131,7 @@ export const shopProducts: Product[] = [
     ],
     printAreas: ["front", "back"],
     minimumQuantity: 1,
-    mockupImage: "/mockups/classic-tee.png",
+    mockupImage: "/mockups/newclassic-tee.png",
   },
   {
     id: "die-cut-stickers",
