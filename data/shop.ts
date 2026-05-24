@@ -218,12 +218,18 @@ export function priceDesign(
   ].filter(Boolean).length;
 
   const setupFee =
-    sidesUsed * 5;
+  product.id ===
+  "die-cut-stickers"
+    ? 0
+    : sidesUsed * 5;
 
-  const detailFee =
-    (frontLayers.length +
-      backLayers.length) *
-    1.5;
+const detailFee =
+  product.id ===
+  "die-cut-stickers"
+    ? 0
+    : (frontLayers.length +
+        backLayers.length) *
+      1.5;
 
   /**
    * BUSINESS CARDS
