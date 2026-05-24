@@ -161,7 +161,7 @@ export default function DashboardPage() {
     {
       title: "Credits",
       value: `${credits}`,
-      detail: "Available AI credits",
+      detail: "Available design credits",
       accent:
         "from-[#3b82f6] to-[#6366f1]",
     },
@@ -274,7 +274,7 @@ export default function DashboardPage() {
 
                   <p className="mt-6 max-w-2xl text-lg leading-9 text-[#cbd5e1]">
                     Manage print assets,
-                    AI tools, QR campaigns,
+                    online design tools, QR campaigns,
                     ecommerce workflows,
                     and customer projects
                     from one premium
