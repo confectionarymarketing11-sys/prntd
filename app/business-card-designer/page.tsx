@@ -1,512 +1,448 @@
-"use client";
+<main className="min-h-screen overflow-hidden bg-[#020617] text-white">
+  <ShopHeader />
 
-import Link from "next/link";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Group, Layer, Stage } from "react-konva";
-import ShopHeader from "@/components/ShopHeader";
-import URLImage from "@/components/customizer/URLImage";
-import URLText from "@/components/customizer/URLText";
-import { trackStorefrontEvent } from "@/lib/storefront-analytics";
-import {
-  CartItem,
-  DesignLayer,
-  formatMoney,
-  getProduct,
-  priceDesign,
-} from "@/data/shop";
-import { addCartItem } from "@/lib/cart-storage";
+  {/* BACKGROUND FX */}
+  <div className="pointer-events-none fixed inset-0 overflow-hidden">
+    <div className="absolute left-[-10%] top-[-10%] h-[520px] w-[520px] rounded-full bg-[#4f46e5]/20 blur-[140px]" />
 
-const fonts = ["Arial", "Impact", "Helvetica", "Verdana", "Georgia", "Times New Roman", "Courier New"];
-const sides = ["front", "back"] as const;
-type CardSide = (typeof sides)[number];
-type DesignerSnapshot = {
-  frontLayers: DesignLayer[];
-  backLayers: DesignLayer[];
-};
+    <div className="absolute bottom-[-15%] right-[-10%] h-[520px] w-[520px] rounded-full bg-[#2563eb]/20 blur-[160px]" />
+  </div>
 
-const CARD_ASPECT_RATIO = 1.75;
-
-function sideHasContent(layers: DesignLayer[]) {
-  return layers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
-}
-
-async function urlToDataUrl(url: string) {
-  const response = await fetch(url);
-  const blob = await response.blob();
-
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
-function readImage(src: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = src;
-  });
-}
-
-export default function BusinessCardDesignerPage() {
-  const product = getProduct("business-cards");
-  const [side, setSide] = useState<CardSide>("front");
-  const [frontLayers, setFrontLayers] = useState<DesignLayer[]>([]);
-  const [backLayers, setBackLayers] = useState<DesignLayer[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [fontFamily, setFontFamily] = useState("Arial");
-  const [textColor, setTextColor] = useState("#111111");
-  const [qrValue, setQrValue] = useState("");
-  const [quantity, setQuantity] = useState(product.minimumQuantity);
-  const [size] = useState(product.sizes[0] ?? "Standard");
-  const [finish] = useState(product.colors[0]);
-  const [notice, setNotice] = useState("Keep all artwork inside the card edge.");
-  const [undoStack, setUndoStack] = useState<DesignerSnapshot[]>([]);
-  const [redoStack, setRedoStack] = useState<DesignerSnapshot[]>([]);
-  const [adminBasePrice, setAdminBasePrice] = useState(product.basePrice);
-  const stageWrapRef = useRef<HTMLDivElement | null>(null);
-  const [stageWidth, setStageWidth] = useState(700);
-  const stageHeight = Math.round(stageWidth / CARD_ASPECT_RATIO);
-
-  const layers = side === "front" ? frontLayers : backLayers;
-  const selectedLayer = layers.find((layer) => layer.id === selectedId);
-  const selectedTextLayer = selectedLayer?.type === "text" ? selectedLayer : null;
-  const selectedImageLayer = selectedLayer?.type === "image" ? selectedLayer : null;
-  const pricedProduct = useMemo(() => ({ ...product, basePrice: adminBasePrice }), [adminBasePrice, product]);
-  const price = useMemo(() => priceDesign(pricedProduct, quantity, frontLayers, backLayers), [pricedProduct, quantity, frontLayers, backLayers]);
-
-  useEffect(() => {
-    let active = true;
-
-    fetch("/api/products/pricing")
-      .then((response) => response.json())
-      .then((pricing: Record<string, { price?: number }>) => {
-        const nextPrice = pricing[product.id]?.price;
-        if (active && typeof nextPrice === "number" && nextPrice > 0) {
-          setAdminBasePrice(nextPrice);
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
-  }, [product.id]);
-
-  useEffect(() => {
-    const element = stageWrapRef.current;
-    if (!element) return;
-
-    const observer = new ResizeObserver(([entry]) => {
-      setStageWidth(Math.min(760, Math.max(300, entry.contentRect.width)));
-    });
-
-    observer.observe(element);
-
-    return () => observer.disconnect();
-  }, []);
-
-  function currentSnapshot(): DesignerSnapshot {
-    return {
-      frontLayers,
-      backLayers,
-    };
-  }
-
-  function rememberSnapshot() {
-    const snapshot = currentSnapshot();
-    setUndoStack((current) => [...current.slice(-24), snapshot]);
-    setRedoStack([]);
-  }
-
-  function applySnapshot(snapshot: DesignerSnapshot) {
-    setFrontLayers(snapshot.frontLayers);
-    setBackLayers(snapshot.backLayers);
-    setSelectedId(null);
-  }
-
-  function undo() {
-    const previous = undoStack.at(-1);
-    if (!previous) return;
-
-    setUndoStack((current) => current.slice(0, -1));
-    setRedoStack((current) => [...current.slice(-24), currentSnapshot()]);
-    applySnapshot(previous);
-    setNotice("Last customizer action undone.");
-  }
-
-  function redo() {
-    const next = redoStack.at(-1);
-    if (!next) return;
-
-    setRedoStack((current) => current.slice(0, -1));
-    setUndoStack((current) => [...current.slice(-24), currentSnapshot()]);
-    applySnapshot(next);
-    setNotice("Customizer action redone.");
-  }
-
-  function setCurrentLayers(nextLayers: DesignLayer[], recordHistory = true) {
-    if (recordHistory) rememberSnapshot();
-
-    if (side === "front") {
-      setFrontLayers(nextLayers);
-    } else {
-      setBackLayers(nextLayers);
-    }
-  }
-
-  function updateLayer(id: string, updates: Partial<DesignLayer>) {
-    const next = layers.map((layer) => (layer.id === id ? { ...layer, ...updates } : layer));
-    setCurrentLayers(next, false);
-  }
-
-  function updateLayerWithHistory(id: string, updates: Partial<DesignLayer>) {
-    rememberSnapshot();
-    updateLayer(id, updates);
-  }
-
-  function editTextLayer(layer: DesignLayer) {
-    const nextText = window.prompt("Edit text", layer.text ?? "");
-    if (nextText === null) return;
-
-    updateLayerWithHistory(layer.id, { text: nextText });
-  }
-
-  function addText() {
-    const nextLayer: DesignLayer = {
-      id: crypto.randomUUID(),
-      type: "text",
-      text: "Your Name",
-      x: 24,
-      y: 32,
-      fontSize: 22,
-      fontFamily,
-      fill: textColor,
-      width: 180,
-      height: 36,
-      rotation: 0,
-    };
-
-    setCurrentLayers([...layers, nextLayer]);
-    setSelectedId(nextLayer.id);
-    setNotice("Text added. Edit the selected text field below.");
-  }
-
-  async function addFreeQrCode() {
-    const value = qrValue.trim();
-
-    if (!value) {
-      setNotice("Enter a URL or text value before adding a free QR code.");
-      return;
-    }
-
-    try {
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=900x900&format=png&data=${encodeURIComponent(value)}`;
-      const preview = await urlToDataUrl(qrUrl);
-      const qrLayer: DesignLayer = {
-        id: crypto.randomUUID(),
-        type: "image",
-        preview,
-        originalPreview: preview,
-        x: 520,
-        y: 170,
-        width: 120,
-        height: 120,
-        rotation: 0,
-      };
-
-      setCurrentLayers([...layers, qrLayer]);
-      setSelectedId(qrLayer.id);
-      setQrValue("");
-      setNotice("Free static QR code added. It does not track scans or use dynamic redirects.");
-    } catch {
-      setNotice("Could not generate the free QR code. Please try again.");
-    }
-  }
-
-  function deleteSelectedLayer() {
-    if (!selectedId) return;
-
-    setCurrentLayers(layers.filter((layer) => layer.id !== selectedId));
-    setSelectedId(null);
-    setNotice("Selected layer removed.");
-  }
-
-  function handleUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const nextLayer: DesignLayer = {
-        id: crypto.randomUUID(),
-        type: "image",
-        preview: String(reader.result ?? ""),
-        originalPreview: String(reader.result ?? ""),
-        x: 24,
-        y: 24,
-        width: 180,
-        height: 110,
-        rotation: 0,
-      };
-
-      setCurrentLayers([...layers, nextLayer]);
-      setSelectedId(nextLayer.id);
-      setNotice("Image uploaded. It will be attached to this card side.");
-    };
-    reader.readAsDataURL(file);
-    event.target.value = "";
-  }
-
-  async function flattenCardSide(cardSide: CardSide) {
-    const sideLayers = cardSide === "front" ? frontLayers : backLayers;
-    const canvas = document.createElement("canvas");
-    canvas.width = stageWidth;
-    canvas.height = stageHeight;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (const layer of sideLayers) {
-      if (layer.type === "image" && layer.preview) {
-        const image = await readImage(layer.preview);
-        const width = layer.width ?? 180;
-        const height = layer.height ?? 110;
-
-        ctx.save();
-        ctx.translate(layer.x + width / 2, layer.y + height / 2);
-        ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
-        ctx.drawImage(image, -width / 2, -height / 2, width, height);
-        ctx.restore();
-      }
-
-      if (layer.type === "text" && layer.text) {
-        ctx.save();
-        ctx.translate(layer.x, layer.y);
-        ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
-        ctx.font = `${layer.fontSize ?? 22}px ${layer.fontFamily ?? "Arial"}`;
-        ctx.fillStyle = layer.fill ?? "#111111";
-        ctx.textBaseline = "top";
-        ctx.fillText(layer.text, 0, 0);
-        ctx.restore();
-      }
-    }
-
-    return canvas.toDataURL("image/png");
-  }
-
-  async function addToCart() {
-    setNotice("Preparing clipped print files for cart...");
-    const [frontFlattened, backFlattened] = await Promise.all([
-      sideHasContent(frontLayers) ? flattenCardSide("front") : Promise.resolve(null),
-      sideHasContent(backLayers) ? flattenCardSide("back") : Promise.resolve(null),
-    ]);
-
-    try {
-      const item: CartItem = {
-        id: crypto.randomUUID(),
-        productId: product.id,
-        productName: `Custom ${product.name}`,
-        size,
-        color: finish,
-        quantity,
-        frontLayers,
-        backLayers,
-        mockupPreview: frontFlattened ?? backFlattened,
-        frontPreview: frontFlattened,
-        backPreview: backFlattened,
-        unitPrice: price.unitPrice,
-        lineTotal: price.lineTotal,
-        createdAt: new Date().toISOString(),
-      };
-      await addCartItem(item);
-      trackStorefrontEvent("added_to_cart", {
-        product_id: product.id,
-        product_name: product.name,
-        quantity,
-        line_total: price.lineTotal,
-        front_layers: frontLayers.length,
-        back_layers: backLayers.length,
-      });
-      window.location.href = "/cart";
-    } catch {
-      setNotice("Could not add this artwork to cart. Try a smaller image or remove one layer.");
-    }
-  }
-
-  return (
-    <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
-      <ShopHeader />
-      <section className="mx-auto w-full max-w-7xl px-[22px] py-10">
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] max-[860px]:grid-cols-1">
-          <div className="relative rounded-[32px] bg-[#f5f7fb] p-7">
-            <div className="mb-[18px] flex gap-2.5">
-              {sides.map((cardSide) => (
-                <button
-                  key={cardSide}
-                  type="button"
-                  onClick={() => {
-                    setSide(cardSide);
-                    setSelectedId(null);
-                  }}
-                  className={`rounded-full px-[18px] py-3 text-sm font-bold capitalize ${
-                    side === cardSide ? "bg-[#111827] text-white" : "bg-[#e5e7eb] text-[#111827]"
-                  }`}
-                >
-                  {cardSide}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid min-h-[520px] place-items-center rounded-[28px] bg-[#eef2f7] p-6 max-[860px]:min-h-0 max-[860px]:p-3">
-              <div ref={stageWrapRef} className="relative aspect-[1.75/1] w-full max-w-[760px] overflow-hidden rounded-[26px] border border-white/70 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
-                <Stage
-                  width={stageWidth}
-                  height={stageHeight}
-                  className="!absolute inset-0 z-10"
-                  onMouseDown={(event) => {
-                    if (event.target === event.target.getStage()) {
-                      setSelectedId(null);
-                    }
-                  }}
-                  onTouchStart={(event) => {
-                    if (event.target === event.target.getStage()) {
-                      setSelectedId(null);
-                    }
-                  }}
-                >
-                  <Layer>
-                    <Group>
-                      {layers.map((layer) =>
-                        layer.type === "image" ? (
-                          <URLImage
-                            key={layer.id}
-                            layer={layer}
-                            isSelected={selectedId === layer.id}
-                            onSelect={() => setSelectedId(layer.id)}
-                            updateLayer={updateLayerWithHistory}
-                          />
-                        ) : (
-                          <URLText
-                            key={layer.id}
-                            layer={layer}
-                            isSelected={selectedId === layer.id}
-                            onSelect={() => setSelectedId(layer.id)}
-                            updateLayer={updateLayerWithHistory}
-                            onEdit={editTextLayer}
-                          />
-                        )
-                      )}
-                    </Group>
-                  </Layer>
-                </Stage>
-
-                <div className="pointer-events-none absolute inset-5 z-20 rounded-[20px] border-2 border-dashed border-blue-500/70" />
-              </div>
-            </div>
-
-            <p className="mt-4 rounded-[18px] bg-white/80 px-4 py-3 text-sm font-semibold text-[#4b5563] shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
-              {notice}
+  <section className="relative z-10 mx-auto w-full max-w-[1700px] px-5 py-8">
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+      {/* LEFT DESIGN AREA */}
+      <div className="overflow-hidden rounded-[36px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
+        {/* TOP TOOLBAR */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#818cf8]">
+              PRNTD Design Studio
             </p>
+
+            <h1 className="mt-2 text-4xl font-black tracking-[-0.04em]">
+              Business Card Designer
+            </h1>
           </div>
 
-          <aside className="flex flex-col gap-[18px] rounded-[28px] bg-white p-7 shadow-[0_10px_28px_rgba(0,0,0,0.05)]">
-            <h1 className="mb-2 text-[48px] font-black leading-[0.92] tracking-[-0.05em] max-[860px]:text-[34px]">
-              Customize Business Cards
-            </h1>
-            <div className="h-px bg-black/5" />
+          <div className="flex flex-wrap gap-3">
+            {sides.map((cardSide) => (
+              <button
+                key={cardSide}
+                type="button"
+                onClick={() => {
+                  setSide(cardSide);
+                  setSelectedId(null);
+                }}
+                className={`rounded-2xl px-5 py-3 text-sm font-black capitalize transition ${
+                  side === cardSide
+                    ? "bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_12px_40px_rgba(99,102,241,0.35)]"
+                    : "border border-white/10 bg-white/[0.04] text-[#cbd5e1] hover:bg-white/[0.08]"
+                }`}
+              >
+                {cardSide}
+              </button>
+            ))}
+          </div>
+        </div>
 
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Upload Artwork</label>
-            <input className="w-full rounded-[20px] border-2 border-dashed border-indigo-500/20 bg-[#fafbff] p-[18px] text-base" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleUpload} />
+        {/* CANVAS AREA */}
+        <div className="relative p-6">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.15),transparent_35%)]" />
 
-            <button type="button" onClick={addText} className="prntd-gradient-btn">
-              Add Text
-            </button>
+          <div className="relative grid min-h-[760px] place-items-center rounded-[32px] border border-white/10 bg-[#0f172a]/80 p-8">
+            <div
+              ref={stageWrapRef}
+              className="relative aspect-[1.75/1] w-full max-w-[950px] overflow-hidden rounded-[28px] border border-white/10 bg-white shadow-[0_35px_120px_rgba(0,0,0,0.35)]"
+            >
+              <Stage
+                width={stageWidth}
+                height={stageHeight}
+                className="!absolute inset-0 z-10"
+                onMouseDown={(event) => {
+                  if (
+                    event.target ===
+                    event.target.getStage()
+                  ) {
+                    setSelectedId(null);
+                  }
+                }}
+                onTouchStart={(event) => {
+                  if (
+                    event.target ===
+                    event.target.getStage()
+                  ) {
+                    setSelectedId(null);
+                  }
+                }}
+              >
+                <Layer>
+                  <Group>
+                    {layers.map((layer) =>
+                      layer.type === "image" ? (
+                        <URLImage
+                          key={layer.id}
+                          layer={layer}
+                          isSelected={
+                            selectedId ===
+                            layer.id
+                          }
+                          onSelect={() =>
+                            setSelectedId(
+                              layer.id,
+                            )
+                          }
+                          updateLayer={
+                            updateLayerWithHistory
+                          }
+                        />
+                      ) : (
+                        <URLText
+                          key={layer.id}
+                          layer={layer}
+                          isSelected={
+                            selectedId ===
+                            layer.id
+                          }
+                          onSelect={() =>
+                            setSelectedId(
+                              layer.id,
+                            )
+                          }
+                          updateLayer={
+                            updateLayerWithHistory
+                          }
+                          onEdit={
+                            editTextLayer
+                          }
+                        />
+                      ),
+                    )}
+                  </Group>
+                </Layer>
+              </Stage>
 
-            <div className="rounded-[22px] border border-[#e7eaf3] bg-[#f8faff] p-4">
-              <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Free Static QR Code</label>
-              <div className="mt-3 grid gap-2">
-                <input
-                  value={qrValue}
-                  onChange={(event) => setQrValue(event.target.value)}
-                  className="h-[52px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-sm"
-                  placeholder="https://example.com or plain text"
-                />
-                <button type="button" onClick={addFreeQrCode} className="portal-action">
-                  Add Free QR Code
-                </button>
-              </div>
+              {/* SAFE AREA */}
+              <div className="pointer-events-none absolute inset-5 z-20 rounded-[20px] border-2 border-dashed border-[#6366f1]/70" />
             </div>
+          </div>
 
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Font</label>
-            <select value={fontFamily} onChange={(event) => setFontFamily(event.target.value)} className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base">
-              {fonts.map((font) => (
-                <option key={font}>{font}</option>
-              ))}
-            </select>
+          {/* BOTTOM STATUS */}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-white/10 bg-white/[0.04] px-5 py-4">
+            <p className="text-sm font-semibold text-[#cbd5e1]">
+              {notice}
+            </p>
 
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Text Color</label>
-            <input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} className="h-[52px] w-full rounded-2xl border border-slate-950/10 bg-white p-1.5" />
-
-            {selectedTextLayer && (
-              <input value={selectedTextLayer.text ?? ""} onChange={(event) => updateLayer(selectedTextLayer.id, { text: event.target.value, fontFamily, fill: textColor })} className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base" />
-            )}
-
-            {selectedLayer && (
-              <div className="grid gap-3 rounded-[22px] border border-[#e7eaf3] bg-[#f8faff] p-4">
-                <p className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Selected Layer Position</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="portal-field min-w-0" type="number" value={Math.round(selectedLayer.x)} onChange={(event) => updateLayer(selectedLayer.id, { x: Number(event.target.value) })} placeholder="X" />
-                  <input className="portal-field min-w-0" type="number" value={Math.round(selectedLayer.y)} onChange={(event) => updateLayer(selectedLayer.id, { y: Number(event.target.value) })} placeholder="Y" />
-                  {selectedImageLayer && (
-                    <>
-                      <input className="portal-field min-w-0" type="number" value={Math.round(selectedImageLayer.width ?? 180)} onChange={(event) => updateLayer(selectedImageLayer.id, { width: Number(event.target.value) })} placeholder="Width" />
-                      <input className="portal-field min-w-0" type="number" value={Math.round(selectedImageLayer.height ?? 110)} onChange={(event) => updateLayer(selectedImageLayer.id, { height: Number(event.target.value) })} placeholder="Height" />
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={undo} disabled={!undoStack.length} className="portal-action disabled:cursor-not-allowed disabled:opacity-50">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={undo}
+                disabled={!undoStack.length}
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-black text-white transition hover:bg-white/[0.08] disabled:opacity-40"
+              >
                 Undo
               </button>
-              <button type="button" onClick={redo} disabled={!redoStack.length} className="portal-action disabled:cursor-not-allowed disabled:opacity-50">
+
+              <button
+                type="button"
+                onClick={redo}
+                disabled={!redoStack.length}
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-black text-white transition hover:bg-white/[0.08] disabled:opacity-40"
+              >
                 Redo
               </button>
             </div>
+          </div>
+        </div>
+      </div>
 
-            <button type="button" onClick={deleteSelectedLayer} className="min-h-[54px] rounded-[18px] border border-red-500/15 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-              Delete Selected Design
+      {/* RIGHT SIDEBAR */}
+      <aside className="sticky top-24 flex flex-col gap-5">
+        {/* TOOLS */}
+        <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-2xl shadow-[0_25px_90px_rgba(0,0,0,0.35)]">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#818cf8]">
+            Design Tools
+          </p>
+
+          <div className="mt-6 grid gap-4">
+            <label className="grid gap-2">
+              <span className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Upload Artwork
+              </span>
+
+              <input
+                className="rounded-2xl border-2 border-dashed border-[#6366f1]/30 bg-white/[0.03] p-5 text-sm"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleUpload}
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={addText}
+              className="rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-5 py-4 text-sm font-black text-white shadow-[0_15px_50px_rgba(99,102,241,0.35)] transition hover:-translate-y-1"
+            >
+              Add Text
             </button>
 
-            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Quantity</label>
-            <input className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-[18px] text-base" type="number" min={product.minimumQuantity} value={quantity} onChange={(event) => setQuantity(Math.max(product.minimumQuantity, Number(event.target.value) || product.minimumQuantity))} />
+            <div className="rounded-[24px] border border-white/10 bg-[#0f172a]/80 p-4">
+              <label className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                QR Code
+              </label>
 
-            <div className="mt-2 rounded-3xl bg-[#f5f7fb] p-[22px]">
-              <p className="text-[15px] font-bold text-[#111827]">Estimated Total</p>
-              <p className="mt-1 text-[34px] font-extrabold leading-none text-[#111827]">{formatMoney(price.lineTotal)}</p>
-              <p className="mt-2 rounded-[14px] bg-[#eef2ff] px-3.5 py-3 text-[13px] font-semibold text-[#4b5563]">
-                {sideHasContent(frontLayers) && sideHasContent(backLayers) ? "Double-sided card design" : "Single-sided card design"}
-              </p>
+              <div className="mt-3 grid gap-3">
+                <input
+                  value={qrValue}
+                  onChange={(event) =>
+                    setQrValue(
+                      event.target.value,
+                    )
+                  }
+                  className="h-[54px] rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white"
+                  placeholder="https://example.com"
+                />
+
+                <button
+                  type="button"
+                  onClick={addFreeQrCode}
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-white transition hover:bg-white/[0.08]"
+                >
+                  Generate QR
+                </button>
+              </div>
             </div>
 
-            <button type="button" onClick={addToCart} className="prntd-gradient-btn">
+            <label className="grid gap-2">
+              <span className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Font Family
+              </span>
+
+              <select
+                value={fontFamily}
+                onChange={(event) =>
+                  setFontFamily(
+                    event.target.value,
+                  )
+                }
+                className="h-[56px] rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-white"
+              >
+                {fonts.map((font) => (
+                  <option
+                    key={font}
+                    value={font}
+                  >
+                    {font}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                Text Color
+              </span>
+
+              <input
+                type="color"
+                value={textColor}
+                onChange={(event) =>
+                  setTextColor(
+                    event.target.value,
+                  )
+                }
+                className="h-[56px] rounded-2xl border border-white/10 bg-white/[0.04] p-2"
+              />
+            </label>
+
+            {selectedTextLayer && (
+              <input
+                value={
+                  selectedTextLayer.text ??
+                  ""
+                }
+                onChange={(event) =>
+                  updateLayer(
+                    selectedTextLayer.id,
+                    {
+                      text:
+                        event.target.value,
+                      fontFamily,
+                      fill: textColor,
+                    },
+                  )
+                }
+                className="h-[56px] rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-white"
+              />
+            )}
+          </div>
+        </div>
+
+        {/* LAYER EDITOR */}
+        {selectedLayer && (
+          <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-2xl">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#818cf8]">
+              Layer Controls
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <input
+                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white"
+                type="number"
+                value={Math.round(
+                  selectedLayer.x,
+                )}
+                onChange={(event) =>
+                  updateLayer(
+                    selectedLayer.id,
+                    {
+                      x: Number(
+                        event.target.value,
+                      ),
+                    },
+                  )
+                }
+                placeholder="X"
+              />
+
+              <input
+                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white"
+                type="number"
+                value={Math.round(
+                  selectedLayer.y,
+                )}
+                onChange={(event) =>
+                  updateLayer(
+                    selectedLayer.id,
+                    {
+                      y: Number(
+                        event.target.value,
+                      ),
+                    },
+                  )
+                }
+                placeholder="Y"
+              />
+
+              {selectedImageLayer && (
+                <>
+                  <input
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white"
+                    type="number"
+                    value={Math.round(
+                      selectedImageLayer.width ??
+                        180,
+                    )}
+                    onChange={(
+                      event,
+                    ) =>
+                      updateLayer(
+                        selectedImageLayer.id,
+                        {
+                          width: Number(
+                            event.target
+                              .value,
+                          ),
+                        },
+                      )
+                    }
+                  />
+
+                  <input
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white"
+                    type="number"
+                    value={Math.round(
+                      selectedImageLayer.height ??
+                        110,
+                    )}
+                    onChange={(
+                      event,
+                    ) =>
+                      updateLayer(
+                        selectedImageLayer.id,
+                        {
+                          height: Number(
+                            event.target
+                              .value,
+                          ),
+                        },
+                      )
+                    }
+                  />
+                </>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={deleteSelectedLayer}
+              className="mt-5 w-full rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm font-black text-red-300"
+            >
+              Delete Layer
+            </button>
+          </div>
+        )}
+
+        {/* CHECKOUT */}
+        <div className="overflow-hidden rounded-[34px] border border-[#6366f1]/20 bg-[linear-gradient(135deg,#111827_0%,#312e81_100%)] p-7 shadow-[0_25px_80px_rgba(0,0,0,0.45)]">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#c7d2fe]">
+            Estimated Total
+          </p>
+
+          <p className="mt-4 text-[56px] font-black leading-none">
+            {formatMoney(price.lineTotal)}
+          </p>
+
+          <p className="mt-3 text-sm text-[#cbd5e1]">
+            {sideHasContent(
+              frontLayers,
+            ) &&
+            sideHasContent(backLayers)
+              ? "Double-sided premium print"
+              : "Single-sided premium print"}
+          </p>
+
+          <div className="mt-6">
+            <label className="text-xs font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+              Quantity
+            </label>
+
+            <input
+              className="mt-2 h-[56px] w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-white"
+              type="number"
+              min={product.minimumQuantity}
+              value={quantity}
+              onChange={(event) =>
+                setQuantity(
+                  Math.max(
+                    product.minimumQuantity,
+                    Number(
+                      event.target.value,
+                    ) ||
+                      product.minimumQuantity,
+                  ),
+                )
+              }
+            />
+          </div>
+
+          <div className="mt-7 grid gap-3">
+            <button
+              type="button"
+              onClick={addToCart}
+              className="rounded-2xl bg-white px-5 py-4 text-sm font-black text-[#111827] transition hover:scale-[1.02]"
+            >
               Add To Cart
             </button>
-            <Link href="/products/business-cards" className="rounded-full border border-[#e5e7eb] bg-white px-5 py-4 text-center text-sm font-extrabold text-[#111827] no-underline">
+
+            <Link
+              href="/products/business-cards"
+              className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center text-sm font-black text-white no-underline transition hover:bg-white/[0.08]"
+            >
               Back To Product
             </Link>
-          </aside>
+          </div>
         </div>
-      </section>
-    </main>
-  );
-}
+      </aside>
+    </div>
+  </section>
+</main>
