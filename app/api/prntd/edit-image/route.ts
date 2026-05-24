@@ -12,7 +12,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  return legacyRoute.legacyPost(loadLegacy(), request);
+  return legacyRoute.legacyPost(loadLegacy(), request, undefined, {
+    maxContentLengthBytes: 12 * 1024 * 1024,
+    rateLimit: {
+      scope: "prntd-edit-image:ip",
+      limit: 8,
+      windowMs: 60_000,
+    },
+  });
 }
 
 export async function OPTIONS(request: Request) {

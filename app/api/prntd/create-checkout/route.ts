@@ -1,10 +1,13 @@
 import { z } from "zod";
 import { ApiError, apiJson, withApiErrorHandling } from "@/lib/api-response";
+import { getCurrentAdmin } from "@/features/admin/data/auth";
 import { getCurrentCustomer, getOrCreateCustomerForEmail } from "@/lib/auth/customer";
 import { corsPreflight } from "@/lib/cors";
 import { getStripe } from "@/lib/stripe";
 import { getSiteSettings } from "@/features/site-settings/data/site-settings";
 import { getStripeCheckoutProduct, stripeProductTypes } from "@/lib/stripe-products";
+import { checkRequestRateLimit } from "@/lib/rate-limit";
+import { assertJsonContentType, assertTrustedOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,10 +73,19 @@ async function createOrReuseStripeCustomer(input: {
 
 export async function POST(request: Request) {
   return withApiErrorHandling(request, async () => {
+    assertTrustedOrigin(request);
+    assertJsonContentType(request);
+    checkRequestRateLimit(request, "prntd-create-checkout:ip", { limit: 12, windowMs: 60_000 });
+
     const input = checkoutSchema.parse(await request.json());
     const product = getStripeCheckoutProduct(input.productType);
     const origin = getOrigin(request);
     const settings = await getSiteSettings();
+
+    if (settings.test_mode_enabled && !(await getCurrentAdmin())) {
+      throw new ApiError("Test checkout requires an active admin session.", 403, "test_mode_admin_required");
+    }
+
     const stripe = getStripe({ testMode: settings.test_mode_enabled });
     const authenticated = await getCurrentCustomer();
     const email = authenticated?.user.email ?? input.customerEmail;
@@ -81,6 +93,12 @@ export async function POST(request: Request) {
     if (!email) {
       throw new ApiError("Customer email is required.", 400, "customer_email_required");
     }
+
+    checkRequestRateLimit(request, "prntd-create-checkout:email", {
+      identifier: email,
+      limit: 8,
+      windowMs: 10 * 60_000,
+    });
 
     const platformCustomer = authenticated?.customer ?? (await getOrCreateCustomerForEmail({ email }));
     const stripeCustomerId = await createOrReuseStripeCustomer({

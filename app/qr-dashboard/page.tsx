@@ -47,9 +47,9 @@ export default function QrDashboardPage() {
 
     try {
       const [qrData, analyticsData, subscriptionData] = await Promise.all([
-        fetchQrLinks(session.email),
-        fetchQrAnalytics(session.email),
-        fetchSubscription(session.email),
+        fetchQrLinks(session.email, session.token),
+        fetchQrAnalytics(session.email, session.token),
+        fetchSubscription(session.email, session.token),
       ]);
 
       setQrs(Array.isArray(qrData) ? qrData : []);

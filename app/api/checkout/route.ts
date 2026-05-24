@@ -1,9 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DesignLayer, getAvailableShippingMethods, Order } from "@/data/shop";
+import { z } from "zod";
+import {
+  DesignLayer,
+  ProductPricing,
+  findPricingVariant,
+  getAvailableShippingMethods,
+  getProduct,
+  Order,
+  priceDesign,
+  roundMoney,
+  shopProducts,
+} from "@/data/shop";
 import { calculateDiscount } from "@/features/discounts/data/discounts";
+import { getCurrentAdmin } from "@/features/admin/data/auth";
 import { getSiteSettings } from "@/features/site-settings/data/site-settings";
 import { getOrCreateCustomerForEmail } from "@/lib/auth/customer";
+import { ApiError } from "@/lib/api-response";
+import { checkRequestRateLimit } from "@/lib/rate-limit";
+import { assertJsonContentType, assertTrustedOrigin } from "@/lib/security";
 import { createSupabaseAdminClient } from "@/lib/supabase/service";
+
+const MAX_CHECKOUT_ITEMS = 20;
+const MAX_ITEM_QUANTITY = 1000;
+const MAX_PRINT_ASSET_BYTES = 10 * 1024 * 1024;
+const ALLOWED_PRINT_ASSET_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+const checkoutOrderSchema = z
+  .object({
+    id: z.string().trim().min(3).max(120).regex(/^[A-Za-z0-9._-]+$/),
+    customer: z.object({
+      name: z.string().trim().max(160).optional().default(""),
+      email: z.string().trim().toLowerCase().email(),
+      phone: z.string().trim().max(80).optional().default(""),
+      company: z.string().trim().max(160).optional().default(""),
+      address: z.string().trim().max(240).optional().default(""),
+      city: z.string().trim().max(120).optional().default(""),
+      region: z.string().trim().max(120).optional().default(""),
+      postal: z.string().trim().max(40).optional().default(""),
+      notes: z.string().trim().max(1500).optional().default(""),
+    }),
+    items: z.array(z.unknown()).min(1).max(MAX_CHECKOUT_ITEMS),
+    discountCode: z.string().trim().max(80).optional(),
+    shippingMethod: z.enum(["lettermail", "tracked", "local_pickup"]).optional(),
+  })
+  .passthrough();
 
 function stripeProductType(productId: string) {
   if (productId === "classic-tee") return "shirts";
@@ -22,13 +62,173 @@ function dataUrlToUpload(dataUrl: string) {
 
   if (!match?.[2]) return null;
 
-  const mimeType = match[1] || "image/png";
+  const mimeType = (match[1] || "image/png").toLowerCase();
+
+  if (!ALLOWED_PRINT_ASSET_TYPES.has(mimeType)) return null;
+
+  const buffer = Buffer.from(match[2], "base64");
+
+  if (buffer.length > MAX_PRINT_ASSET_BYTES) return null;
+
   const extension = mimeType.includes("jpeg") ? "jpg" : mimeType.split("/")[1] || "png";
 
   return {
-    buffer: Buffer.from(match[2], "base64"),
+    buffer,
     mimeType,
     extension,
+  };
+}
+
+function layerHasArt(layers: DesignLayer[]) {
+  return layers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
+}
+
+function safeLayers(value: unknown): DesignLayer[] {
+  return Array.isArray(value) ? (value as DesignLayer[]).slice(0, 60) : [];
+}
+
+function fallbackPricing(): Record<string, ProductPricing> {
+  return Object.fromEntries(
+    shopProducts.map((product) => [product.id, { price: product.basePrice, currency: "CAD", variants: [] }])
+  );
+}
+
+async function loadServerPricing() {
+  const pricing = fallbackPricing();
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("products")
+      .select(`
+        slug,
+        price_cents,
+        currency,
+        status,
+        visibility,
+        variants:product_variants(
+          id,
+          title,
+          sku,
+          price_cents,
+          inventory_quantity,
+          active,
+          option1_name,
+          option1_value,
+          option2_name,
+          option2_value,
+          option3_name,
+          option3_value,
+          position
+        )
+      `)
+      .in("slug", shopProducts.map((product) => product.id));
+
+    if (error) return pricing;
+
+    for (const row of data ?? []) {
+      const record = row as Record<string, unknown>;
+      const slug = String(record.slug ?? "");
+      const status = String(record.status ?? "");
+      const visibility = String(record.visibility ?? "");
+
+      if (!slug || status === "archived" || visibility === "hidden") continue;
+
+      pricing[slug] = {
+        price: Number(record.price_cents ?? 0) / 100,
+        currency: String(record.currency ?? "CAD"),
+        variants: ((record.variants ?? []) as Array<Record<string, unknown>>)
+          .sort((a, b) => Number(a.position ?? 0) - Number(b.position ?? 0))
+          .map((variant) => ({
+            id: String(variant.id ?? ""),
+            title: String(variant.title ?? "Default Title"),
+            sku: variant.sku ? String(variant.sku) : null,
+            price: Number(variant.price_cents ?? 0) / 100,
+            currency: String(record.currency ?? "CAD"),
+            inventory_quantity: Number(variant.inventory_quantity ?? 0),
+            active: Boolean(variant.active),
+            options: Object.fromEntries(
+              [
+                [variant.option1_name, variant.option1_value],
+                [variant.option2_name, variant.option2_value],
+                [variant.option3_name, variant.option3_value],
+              ]
+                .filter(([name, value]) => name && value)
+                .map(([name, value]) => [String(name), String(value)])
+            ),
+          })),
+      };
+    }
+  } catch {
+    return pricing;
+  }
+
+  return pricing;
+}
+
+async function repriceOrder(order: Order): Promise<Order> {
+  const supportedProductIds = new Set(shopProducts.map((product) => product.id));
+  const pricing = await loadServerPricing();
+
+  const items = order.items.map((item) => {
+    if (!supportedProductIds.has(item.productId)) {
+      throw new ApiError("Unsupported product in cart.", 400, "unsupported_product");
+    }
+
+    const product = getProduct(item.productId);
+    const quantity = Math.max(
+      product.minimumQuantity,
+      Math.min(MAX_ITEM_QUANTITY, Math.floor(Number(item.quantity) || product.minimumQuantity))
+    );
+    const productPricing = pricing[item.productId];
+    const adminBasePrice = productPricing?.price;
+    const pricedProduct =
+      typeof adminBasePrice === "number" && adminBasePrice > 0
+        ? { ...product, basePrice: adminBasePrice }
+        : product;
+    const frontLayers = safeLayers(item.frontLayers);
+    const backLayers = safeLayers(item.backLayers);
+    const frontHasArt = layerHasArt(frontLayers) || Boolean(item.frontPreview);
+    const backHasArt = layerHasArt(backLayers) || Boolean(item.backPreview);
+
+    if (item.productId === "classic-tee") {
+      const printType = frontHasArt && backHasArt ? "2 Side" : "1 Side";
+      const printVariant = findPricingVariant(productPricing, "Print Sides", printType);
+      const basePrice = printVariant?.price ?? (adminBasePrice ?? product.basePrice) + (frontHasArt && backHasArt ? 10 : 0);
+      const discount = quantity >= 6 ? 20 : quantity >= 2 ? 11 : 0;
+      const unitPrice = Math.max(basePrice - discount, 0);
+
+      return {
+        ...item,
+        quantity,
+        frontLayers,
+        backLayers,
+        unitPrice,
+        lineTotal: roundMoney(unitPrice * quantity),
+      };
+    }
+
+    const price = priceDesign(pricedProduct, quantity, frontLayers, backLayers);
+
+    return {
+      ...item,
+      quantity,
+      frontLayers,
+      backLayers,
+      unitPrice: price.unitPrice,
+      lineTotal: price.lineTotal,
+    };
+  });
+
+  const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
+
+  return {
+    ...order,
+    items,
+    subtotal,
+    shipping: Math.max(0, Number(order.shipping) || 0),
+    tax: 0,
+    total: subtotal,
   };
 }
 
@@ -297,7 +497,18 @@ async function finalizeTestModeOrder({
 
 export async function POST(req: NextRequest) {
   try {
-    const order = (await req.json()) as Order;
+    assertTrustedOrigin(req);
+    assertJsonContentType(req);
+    checkRequestRateLimit(req, "checkout:ip", { limit: 12, windowMs: 60_000 });
+
+    const parsedOrder = checkoutOrderSchema.parse(await req.json()) as Order;
+    const order = await repriceOrder(parsedOrder);
+    checkRequestRateLimit(req, "checkout:email", {
+      identifier: order.customer.email,
+      limit: 8,
+      windowMs: 10 * 60_000,
+    });
+
     const origin = req.headers.get("origin") ?? "http://localhost:3000";
 
     if (!order?.items?.length || !order.customer?.email) {
@@ -327,6 +538,12 @@ export async function POST(req: NextRequest) {
     const uploadIds = await uploadOrderPrintAssets(order);
 
     if (settings.test_mode_enabled) {
+      const admin = await getCurrentAdmin();
+
+      if (!admin) {
+        return NextResponse.json({ error: "Test mode checkout requires an active admin session." }, { status: 403 });
+      }
+
       const dbOrderId = await finalizeTestModeOrder({
         order,
         uploadIds,
@@ -343,7 +560,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const stripeKey = settings.test_mode_enabled && process.env.STRIPE_TEST_SECRET_KEY ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY;
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
 
     if (!stripeKey) {
       return NextResponse.json({ error: "Stripe is not configured." }, { status: 503 });
@@ -426,8 +643,24 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ mode: "stripe", url: session.url });
   } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
+
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: "Invalid checkout payload",
+          code: "validation_error",
+        },
+        { status: 400 }
+      );
+    }
+
+    console.error("Checkout failed:", error);
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Checkout failed" },
+      { error: "Checkout failed" },
       { status: 500 }
     );
   }

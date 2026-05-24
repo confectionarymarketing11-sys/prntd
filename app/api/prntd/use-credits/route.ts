@@ -3,13 +3,15 @@ import { ApiError, apiJson, withApiErrorHandling } from "@/lib/api-response";
 import { requirePrntdEmail } from "@/lib/auth/jwt";
 import { corsPreflight } from "@/lib/cors";
 import { recordCreditTransaction } from "@/lib/credits";
+import { checkRequestRateLimit } from "@/lib/rate-limit";
+import { assertJsonContentType, assertTrustedOrigin } from "@/lib/security";
 import { createSupabaseAdminClient } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-  amount: z.coerce.number().int().positive(),
+  amount: z.coerce.number().int().positive().max(100),
 });
 
 type CustomerCreditRow = {
@@ -26,7 +28,17 @@ type BgCreditRow = {
 
 export async function POST(request: Request) {
   return withApiErrorHandling(request, async () => {
+    assertTrustedOrigin(request);
+    assertJsonContentType(request);
+    checkRequestRateLimit(request, "prntd-use-credits:ip", { limit: 30, windowMs: 60_000 });
+
     const email = requirePrntdEmail(request);
+    checkRequestRateLimit(request, "prntd-use-credits:email", {
+      identifier: email,
+      limit: 60,
+      windowMs: 10 * 60_000,
+    });
+
     const { amount } = bodySchema.parse(await request.json());
     const supabase = createSupabaseAdminClient();
     const { data: customer, error: customerError } = await supabase

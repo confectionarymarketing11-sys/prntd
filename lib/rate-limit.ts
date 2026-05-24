@@ -28,3 +28,16 @@ export function checkRateLimit(identifier: string, limit = 20, windowMs = 60_000
   hits.push(now);
   buckets.set(identifier, { hits });
 }
+
+export function checkRequestRateLimit(
+  request: Request,
+  scope: string,
+  options: {
+    limit?: number;
+    windowMs?: number;
+    identifier?: string | null;
+  } = {}
+) {
+  const identifier = options.identifier || getClientIp(request);
+  checkRateLimit(`${scope}:${identifier}`, options.limit ?? 20, options.windowMs ?? 60_000);
+}

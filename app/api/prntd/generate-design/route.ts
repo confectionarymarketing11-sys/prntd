@@ -13,6 +13,11 @@ async function loadLegacy() {
 
 export async function POST(request: Request) {
   return legacyRoute.legacyPost(loadLegacy(), request, undefined, {
+    rateLimit: {
+      scope: "prntd-generate-design:ip",
+      limit: 6,
+      windowMs: 60_000,
+    },
     timeoutMs: Number.isFinite(generateDesignTimeoutMs) ? generateDesignTimeoutMs : 110_000,
   });
 }

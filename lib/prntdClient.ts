@@ -87,18 +87,30 @@ export async function fetchCredits(token: string) {
   return (await response.json()) as CreditsResponse;
 }
 
-export async function fetchSubscription(email: string) {
-  const response = await fetch(`/api/prntd/get-subscription?email=${encodeURIComponent(email)}`);
+export async function fetchSubscription(email: string, token: string) {
+  const response = await fetch(`/api/prntd/get-subscription?email=${encodeURIComponent(email)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
   return (await response.json()) as SubscriptionResponse;
 }
 
-export async function fetchQrLinks(email: string) {
-  const response = await fetch(`/api/prntd/my-qrs?email=${encodeURIComponent(email)}`);
+export async function fetchQrLinks(email: string, token: string) {
+  const response = await fetch(`/api/prntd/my-qrs?email=${encodeURIComponent(email)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
   return (await response.json()) as QrLink[] | { error?: string };
 }
 
-export async function fetchQrAnalytics(email: string) {
-  const response = await fetch(`/api/prntd/qr-analytics?email=${encodeURIComponent(email)}`);
+export async function fetchQrAnalytics(email: string, token: string) {
+  const response = await fetch(`/api/prntd/qr-analytics?email=${encodeURIComponent(email)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
   return (await response.json()) as QrAnalytics;
 }
 

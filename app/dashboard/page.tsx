@@ -38,9 +38,9 @@ export default function DashboardPage() {
     try {
       const [creditData, subscriptionData, qrData, analyticsData, designData] = await Promise.all([
         fetchCredits(session.token),
-        fetchSubscription(session.email),
-        fetchQrLinks(session.email),
-        fetchQrAnalytics(session.email),
+        fetchSubscription(session.email, session.token),
+        fetchQrLinks(session.email, session.token),
+        fetchQrAnalytics(session.email, session.token),
         fetchDesigns(session.token),
       ]);
 

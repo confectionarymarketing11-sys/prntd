@@ -12,7 +12,13 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  return legacyRoute.legacyPost(loadLegacy(), request);
+  return legacyRoute.legacyPost(loadLegacy(), request, undefined, {
+    rateLimit: {
+      scope: "prntd-edit-design:ip",
+      limit: 8,
+      windowMs: 60_000,
+    },
+  });
 }
 
 export async function OPTIONS(request: Request) {

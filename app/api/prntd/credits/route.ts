@@ -1,6 +1,8 @@
 import { apiJson, withApiErrorHandling } from "@/lib/api-response";
 import { requirePrntdEmail } from "@/lib/auth/jwt";
 import { corsPreflight } from "@/lib/cors";
+import { checkRequestRateLimit } from "@/lib/rate-limit";
+import { assertTrustedOrigin } from "@/lib/security";
 import { createSupabaseAdminClient } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -139,7 +141,16 @@ async function ensureCustomerCredits(supabase: ReturnType<typeof createSupabaseA
 
 export async function GET(request: Request) {
   return withApiErrorHandling(request, async () => {
+    assertTrustedOrigin(request);
+    checkRequestRateLimit(request, "prntd-credits:ip", { limit: 60, windowMs: 60_000 });
+
     const email = requirePrntdEmail(request);
+    checkRequestRateLimit(request, "prntd-credits:email", {
+      identifier: email,
+      limit: 120,
+      windowMs: 10 * 60_000,
+    });
+
     const supabase = createSupabaseAdminClient();
     const [customer, bg] = await Promise.all([ensureCustomerCredits(supabase, email), loadBgCredits(supabase, email)]);
     const customerCredits = Number(customer.credits_balance ?? 0);

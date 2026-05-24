@@ -65,12 +65,14 @@ const creditPacks = [
 ];
 
 export default function SubscriptionsPage() {
-  const { email, status: accountStatus } = usePrntdAccount();
+  const { email, token, status: accountStatus, loadAccount } = usePrntdAccount();
   const [currentPlan, setCurrentPlan] = useState("none");
   const [status, setStatus] = useState("Loading your subscription...");
 
   const checkPlan = useCallback(async () => {
-    if (!email) {
+    const session = email && token ? { email, token } : await loadAccount();
+
+    if (!session?.email || !session.token) {
       setStatus(accountStatus);
       return;
     }
@@ -78,7 +80,11 @@ export default function SubscriptionsPage() {
     setStatus("Checking subscription...");
 
     try {
-      const response = await fetch(`/api/prntd/get-subscription?email=${encodeURIComponent(email)}`);
+      const response = await fetch(`/api/prntd/get-subscription?email=${encodeURIComponent(session.email)}`, {
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+        },
+      });
       const data = (await response.json()) as { plan_type?: string; error?: string };
 
       if (!response.ok) {
@@ -90,7 +96,7 @@ export default function SubscriptionsPage() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Subscription lookup failed.");
     }
-  }, [accountStatus, email]);
+  }, [accountStatus, email, token, loadAccount]);
 
   useEffect(() => {
     if (!email) return;

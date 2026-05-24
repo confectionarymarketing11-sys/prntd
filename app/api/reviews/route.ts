@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { checkRequestRateLimit } from "@/lib/rate-limit";
+import { assertJsonContentType, assertTrustedOrigin } from "@/lib/security";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const reviewSchema = z.object({
@@ -13,7 +15,17 @@ const reviewSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    assertTrustedOrigin(request);
+    assertJsonContentType(request);
+    checkRequestRateLimit(request, "reviews:ip", { limit: 5, windowMs: 10 * 60_000 });
+
     const payload = reviewSchema.parse(await request.json());
+    checkRequestRateLimit(request, "reviews:email", {
+      identifier: payload.customerEmail || payload.customerName,
+      limit: 3,
+      windowMs: 30 * 60_000,
+    });
+
     const supabase = createSupabaseAdminClient();
     const { error } = await supabase.from("reviews").insert({
       product_id: payload.productId,
@@ -27,7 +39,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Review insert failed:", error.message);
+      return NextResponse.json({ error: "Review could not be submitted." }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -37,6 +50,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message ?? "Invalid review" }, { status: 400 });
+    }
+
+    if (error instanceof Error && "status" in error) {
+      return NextResponse.json({ error: error.message }, { status: Number((error as { status?: number }).status ?? 500) });
     }
 
     return NextResponse.json({ error: "Review could not be submitted." }, { status: 500 });

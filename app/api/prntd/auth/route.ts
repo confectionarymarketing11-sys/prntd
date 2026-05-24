@@ -1,11 +1,13 @@
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { ApiError, apiJson, withApiErrorHandling } from "@/lib/api-response";
+import { PRNTD_API_TOKEN_SCOPE } from "@/lib/auth/jwt";
 import { getOrCreateCustomerForEmail } from "@/lib/auth/customer";
 import { corsPreflight } from "@/lib/cors";
 import { getEnv } from "@/lib/env";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { createSupabaseAdminClient } from "@/lib/supabase/service";
+import { checkRequestRateLimit, getClientIp } from "@/lib/rate-limit";
+import { assertJsonContentType, assertTrustedOrigin } from "@/lib/security";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,58 +18,57 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   return withApiErrorHandling(request, async () => {
+    assertTrustedOrigin(request);
+    assertJsonContentType(request);
+    checkRequestRateLimit(request, "prntd-auth:ip", { limit: 20, windowMs: 60_000 });
+
     const { email } = bodySchema.parse(await request.json());
     const identifier = `${getClientIp(request)}:${email}`;
 
-    checkRateLimit(identifier, 20, 60_000);
-
-    const supabase = createSupabaseAdminClient();
-    let userId: string | null = null;
-
-    const { data: createdUser, error: createError } = await supabase.auth.admin.createUser({
-      email,
-      email_confirm: true,
+    checkRequestRateLimit(request, "prntd-auth:email", {
+      identifier,
+      limit: 10,
+      windowMs: 10 * 60_000,
     });
 
-    if (!createError && createdUser.user?.id) {
-      userId = createdUser.user.id;
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user?.email) {
+      throw new ApiError("Sign in required", 401, "auth_session_required");
     }
 
-    if (!userId) {
-      const { data, error } = await supabase.auth.admin.listUsers();
+    const sessionEmail = user.email.trim().toLowerCase();
 
-      if (error) {
-        throw new ApiError("User lookup failed", 500, "user_lookup_failed");
-      }
-
-      userId = data.users.find((user) => user.email === email)?.id ?? null;
-    }
-
-    if (!userId) {
-      throw new ApiError("User lookup failed", 500, "user_lookup_failed");
+    if (sessionEmail !== email) {
+      throw new ApiError("Authenticated user does not match requested account.", 403, "email_mismatch");
     }
 
     await getOrCreateCustomerForEmail({
       email,
-      authUserId: userId,
+      authUserId: user.id,
     });
 
-    const token = jwt.sign({ email }, getEnv("JWT_SECRET"), { expiresIn: "24h" });
-    const supabaseToken = jwt.sign(
+    const token = jwt.sign(
       {
-        sub: userId,
+        sub: user.id,
         email,
-        role: "authenticated",
-        aud: "authenticated",
+        scope: PRNTD_API_TOKEN_SCOPE,
       },
-      getEnv("SUPABASE_JWT_SECRET"),
-      { expiresIn: "1h" }
+      getEnv("JWT_SECRET"),
+      {
+        expiresIn: "2h",
+        issuer: "prntd-next",
+        audience: "prntd-api",
+      }
     );
 
     return apiJson(request, {
       success: true,
       token,
-      supabaseToken,
     });
   });
 }

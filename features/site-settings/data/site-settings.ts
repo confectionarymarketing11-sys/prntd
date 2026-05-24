@@ -26,7 +26,7 @@ export const defaultSiteSettings: SiteSettings = {
 
 export async function getSiteSettings() {
   const supabase = createSupabaseAdminClient();
-  const forcedTestMode = process.env.PRNTD_TEST_MODE === "true" || process.env.NEXT_PUBLIC_PRNTD_TEST_MODE === "true";
+  const forcedTestMode = process.env.PRNTD_TEST_MODE === "true";
   const { data, error } = await supabase
     .from("site_settings")
     .select("*")

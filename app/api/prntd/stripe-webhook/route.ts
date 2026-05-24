@@ -14,6 +14,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase/service";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const allowTestWebhooks =
+  process.env.PRNTD_ALLOW_TEST_WEBHOOKS === "true" ||
+  process.env.NODE_ENV !== "production";
+
 function toAddress(address: Stripe.Address | null | undefined) {
   if (!address) return {};
 
@@ -95,8 +99,7 @@ async function registerStripeEvent(event: Stripe.Event) {
   }
 
   if (error.code === "42P01") {
-    console.warn("stripe_events table is missing; webhook idempotency is limited until migration is applied.");
-    return true;
+    throw new Error("stripe_events table is missing; refusing to process Stripe webhook without idempotency.");
   }
 
   throw error;
@@ -499,11 +502,19 @@ export async function POST(request: Request) {
   try {
     event = getStripe().webhooks.constructEvent(rawBody, signature, getStripeWebhookSecret());
   } catch {
+    if (!allowTestWebhooks) {
+      return new Response("Invalid signature", { status: 400 });
+    }
+
     try {
       event = getStripe({ testMode: true }).webhooks.constructEvent(rawBody, signature, getStripeWebhookSecret({ testMode: true }));
     } catch {
       return new Response("Invalid signature", { status: 400 });
     }
+  }
+
+  if (!event.livemode && !allowTestWebhooks) {
+    return new Response("Test webhooks are disabled", { status: 400 });
   }
 
   try {

@@ -1,5 +1,7 @@
 import { apiErrorResponse, withTimeout } from "@/lib/api-response";
 import { corsHeaders } from "@/lib/cors";
+import { checkRequestRateLimit } from "@/lib/rate-limit";
+import { assertTrustedOrigin } from "@/lib/security";
 
 type LegacyHandlerArgs = {
   request: Request;
@@ -15,6 +17,12 @@ type LegacyModule = {
 
 type LegacyRouteOptions = {
   timeoutMs?: number;
+  maxContentLengthBytes?: number;
+  rateLimit?: {
+    scope: string;
+    limit?: number;
+    windowMs?: number;
+  };
 };
 
 function missingHandler(name: string) {
@@ -27,6 +35,8 @@ async function asLegacyModule(module: unknown | Promise<unknown>) {
 
 export async function legacyGet(module: unknown | Promise<unknown>, request: Request, params?: Record<string, string>, options: LegacyRouteOptions = {}) {
   try {
+    assertTrustedOrigin(request);
+
     const legacyModule = await asLegacyModule(module);
     const timeoutMs = options.timeoutMs ?? 25_000;
 
@@ -41,6 +51,29 @@ export async function legacyGet(module: unknown | Promise<unknown>, request: Req
 
 export async function legacyPost(module: unknown | Promise<unknown>, request: Request, params?: Record<string, string>, options: LegacyRouteOptions = {}) {
   try {
+    assertTrustedOrigin(request);
+
+    if (options.maxContentLengthBytes) {
+      const contentLength = Number(request.headers.get("content-length") ?? 0);
+
+      if (contentLength > options.maxContentLengthBytes) {
+        return Response.json(
+          { error: "Request body is too large" },
+          {
+            status: 413,
+            headers: corsHeaders(request),
+          }
+        );
+      }
+    }
+
+    if (options.rateLimit) {
+      checkRequestRateLimit(request, options.rateLimit.scope, {
+        limit: options.rateLimit.limit,
+        windowMs: options.rateLimit.windowMs,
+      });
+    }
+
     const legacyModule = await asLegacyModule(module);
     const timeoutMs = options.timeoutMs ?? 25_000;
 
