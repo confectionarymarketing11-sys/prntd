@@ -3,37 +3,72 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { Search, ShoppingCart, UserRound } from "lucide-react";
+import {
+  Menu,
+  Search,
+  ShoppingCart,
+  UserRound,
+  X,
+} from "lucide-react";
+
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { SiteSettings } from "@/features/site-settings/types";
 
 const navItems = [
-  { href: "/dashboard", label: "Customer Portal" },
-  { href: "/products/classic-tee", label: "Custom T-Shirts" },
-  { href: "/products/business-cards", label: "Custom Business Cards" },
-  { href: "/products/die-cut-stickers", label: "Custom Stickers" },
-  { href: "/contact", label: "Contact Us" },
+  {
+    href: "/dashboard",
+    label: "Customer Portal",
+  },
+  {
+    href: "/products/classic-tee",
+    label: "Custom T-Shirts",
+  },
+  {
+    href: "/products/business-cards",
+    label: "Business Cards",
+  },
+  {
+    href: "/products/die-cut-stickers",
+    label: "Custom Stickers",
+  },
+  {
+    href: "/contact",
+    label: "Contact",
+  },
 ];
 
 export default function ShopHeader() {
-  const [user, setUser] = useState<User | null>(null);
-  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [user, setUser] =
+    useState<User | null>(null);
+
+  const [settings, setSettings] =
+    useState<SiteSettings | null>(null);
+
+  const [mobileOpen, setMobileOpen] =
+    useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
     try {
-      const supabase = createSupabaseBrowserClient();
+      const supabase =
+        createSupabaseBrowserClient();
 
-      supabase.auth.getUser().then(({ data }) => {
-        if (isMounted) setUser(data.user);
-      });
+      supabase.auth
+        .getUser()
+        .then(({ data }) => {
+          if (isMounted)
+            setUser(data.user);
+        });
 
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (isMounted) setUser(session?.user ?? null);
-      });
+      } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          if (isMounted)
+            setUser(session?.user ?? null);
+        },
+      );
 
       return () => {
         isMounted = false;
@@ -50,7 +85,9 @@ export default function ShopHeader() {
     let active = true;
 
     fetch("/api/site-settings")
-      .then((response) => response.json())
+      .then((response) =>
+        response.json(),
+      )
       .then((data: SiteSettings) => {
         if (!active) return;
         setSettings(data);
@@ -63,73 +100,167 @@ export default function ShopHeader() {
   }, []);
 
   return (
-    <header className="border-b border-stone-200 bg-white/95">
-      {settings?.announcement_enabled && settings.announcement_text ? (
-        <div className="bg-slate-950 px-4 py-2 text-center text-sm font-bold text-white">
-          {settings.announcement_link ? (
-            <Link href={settings.announcement_link} className="text-white no-underline hover:underline">
-              {settings.announcement_text}
-            </Link>
-          ) : (
-            settings.announcement_text
-          )}
-        </div>
-      ) : null}
-      {settings?.test_mode_enabled ? (
-        <div className="bg-amber-400 px-4 py-2 text-center text-sm font-black text-amber-950">
-          {settings.test_mode_notice}
-        </div>
-      ) : null}
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between xl:px-8">
-        <Link href="/" className="flex items-center gap-3">
-          {settings?.logo_image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={settings.logo_image_url} alt={settings.logo_text || "PRNTD"} className="h-10 w-10 rounded object-contain" />
-          ) : (
-            <span className="grid h-10 w-10 place-items-center rounded bg-black text-sm font-black tracking-tight text-white">
-              {(settings?.logo_text || "PRNTD").slice(0, 2).toUpperCase()}
-            </span>
-          )}
-          <span>
-            <span className="block text-lg font-black tracking-tight text-stone-950">{settings?.logo_text || "PRNTD"}</span>
-            <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
-              {settings?.logo_subtitle || "Custom print shop"}
-            </span>
-          </span>
-        </Link>
-        <nav className="flex flex-wrap items-center gap-2">
-          {navItems.map((item) => (
+    <>
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#020617]/80 backdrop-blur-2xl">
+        {/* TOP BAR */}
+        {settings?.announcement_enabled &&
+        settings.announcement_text ? (
+          <div className="border-b border-white/10 bg-[linear-gradient(135deg,#312e81_0%,#1d4ed8_100%)] px-4 py-2 text-center text-sm font-black text-white">
+            {settings.announcement_link ? (
+              <Link
+                href={
+                  settings.announcement_link
+                }
+                className="text-white no-underline hover:opacity-80"
+              >
+                {
+                  settings.announcement_text
+                }
+              </Link>
+            ) : (
+              settings.announcement_text
+            )}
+          </div>
+        ) : null}
+
+        {/* TEST MODE */}
+        {settings?.test_mode_enabled ? (
+          <div className="bg-amber-400 px-4 py-2 text-center text-sm font-black text-amber-950">
+            {
+              settings.test_mode_notice
+            }
+          </div>
+        ) : null}
+
+        {/* MAIN NAV */}
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-6 px-5 py-4">
+          {/* LOGO */}
+          <Link
+            href="/"
+            className="group flex items-center gap-4 no-underline"
+          >
+            {settings?.logo_image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={
+                  settings.logo_image_url
+                }
+                alt={
+                  settings.logo_text ||
+                  "PRNTD"
+                }
+                className="h-12 w-12 rounded-2xl border border-white/10 object-cover shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+              />
+            ) : (
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-sm font-black tracking-tight text-white shadow-[0_12px_40px_rgba(99,102,241,0.45)]">
+                {(
+                  settings?.logo_text ||
+                  "PRNTD"
+                )
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </div>
+            )}
+
+            <div>
+              <span className="block text-[22px] font-black tracking-[-0.03em] text-white">
+                {settings?.logo_text ||
+                  "PRNTD"}
+              </span>
+
+              <span className="block text-[11px] font-bold uppercase tracking-[0.22em] text-[#94a3b8]">
+                {settings?.logo_subtitle ||
+                  "Premium Print Shop"}
+              </span>
+            </div>
+          </Link>
+
+          {/* DESKTOP NAV */}
+          <nav className="hidden items-center gap-2 xl:flex">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-full border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-[#e2e8f0] no-underline transition duration-300 hover:border-[#6366f1]/40 hover:bg-white/[0.08] hover:text-white"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* RIGHT ACTIONS */}
+          <div className="flex items-center gap-3">
             <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-full border border-stone-200 px-3 py-2 text-sm font-semibold text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+              href="/search"
+              aria-label="Search"
+              className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:border-[#6366f1]/40 hover:bg-white/[0.08]"
             >
-              {item.label}
+              <Search className="h-4 w-4" />
             </Link>
-          ))}
-          <Link
-            href="/search"
-            aria-label="Search"
-            className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 text-stone-800 transition hover:border-stone-950"
-          >
-            <Search className="h-4 w-4" />
-          </Link>
-          <Link
-            href={user ? "/dashboard" : "/login"}
-            aria-label={user ? "Customer account" : "Login"}
-            className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 text-stone-800 transition hover:border-stone-950"
-          >
-            <UserRound className="h-4 w-4" />
-          </Link>
-          <Link
-            href="/cart"
-            aria-label="Cart"
-            className="grid h-10 w-10 place-items-center rounded-full bg-stone-950 text-white transition hover:bg-stone-800"
-          >
-            <ShoppingCart className="h-4 w-4" />
-          </Link>
-        </nav>
-      </div>
-    </header>
+
+            <Link
+              href={
+                user
+                  ? "/dashboard"
+                  : "/login"
+              }
+              aria-label={
+                user
+                  ? "Customer account"
+                  : "Login"
+              }
+              className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:border-[#6366f1]/40 hover:bg-white/[0.08]"
+            >
+              <UserRound className="h-4 w-4" />
+            </Link>
+
+            <Link
+              href="/cart"
+              aria-label="Cart"
+              className="grid h-11 w-11 place-items-center rounded-full bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_12px_40px_rgba(99,102,241,0.45)] transition hover:scale-105"
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </Link>
+
+            {/* MOBILE TOGGLE */}
+            <button
+              type="button"
+              onClick={() =>
+                setMobileOpen(
+                  !mobileOpen,
+                )
+              }
+              className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:bg-white/[0.08] xl:hidden"
+            >
+              {mobileOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* MOBILE NAV */}
+        {mobileOpen ? (
+          <div className="border-t border-white/10 bg-[#020617]/95 px-5 py-5 xl:hidden">
+            <nav className="grid gap-3">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() =>
+                    setMobileOpen(false)
+                  }
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-sm font-bold text-[#e2e8f0] no-underline transition hover:border-[#6366f1]/40 hover:bg-white/[0.08] hover:text-white"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        ) : null}
+      </header>
+    </>
   );
 }
