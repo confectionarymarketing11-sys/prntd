@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgePercent, BarChart3, Boxes, ClipboardList, Factory, FileText, Images, LogOut, MessageSquare, PackageCheck, Settings, Star, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, Boxes, ClipboardList, FileText, LogOut, MessageSquare, Settings, Star, Users } from "lucide-react";
 import { signOutAdmin } from "@/app/admin/login/actions";
 import { Button } from "@/components/ui/button";
 import type { CurrentAdmin } from "@/features/admin/data/auth";
@@ -14,10 +14,6 @@ const navItems = [
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/settings", label: "Site Settings", icon: Settings },
   { href: "/admin/settings#contact", label: "Contact", icon: MessageSquare },
-  { href: "/admin?status=printing", label: "Printing", icon: Factory },
-  { href: "/admin?status=packing", label: "Packing", icon: PackageCheck },
-  { href: "/admin?status=shipped", label: "Shipping", icon: Truck },
-  { href: "/admin?status=approved", label: "Artwork", icon: Images },
 ];
 
 export default function AdminShell({ admin, children }: { admin: CurrentAdmin; children: React.ReactNode }) {

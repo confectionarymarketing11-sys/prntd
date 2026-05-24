@@ -13,10 +13,11 @@ import type {
 
 const DEFAULT_PAGE_SIZE = 20;
 
-export function formatProductCents(value: number, currency = "CAD") {
+export function formatProductCents(value: number, _currency = "CAD") {
+  void _currency;
   return new Intl.NumberFormat("en-CA", {
     style: "currency",
-    currency,
+    currency: "CAD",
   }).format(value / 100);
 }
 

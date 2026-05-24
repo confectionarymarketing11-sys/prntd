@@ -292,6 +292,7 @@ export default function CartPage() {
       }
 
       localStorage.setItem("prntd_pending_cart", JSON.stringify(order));
+      localStorage.setItem("prntd_last_order", JSON.stringify(order));
       localStorage.removeItem(CART_STORAGE_KEY);
       window.location.href = data.url;
     } catch (error) {

@@ -26,18 +26,29 @@ export const defaultSiteSettings: SiteSettings = {
 
 export async function getSiteSettings() {
   const supabase = createSupabaseAdminClient();
+  const forcedTestMode = process.env.PRNTD_TEST_MODE === "true" || process.env.NEXT_PUBLIC_PRNTD_TEST_MODE === "true";
   const { data, error } = await supabase
     .from("site_settings")
     .select("*")
     .eq("singleton_key", "global")
     .maybeSingle<SiteSettings>();
 
-  if (error?.code === "42P01") return defaultSiteSettings;
+  if (error?.code === "42P01") {
+    return {
+      ...defaultSiteSettings,
+      test_mode_enabled: forcedTestMode || defaultSiteSettings.test_mode_enabled,
+    };
+  }
   if (error) throw new Error(error.message);
 
-  return {
+  const settings = {
     ...defaultSiteSettings,
     ...(data ?? {}),
+  };
+
+  return {
+    ...settings,
+    test_mode_enabled: forcedTestMode || settings.test_mode_enabled,
   };
 }
 

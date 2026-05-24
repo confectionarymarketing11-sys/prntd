@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AnalyticsCard from "@/features/analytics/components/AnalyticsCard";
 import AnalyticsDateRange from "@/features/analytics/components/AnalyticsDateRange";
 import MiniBarChart from "@/features/analytics/components/MiniBarChart";
+import MiniLineChart from "@/features/analytics/components/MiniLineChart";
 import { getAnalytics } from "@/features/analytics/data/analytics";
 import type { DateRangeKey } from "@/features/analytics/types/analytics";
 import { formatProductCents } from "@/features/products/data/products";
@@ -31,6 +32,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         <AnalyticsCard title="Reached Checkout" value={analytics.reachedCheckout} />
         <AnalyticsCard title="Checked Out" value={analytics.checkoutCompleted} />
         <AnalyticsCard title="Conversion Rate" value={`${analytics.conversionRate}%`} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <MiniLineChart title="Revenue Over Time" data={analytics.revenueSeries.map((point) => ({ label: point.label, revenueCents: point.revenueCents }))} valueKey="revenueCents" formatValue={formatProductCents} />
+        <MiniLineChart title="Orders Over Time" data={analytics.revenueSeries.map((point) => ({ label: point.label, orders: point.orders }))} valueKey="orders" formatValue={(value) => String(value)} />
+        <MiniLineChart title="Visitors Over Time" data={analytics.revenueSeries.map((point) => ({ label: point.label, visitors: point.visitors ?? 0 }))} valueKey="visitors" formatValue={(value) => String(value)} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -89,39 +96,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <MiniBarChart title="Visitors Over Time" data={analytics.revenueSeries.map((point) => ({ label: point.label, visitors: point.visitors ?? 0 }))} valueKey="visitors" formatValue={(value) => String(value)} />
-        <MiniBarChart title="Checkout Funnel Over Time" data={analytics.revenueSeries.map((point) => ({ label: point.label, checkoutCompleted: point.checkoutCompleted ?? 0 }))} valueKey="checkoutCompleted" formatValue={(value) => String(value)} />
-        <MiniBarChart title="Revenue Over Time" data={analytics.revenueSeries.map((point) => ({ label: point.label, revenueCents: point.revenueCents }))} valueKey="revenueCents" formatValue={formatProductCents} />
-        <MiniBarChart title="Orders Over Time" data={analytics.revenueSeries.map((point) => ({ label: point.label, orders: point.orders }))} valueKey="orders" formatValue={(value) => String(value)} />
+        <MiniLineChart title="Checked Out Over Time" data={analytics.revenueSeries.map((point) => ({ label: point.label, checkoutCompleted: point.checkoutCompleted ?? 0 }))} valueKey="checkoutCompleted" formatValue={(value) => String(value)} />
         <MiniBarChart title="Top Selling Products" data={analytics.topProducts.map((product) => ({ label: product.productName, revenueCents: product.revenueCents }))} valueKey="revenueCents" formatValue={formatProductCents} />
         <MiniBarChart title="Production Status Breakdown" data={statusRows} valueKey="value" formatValue={(value) => String(value)} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>Top Customers</CardTitle></CardHeader>
-          <CardContent className="grid gap-3">
-            {analytics.topCustomers.length ? analytics.topCustomers.map((customer) => (
-              <div key={customer.customerId ?? customer.customerEmail} className="flex justify-between rounded-xl border border-slate-200 p-3 text-sm">
-                <div><p className="font-black">{customer.customerName || customer.customerEmail}</p><p className="text-slate-500">{customer.orderCount} orders</p></div>
-                <strong>{formatProductCents(customer.totalCents)}</strong>
-              </div>
-            )) : <p className="text-sm text-slate-500">No paid customers in this range.</p>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Recent Activity</CardTitle></CardHeader>
-          <CardContent className="grid gap-3">
-            {analytics.recentActivity.length ? analytics.recentActivity.map((activity) => (
-              <div key={activity.id} className="rounded-xl border border-slate-200 p-3 text-sm">
-                <p className="font-black capitalize">{activity.label}</p>
-                <p className="text-slate-500">{activity.detail}</p>
-                <p className="mt-1 text-xs text-slate-400">{new Date(activity.createdAt).toLocaleString()}</p>
-              </div>
-            )) : <p className="text-sm text-slate-500">No recent activity in this range.</p>}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

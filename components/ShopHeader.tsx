@@ -18,8 +18,6 @@ const navItems = [
 export default function ShopHeader() {
   const [user, setUser] = useState<User | null>(null);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
-  const [currency, setCurrency] = useState("CAD");
-  const [language, setLanguage] = useState("en");
 
   useEffect(() => {
     let isMounted = true;
@@ -56,8 +54,6 @@ export default function ShopHeader() {
       .then((data: SiteSettings) => {
         if (!active) return;
         setSettings(data);
-        setCurrency(window.localStorage.getItem("prntd_currency") || data.default_currency || "CAD");
-        setLanguage(window.localStorage.getItem("prntd_language") || data.supported_languages?.[0] || "en");
       })
       .catch(() => undefined);
 
@@ -111,37 +107,6 @@ export default function ShopHeader() {
               {item.label}
             </Link>
           ))}
-          <select
-            value={currency}
-            onChange={(event) => {
-              setCurrency(event.target.value);
-              window.localStorage.setItem("prntd_currency", event.target.value);
-              window.dispatchEvent(new Event("prntd_currency_change"));
-            }}
-            className="rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700"
-            aria-label="Currency"
-          >
-            {(settings?.supported_currencies?.length ? settings.supported_currencies : ["CAD", "USD"]).map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-          <select
-            value={language}
-            onChange={(event) => {
-              setLanguage(event.target.value);
-              window.localStorage.setItem("prntd_language", event.target.value);
-            }}
-            className="rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700"
-            aria-label="Language"
-          >
-            {(settings?.supported_languages?.length ? settings.supported_languages : ["en", "fr"]).map((item) => (
-              <option key={item} value={item}>
-                {item.toUpperCase()}
-              </option>
-            ))}
-          </select>
           <Link
             href="/search"
             aria-label="Search"
