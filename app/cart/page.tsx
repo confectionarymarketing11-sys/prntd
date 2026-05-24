@@ -678,7 +678,7 @@ export default function CartPage() {
                 ],
                 [
                   "phone",
-                  "Phone Number",
+                  "Phone Number/Email",
                 ],
                 [
                   "company",
