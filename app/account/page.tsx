@@ -1,112 +1,176 @@
-import Link from "next/link";
-import { fetchCustomerDesigns, fetchCustomerOrders, fetchCustomerProfile, formatAccountMoney } from "@/lib/account/customer-data";
+import {
+  CreditCard,
+  LockKeyhole,
+  ShieldCheck,
+  User2,
+} from "lucide-react";
+
+import LogoutButton from "@/components/account/LogoutButton";
+import PasswordUpdateForm from "@/components/account/PasswordUpdateForm";
+
+import { fetchCustomerProfile } from "@/lib/account/customer-data";
 import { requireCustomerUser } from "@/lib/auth/customer";
 
-function formatDate(value?: string) {
-  if (!value) return "-";
+export default async function AccountSettingsPage() {
+  const user =
+    await requireCustomerUser();
 
-  return new Intl.DateTimeFormat("en-CA", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-export default async function AccountPage() {
-  const user = await requireCustomerUser();
-  const email = user.email ?? "";
-  const [orders, designs, customer] = await Promise.all([fetchCustomerOrders(email), fetchCustomerDesigns(email), fetchCustomerProfile(email)]);
-  const paidTotal = orders.reduce((sum, order) => sum + Number(order.total_cents ?? 0), 0);
+  const customer =
+    await fetchCustomerProfile(
+      user.email ?? "",
+    );
 
   return (
     <div className="grid gap-6">
+      {/* HEADER */}
       <header className="rounded-[30px] bg-[#111827] p-6 text-white shadow-[0_18px_50px_rgba(17,24,39,0.18)] sm:p-8">
         <p className="mb-4 inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] text-white/70">
-          Customer Account
+          Account Settings
         </p>
+
         <h1 className="text-[clamp(34px,4.2vw,62px)] font-black leading-none tracking-normal">
-          Welcome back{email ? `, ${email.split("@")[0]}` : ""}
+          Manage Your Account
         </h1>
+
         <p className="mt-4 max-w-2xl text-base leading-7 text-white/70">
-          Your PRNTD home for order history, saved designs, and account settings.
+          Update your customer
+          profile, billing details,
+          subscription access, and
+          account security settings.
         </p>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {[
-          ["Orders", String(orders.length), "Print jobs connected to this account"],
-          ["Saved Designs", String(designs.length), "AI and uploaded assets found for this email"],
-          ["Credits", String(customer?.credits_balance ?? 0), `${customer?.plan_tier ?? "none"} plan • ${customer?.subscription_status ?? "inactive"}`],
-          ["Total Spend", formatAccountMoney(paidTotal, orders[0]?.currency ?? "CAD"), "From fulfilled checkout records"],
-        ].map(([label, value, detail]) => (
-          <article key={label} className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-            <h2 className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">{label}</h2>
-            <p className="mt-3 text-[32px] font-black leading-none">{value}</p>
-            <p className="mt-3 text-sm leading-6 text-[#6b7280]">{detail}</p>
-          </article>
-        ))}
-      </div>
-
-      <section className="rounded-[28px] border border-white/70 bg-white p-6 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-        <h2 className="text-2xl font-black">Billing Linkage</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-[20px] bg-[#f5f7fb] p-4">
-            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Stripe Customer</p>
-            <p className="mt-2 break-all text-sm font-bold">{customer?.stripe_customer_id ?? "Not linked yet"}</p>
-          </div>
-          <div className="rounded-[20px] bg-[#f5f7fb] p-4">
-            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Subscription</p>
-            <p className="mt-2 text-sm font-bold">{customer?.subscription_status ?? "inactive"}</p>
-          </div>
-          <div className="rounded-[20px] bg-[#f5f7fb] p-4">
-            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Legacy Shopify</p>
-            <p className="mt-2 break-all text-sm font-bold">{customer?.shopify_customer_id ?? "Not imported"}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
+      {/* MAIN GRID */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        {/* ACCOUNT DETAILS */}
         <article className="rounded-[28px] border border-white/70 bg-white p-6 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-2xl font-black">Recent Orders</h2>
-            <Link href="/account/orders" className="text-sm font-extrabold text-[#4f46e5]">
-              View all
-            </Link>
+          <div className="flex items-center gap-4">
+            <div className="grid h-14 w-14 place-items-center rounded-[20px] bg-[#eef2ff]">
+              <User2 className="h-6 w-6 text-[#4f46e5]" />
+            </div>
+
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">
+                Profile
+              </p>
+
+              <h2 className="mt-1 text-3xl font-black">
+                Account Details
+              </h2>
+            </div>
           </div>
-          <div className="mt-5 grid gap-3">
-            {orders.slice(0, 4).map((order) => (
-              <div key={order.id} className="rounded-[20px] bg-[#f5f7fb] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-black">{order.order_number}</p>
-                  <p className="text-sm font-extrabold text-[#4338ca]">{order.production_status}</p>
-                </div>
-                <p className="mt-2 text-sm text-[#6b7280]">
-                  {formatDate(order.created_at)} • {formatAccountMoney(order.total_cents, order.currency)}
+
+          {/* EMAIL */}
+          <div className="mt-8 rounded-[22px] bg-[#f5f7fb] p-5">
+            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">
+              Email Address
+            </p>
+
+            <p className="mt-3 break-all text-lg font-black">
+              {user.email}
+            </p>
+          </div>
+
+          {/* STRIPE */}
+          <div className="mt-4 rounded-[22px] bg-[#f5f7fb] p-5">
+            <div className="flex items-center gap-3">
+              <CreditCard className="h-5 w-5 text-[#4f46e5]" />
+
+              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">
+                Stripe Customer
+              </p>
+            </div>
+
+            <p className="mt-3 break-all text-sm font-bold">
+              {customer?.stripe_customer_id ??
+                "Not linked yet"}
+            </p>
+          </div>
+
+          {/* SUBSCRIPTION */}
+          <div className="mt-4 rounded-[22px] bg-[#f5f7fb] p-5">
+            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">
+              Subscription
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <div className="rounded-full bg-[#dcfce7] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.08em] text-[#166534]">
+                {customer?.subscription_status ??
+                  "inactive"}
+              </div>
+
+              <div className="rounded-full bg-[#e0e7ff] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.08em] text-[#3730a3]">
+                {customer?.plan_tier ??
+                  "none"}
+              </div>
+            </div>
+          </div>
+
+          {/* STATUS */}
+          <div className="mt-4 rounded-[22px] bg-[#f5f7fb] p-5">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-[#16a34a]" />
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">
+                  Account Status
+                </p>
+
+                <p className="mt-1 text-sm font-bold text-[#166534]">
+                  Secure & Active
                 </p>
               </div>
-            ))}
-            {!orders.length && <p className="text-sm leading-6 text-[#6b7280]">No orders are linked to this account yet.</p>}
+            </div>
+          </div>
+
+          {/* LOGOUT */}
+          <div className="mt-8">
+            <LogoutButton />
           </div>
         </article>
 
+        {/* PASSWORD */}
         <article className="rounded-[28px] border border-white/70 bg-white p-6 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-2xl font-black">Recent Designs</h2>
-            <Link href="/account/designs" className="text-sm font-extrabold text-[#4f46e5]">
-              View all
-            </Link>
+          <div className="flex items-center gap-4">
+            <div className="grid h-14 w-14 place-items-center rounded-[20px] bg-[#eef2ff]">
+              <LockKeyhole className="h-6 w-6 text-[#4f46e5]" />
+            </div>
+
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">
+                Security
+              </p>
+
+              <h2 className="mt-1 text-3xl font-black">
+                Password
+              </h2>
+            </div>
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {designs.slice(0, 4).map((design) => (
-              <div key={design.path} className="rounded-[20px] bg-[#f5f7fb] p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={design.url} alt={design.prompt || "Saved design"} className="aspect-square w-full rounded-[16px] object-contain" />
-              </div>
-            ))}
-            {!designs.length && <p className="col-span-full text-sm leading-6 text-[#6b7280]">No saved designs are linked to this account yet.</p>}
+
+          {/* SECURITY INFO */}
+          <div className="mt-8 rounded-[22px] border border-[#dcfce7] bg-[#f0fdf4] p-5">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-[#16a34a]" />
+
+              <p className="text-sm font-extrabold text-[#166534]">
+                Password Encryption Enabled
+              </p>
+            </div>
+
+            <p className="mt-3 text-sm leading-7 text-[#4b5563]">
+              Keep your account secure
+              by regularly updating your
+              password and avoiding
+              password reuse.
+            </p>
+          </div>
+
+          {/* FORM */}
+          <div className="mt-6 rounded-[24px] bg-[#f5f7fb] p-6">
+            <PasswordUpdateForm />
           </div>
         </article>
-      </section>
+      </div>
     </div>
   );
 }
