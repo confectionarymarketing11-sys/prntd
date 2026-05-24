@@ -120,9 +120,8 @@ export const shopProducts: Product[] = [
     productionDays: "2-4 days",
     sizes: ['2"', '3"', '4"', '5"'],
     colors: [
+      { name: "Glossy", value: "#ffffff" },
       { name: "Matte", value: "#f5f1e8" },
-      { name: "Gloss", value: "#ffffff" },
-      { name: "Clear", value: "#d9edf7" },
     ],
     printAreas: ["front"],
     minimumQuantity: 10,

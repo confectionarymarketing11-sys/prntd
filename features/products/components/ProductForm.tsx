@@ -145,6 +145,36 @@ export default function ProductForm({ product, action, submitLabel }: ProductFor
           </CardContent>
         </Card>
 
+        {product?.variants?.length ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Variants</CardTitle>
+              <CardDescription>Saved variants currently attached to this product.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-2">
+              {product.variants.map((variant) => (
+                <div key={variant.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-black">{variant.title}</p>
+                      <p className="mt-1 text-xs text-slate-500">{variant.sku || "No SKU"}</p>
+                    </div>
+                    <span className={`rounded-full px-2 py-1 text-[11px] font-black ${variant.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+                      {variant.active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    <span>Price: ${(variant.price_cents / 100).toFixed(2)} CAD</span>
+                    <span>Inventory: {variant.inventory_quantity}</span>
+                    {variant.option1_name && <span>{variant.option1_name}: {variant.option1_value}</span>}
+                    {variant.option2_name && <span>{variant.option2_name}: {variant.option2_value}</span>}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
+
         <Card>
           <CardContent className="grid gap-3 p-4">
             <Button type="submit" className="w-full">

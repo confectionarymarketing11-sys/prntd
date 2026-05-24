@@ -20,6 +20,17 @@ type DesignerSnapshot = {
   frontLayers: DesignLayer[];
   backLayers: DesignLayer[];
 };
+type LayerInteraction =
+  | { mode: "drag"; layerId: string; offsetX: number; offsetY: number }
+  | {
+      mode: "resize";
+      layerId: string;
+      startX: number;
+      startY: number;
+      width: number;
+      height: number;
+      fontSize: number;
+    };
 
 function sideHasContent(layers: DesignLayer[]) {
   return layers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
@@ -64,7 +75,7 @@ export default function BusinessCardDesignerPage() {
   const [redoStack, setRedoStack] = useState<DesignerSnapshot[]>([]);
   const [adminBasePrice, setAdminBasePrice] = useState(product.basePrice);
   const cardRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ layerId: string; offsetX: number; offsetY: number } | null>(null);
+  const interactionRef = useRef<LayerInteraction | null>(null);
 
   const layers = side === "front" ? frontLayers : backLayers;
   const selectedLayer = layers.find((layer) => layer.id === selectedId);
@@ -149,8 +160,10 @@ export default function BusinessCardDesignerPage() {
     const card = cardRef.current;
     if (!card) return;
 
+    rememberSnapshot();
     const rect = card.getBoundingClientRect();
-    dragRef.current = {
+    interactionRef.current = {
+      mode: "drag",
       layerId: layer.id,
       offsetX: event.clientX - rect.left - layer.x,
       offsetY: event.clientY - rect.top - layer.y,
@@ -160,18 +173,70 @@ export default function BusinessCardDesignerPage() {
   }
 
   function handleLayerPointerMove(event: PointerEvent<HTMLButtonElement>) {
-    const drag = dragRef.current;
+    const interaction = interactionRef.current;
     const card = cardRef.current;
-    if (!drag || !card) return;
+    if (!interaction || !card || interaction.mode !== "drag") return;
 
     const rect = card.getBoundingClientRect();
-    const nextX = Math.max(0, Math.min(rect.width - 20, event.clientX - rect.left - drag.offsetX));
-    const nextY = Math.max(0, Math.min(rect.height - 20, event.clientY - rect.top - drag.offsetY));
-    updateLayer(drag.layerId, { x: nextX, y: nextY });
+    const nextX = Math.max(0, Math.min(rect.width - 20, event.clientX - rect.left - interaction.offsetX));
+    const nextY = Math.max(0, Math.min(rect.height - 20, event.clientY - rect.top - interaction.offsetY));
+    updateLayer(interaction.layerId, { x: nextX, y: nextY });
   }
 
   function handleLayerPointerUp(event: PointerEvent<HTMLButtonElement>) {
-    dragRef.current = null;
+    interactionRef.current = null;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+  }
+
+  function handleResizePointerDown(event: PointerEvent<HTMLElement>, layer: DesignLayer) {
+    event.stopPropagation();
+    rememberSnapshot();
+    interactionRef.current = {
+      mode: "resize",
+      layerId: layer.id,
+      startX: event.clientX,
+      startY: event.clientY,
+      width: layer.width ?? (layer.type === "text" ? 180 : 120),
+      height: layer.height ?? (layer.type === "text" ? (layer.fontSize ?? 22) * 1.4 : 120),
+      fontSize: layer.fontSize ?? 22,
+    };
+    setSelectedId(layer.id);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleResizePointerMove(event: PointerEvent<HTMLElement>) {
+    const interaction = interactionRef.current;
+    if (!interaction || interaction.mode !== "resize") return;
+
+    event.stopPropagation();
+    const layer = layers.find((item) => item.id === interaction.layerId);
+    if (!layer) return;
+
+    const delta = Math.max(event.clientX - interaction.startX, event.clientY - interaction.startY);
+    const nextWidth = Math.max(34, interaction.width + delta);
+    const nextHeight = Math.max(24, interaction.height + delta * (interaction.height / Math.max(interaction.width, 1)));
+
+    if (layer.type === "text") {
+      updateLayer(layer.id, {
+        width: nextWidth,
+        height: nextHeight,
+        fontSize: Math.max(10, interaction.fontSize + delta / 4),
+      });
+    } else {
+      updateLayer(layer.id, {
+        width: nextWidth,
+        height: nextHeight,
+      });
+    }
+  }
+
+  function handleResizePointerUp(event: PointerEvent<HTMLElement>) {
+    event.stopPropagation();
+    interactionRef.current = null;
     try {
       event.currentTarget.releasePointerCapture(event.pointerId);
     } catch {
@@ -189,6 +254,8 @@ export default function BusinessCardDesignerPage() {
       fontSize: 22,
       fontFamily,
       fill: textColor,
+      width: 180,
+      height: 36,
       rotation: 0,
     };
 
@@ -380,9 +447,10 @@ export default function BusinessCardDesignerPage() {
                       color: layer.fill,
                       fontFamily: layer.fontFamily,
                       fontSize: layer.fontSize,
-                      width: layer.width,
-                      height: layer.height,
+                      width: layer.width ?? (layer.type === "text" ? 180 : undefined),
+                      height: layer.height ?? (layer.type === "text" ? (layer.fontSize ?? 22) * 1.4 : undefined),
                       transform: `rotate(${layer.rotation ?? 0}deg)`,
+                      whiteSpace: layer.type === "text" ? "nowrap" : undefined,
                     }}
                   >
                     {layer.type === "image" && layer.preview ? (
@@ -390,6 +458,21 @@ export default function BusinessCardDesignerPage() {
                       <img src={layer.preview} alt="Uploaded card art" className="h-full w-full object-contain" />
                     ) : (
                       <span>{layer.text}</span>
+                    )}
+                    {selectedId === layer.id && (
+                      <>
+                        <span className="pointer-events-none absolute -left-2 -top-2 h-4 w-4 rounded-full border-2 border-white bg-[#7c3aed] shadow" />
+                        <span className="pointer-events-none absolute -right-2 -top-2 h-4 w-4 rounded-full border-2 border-white bg-[#7c3aed] shadow" />
+                        <span className="pointer-events-none absolute -left-2 -bottom-2 h-4 w-4 rounded-full border-2 border-white bg-[#7c3aed] shadow" />
+                        <span
+                          role="presentation"
+                          onPointerDown={(event) => handleResizePointerDown(event, layer)}
+                          onPointerMove={handleResizePointerMove}
+                          onPointerUp={handleResizePointerUp}
+                          onPointerCancel={handleResizePointerUp}
+                          className="absolute -bottom-2 -right-2 h-5 w-5 cursor-se-resize rounded-full border-2 border-white bg-[#111827] shadow"
+                        />
+                      </>
                     )}
                   </button>
                 ))}

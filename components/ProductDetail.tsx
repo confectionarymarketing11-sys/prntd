@@ -27,6 +27,36 @@ const productFeatures: Record<string, string[]> = {
   "business-cards": ["Front and back card design", "Premium business-ready finish", "Built for QR codes and brand details"],
 };
 
+function compressUpload(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const maxSize = 1400;
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+          reject(new Error("Unable to prepare image."));
+          return;
+        }
+
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/webp", 0.9));
+      };
+      image.onerror = reject;
+      image.src = String(reader.result ?? "");
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ProductDetail({ product, reviews = [] }: { product: Product; reviews?: Review[] }) {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] ?? "");
   const [selectedColor, setSelectedColor] = useState(product.colors[0]);
@@ -95,16 +125,20 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
     };
   }, [product.id]);
 
-  function handleUpload(event: ChangeEvent<HTMLInputElement>) {
+  async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setUploadedDesign(String(reader.result ?? ""));
+    try {
+      setStatus("Preparing attached artwork...");
+      const preparedImage = await compressUpload(file);
+      setUploadedDesign(preparedImage);
       setStatus("Design attached to this product.");
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      setStatus("Could not prepare that image. Try a smaller PNG, JPG, or WEBP.");
+    } finally {
+      event.target.value = "";
+    }
   }
 
   function removeDesign() {
@@ -125,32 +159,37 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
   }
 
   function addToCart() {
-    const item: CartItem = {
-      id: crypto.randomUUID(),
-      productId: product.id,
-      productName: designPreview ? `Custom ${product.name}` : product.name,
-      size: selectedSize,
-      color: selectedColor,
-      quantity,
-      frontLayers,
-      backLayers: [],
-      mockupPreview: designPreview || null,
-      frontPreview: designPreview || null,
-      backPreview: null,
-      unitPrice: price.unitPrice,
-      lineTotal: price.lineTotal,
-      createdAt: new Date().toISOString(),
-    };
-    const currentCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[];
+    try {
+      const item: CartItem = {
+        id: crypto.randomUUID(),
+        productId: product.id,
+        productName: designPreview ? `Custom ${product.name}` : product.name,
+        size: selectedSize,
+        color: selectedColor,
+        quantity,
+        frontLayers,
+        backLayers: [],
+        mockupPreview: designPreview || null,
+        frontPreview: designPreview || null,
+        backPreview: null,
+        unitPrice: price.unitPrice,
+        lineTotal: price.lineTotal,
+        createdAt: new Date().toISOString(),
+      };
+      const currentCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[];
 
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([...currentCart, item]));
-    trackStorefrontEvent("added_to_cart", {
-      product_id: product.id,
-      product_name: product.name,
-      quantity,
-      line_total: price.lineTotal,
-    });
-    window.location.href = "/cart";
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([...currentCart, item]));
+      trackStorefrontEvent("added_to_cart", {
+        product_id: product.id,
+        product_name: product.name,
+        quantity,
+        line_total: price.lineTotal,
+      });
+      setStatus("Added to cart. Opening checkout...");
+      window.location.href = "/cart";
+    } catch {
+      setStatus("Could not add this artwork to cart. Try a smaller image or refresh and upload again.");
+    }
   }
 
   async function submitReview(event: FormEvent<HTMLFormElement>) {
@@ -191,10 +230,12 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
           <div className="overflow-hidden rounded-[30px] border border-white/70 bg-white shadow-[0_12px_38px_rgba(0,0,0,0.06)]">
             <ProductMockup product={product} label={designPreview ? "YOUR DESIGN" : product.name} />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="overflow-hidden rounded-[24px] border border-white/70 bg-white shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
-              <ProductMockup product={product} color={product.colors[1]?.value ?? selectedColor.value} label="PRINT" />
-            </div>
+          <div className={`grid gap-4 ${isSticker ? "" : "sm:grid-cols-2"}`}>
+            {!isSticker && (
+              <div className="overflow-hidden rounded-[24px] border border-white/70 bg-white shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
+                <ProductMockup product={product} color={product.colors[1]?.value ?? selectedColor.value} label="PRINT" />
+              </div>
+            )}
             <div className="rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.045)]">
               <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#4f46e5]">Production</p>
               <h2 className="mt-2 text-2xl font-black">{product.productionDays}</h2>
@@ -253,7 +294,7 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
                 </label>
 
                 <div>
-                  <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">Color / Finish</p>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#6b7280]">{isSticker ? "Material Finish" : "Color / Finish"}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {product.colors.map((color) => (
                       <button
