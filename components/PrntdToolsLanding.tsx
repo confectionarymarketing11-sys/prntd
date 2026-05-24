@@ -14,6 +14,11 @@ type StepCard = {
   description: string;
 };
 
+type HeroStat = {
+  value: string;
+  label: string;
+};
+
 const toolCards: ToolCard[] = [
   {
     title: "Custom Print Products",
@@ -60,6 +65,21 @@ const steps: StepCard[] = [
   },
 ];
 
+const heroStats: HeroStat[] = [
+  {
+    value: "3",
+    label: "custom product lines",
+  },
+  {
+    value: "24/7",
+    label: "self-serve design tools",
+  },
+  {
+    value: "CAD",
+    label: "checkout and reports",
+  },
+];
+
 function PrimaryButton({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <Link
@@ -97,74 +117,14 @@ function SectionTitle({ title, description }: { title: string; description?: str
   );
 }
 
-function ProductPreviewRail() {
-  return (
-    <div className="mx-auto mt-14 grid max-w-5xl grid-cols-[1.1fr_0.9fr] gap-5 text-left max-[860px]:grid-cols-1">
-      <Link
-        href="/products/classic-tee"
-        className="group relative min-h-[330px] overflow-hidden rounded-[32px] border border-white/80 bg-white p-6 no-underline shadow-[0_18px_48px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_24px_58px_rgba(15,23,42,0.12)] max-md:min-h-[280px] max-md:rounded-3xl"
-      >
-        <div className="absolute inset-x-0 top-0 h-28 bg-[repeating-linear-gradient(45deg,#eef6ff_0_16px,#f9fafb_16px_32px)] opacity-90" />
-        <div className="relative z-10 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#4f46e5]">Custom Apparel</p>
-            <h3 className="mt-2 text-3xl font-black leading-none text-[#111827]">Print-ready shirt mockups</h3>
-          </div>
-          <span className="rounded-full bg-[#111827] px-4 py-2 text-sm font-bold text-white">Design</span>
-        </div>
-        <div className="absolute left-1/2 top-[54%] h-36 w-44 -translate-x-1/2 -translate-y-1/2 rounded-b-[28px] rounded-t-[18px] bg-[#111827] shadow-[0_18px_40px_rgba(15,23,42,0.24)] transition duration-300 group-hover:scale-[1.03]">
-          <div className="absolute -left-12 top-4 h-16 w-20 rotate-[-14deg] rounded-[22px] bg-[#111827]" />
-          <div className="absolute -right-12 top-4 h-16 w-20 rotate-[14deg] rounded-[22px] bg-[#111827]" />
-          <div className="absolute left-1/2 top-0 h-7 w-14 -translate-x-1/2 rounded-b-2xl bg-white/20" />
-          <div className="absolute left-1/2 top-16 -translate-x-1/2 rounded-md border border-white/80 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-white">
-            PRNTD
-          </div>
-        </div>
-        <p className="absolute bottom-6 left-6 right-6 text-sm leading-6 text-[#4b5563]">
-          Upload artwork, create a design, preview placement, and send production-ready files through checkout.
-        </p>
-      </Link>
-
-      <div className="grid gap-5">
-        <Link
-          href="/products/business-cards"
-          className="group relative overflow-hidden rounded-[28px] border border-white/80 bg-white p-6 no-underline shadow-[0_14px_38px_rgba(15,23,42,0.07)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(15,23,42,0.1)] max-md:rounded-3xl"
-        >
-          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#4f46e5]">Business Cards</p>
-          <h3 className="mt-2 text-2xl font-black leading-tight text-[#111827]">Front, back, QR, and brand details</h3>
-          <div className="mt-7 aspect-[1.75/1] rounded-[22px] border border-[#dbe4f0] bg-[linear-gradient(135deg,#ffffff,#f8fbff)] p-5 shadow-inner transition duration-300 group-hover:rotate-1">
-            <div className="h-full rounded-[16px] border-2 border-dashed border-blue-400/70 p-4">
-              <div className="h-5 w-28 rounded-full bg-[#111827]" />
-              <div className="mt-4 h-3 w-40 rounded-full bg-[#c7d2fe]" />
-              <div className="mt-2 h-3 w-28 rounded-full bg-[#dbeafe]" />
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          href="/products/die-cut-stickers"
-          className="group relative overflow-hidden rounded-[28px] border border-white/80 bg-white p-6 no-underline shadow-[0_14px_38px_rgba(15,23,42,0.07)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(15,23,42,0.1)] max-md:rounded-3xl"
-        >
-          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#4f46e5]">Stickers</p>
-          <h3 className="mt-2 text-2xl font-black leading-tight text-[#111827]">Transparent previews, glossy or matte</h3>
-          <div className="mt-7 flex items-end gap-3">
-            <div className="h-20 w-20 rotate-[-8deg] rounded-[24px] bg-[#0f7490] shadow-[0_12px_22px_rgba(15,116,144,0.25)] transition group-hover:rotate-[-2deg]" />
-            <div className="h-24 w-24 rounded-[28px] bg-white shadow-[0_12px_28px_rgba(15,23,42,0.16)] transition group-hover:-translate-y-1" />
-            <div className="h-20 w-20 rotate-[8deg] rounded-[24px] bg-[#f97316] shadow-[0_12px_22px_rgba(249,115,22,0.2)] transition group-hover:rotate-[2deg]" />
-          </div>
-        </Link>
-      </div>
-    </div>
-  );
-}
-
 function ToolCardView({ card }: { card: ToolCard }) {
   return (
     <article
-      className={`rounded-[28px] border border-white/70 bg-white/95 p-[34px] text-center shadow-[0_10px_28px_rgba(0,0,0,0.05)] transition hover:-translate-y-1 hover:shadow-[0_16px_30px_rgba(0,0,0,0.06)] max-md:rounded-[22px] max-md:p-[26px_22px] max-md:shadow-[0_5px_16px_rgba(0,0,0,0.045)] max-md:hover:translate-y-0 ${
+      className={`group relative overflow-hidden rounded-[28px] border border-white/70 bg-white/95 p-[34px] text-center shadow-[0_10px_28px_rgba(0,0,0,0.05)] transition duration-200 hover:-translate-y-1 hover:border-[#dbe4ff] hover:shadow-[0_16px_30px_rgba(0,0,0,0.06)] max-md:rounded-[22px] max-md:p-[26px_22px] max-md:shadow-[0_5px_16px_rgba(0,0,0,0.045)] max-md:hover:translate-y-0 ${
         card.isCentered ? "min-[901px]:col-start-2" : ""
       }`}
     >
+      <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#7c3aed_100%)] opacity-0 transition group-hover:opacity-100" />
       <h3 className="mb-4 text-[28px] font-extrabold leading-[1.15] tracking-normal text-[#111827] max-md:text-2xl">
         {card.title}
       </h3>
@@ -176,7 +136,7 @@ function ToolCardView({ card }: { card: ToolCard }) {
 
 function StepCardView({ step }: { step: StepCard }) {
   return (
-    <article className="min-h-60 rounded-[28px] border border-white/70 bg-white/95 p-[34px] text-center shadow-[0_10px_28px_rgba(0,0,0,0.05)] transition hover:-translate-y-1 hover:shadow-[0_16px_30px_rgba(0,0,0,0.06)] max-md:rounded-[22px] max-md:p-[26px_22px] max-md:shadow-[0_5px_16px_rgba(0,0,0,0.045)] max-md:hover:translate-y-0">
+    <article className="min-h-60 rounded-[28px] border border-white/70 bg-white/95 p-[34px] text-center shadow-[0_10px_28px_rgba(0,0,0,0.05)] transition duration-200 hover:-translate-y-1 hover:border-[#dbe4ff] hover:shadow-[0_16px_30px_rgba(0,0,0,0.06)] max-md:rounded-[22px] max-md:p-[26px_22px] max-md:shadow-[0_5px_16px_rgba(0,0,0,0.045)] max-md:hover:translate-y-0">
       <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#7c3aed_100%)] text-xl font-extrabold text-white">
         {step.number}
       </div>
@@ -190,11 +150,12 @@ function StepCardView({ step }: { step: StepCard }) {
 
 export default function PrntdToolsLanding() {
   return (
-    <div className="w-full bg-[#f5f7fb] text-[#111827]">
-      <section className="px-0 pb-[34px] pt-16 max-md:pb-9 max-md:pt-14">
+    <div className="w-full bg-[linear-gradient(180deg,#f8fbff_0%,#f5f7fb_36%,#f5f7fb_100%)] text-[#111827]">
+      <section className="relative overflow-hidden px-0 pb-[34px] pt-16 max-md:pb-9 max-md:pt-14">
+        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,#c7d2fe,transparent)]" />
         <div className="mx-auto max-w-7xl px-[22px]">
           <div className="mx-auto max-w-[980px] text-center">
-            <div className="mb-7 inline-flex items-center justify-center rounded-full border border-[#dde5ff] bg-[linear-gradient(135deg,#eef4ff_0%,#eef2ff_45%,#f5f3ff_100%)] px-[18px] py-2.5 text-[13px] font-bold text-[#4f46e5]">
+            <div className="mb-7 inline-flex items-center justify-center rounded-full border border-[#dde5ff] bg-[linear-gradient(135deg,#eef4ff_0%,#eef2ff_45%,#f5f3ff_100%)] px-[18px] py-2.5 text-[13px] font-bold text-[#4f46e5] shadow-[0_8px_24px_rgba(99,102,241,0.08)]">
               Premium Print + Smart Business Tools
             </div>
             <h1 className="mb-6 text-[clamp(40px,6vw,78px)] font-extrabold leading-[1.02] tracking-normal text-[#111827]">
@@ -208,7 +169,14 @@ export default function PrntdToolsLanding() {
               <PrimaryButton href="/products">Shop Products</PrimaryButton>
               <SecondaryButton href="/dashboard">Customer Portal</SecondaryButton>
             </div>
-            <ProductPreviewRail />
+            <div className="mx-auto mt-10 grid max-w-3xl grid-cols-3 overflow-hidden rounded-[24px] border border-white/80 bg-white/80 text-left shadow-[0_12px_36px_rgba(15,23,42,0.06)] backdrop-blur max-md:grid-cols-1">
+              {heroStats.map((stat) => (
+                <div key={stat.label} className="border-[#e8ecf4] px-6 py-5 max-md:border-b md:border-r last:border-0">
+                  <p className="text-2xl font-black text-[#111827]">{stat.value}</p>
+                  <p className="mt-1 text-sm font-semibold text-[#6b7280]">{stat.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>

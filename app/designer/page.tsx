@@ -9,13 +9,13 @@ import URLImage from "@/components/customizer/URLImage";
 import URLText from "@/components/customizer/URLText";
 import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 import {
-  CART_STORAGE_KEY,
   CartItem,
   DesignLayer,
   formatMoney,
   getProduct,
   roundMoney,
 } from "@/data/shop";
+import { addCartItem } from "@/lib/cart-storage";
 import { updateLayerList } from "@/store/customizerStore";
 
 type ShirtSide = "front" | "back";
@@ -720,44 +720,39 @@ export default function DesignerPage() {
       layerHasArt(backLayers) ? flattenSide("back") : Promise.resolve(null),
     ]);
 
-    localStorage.setItem(
-      "prntd_last_flattened_design",
-      JSON.stringify({
-        front: frontFlattened,
-        back: backFlattened,
-      })
-    );
+    try {
+      const item: CartItem = {
+        id: crypto.randomUUID(),
+        productId: selectedProduct.id,
+        productName: `Custom ${selectedProduct.name} (${price.printType})`,
+        size,
+        color: {
+          name: color.name,
+          value: color.swatch,
+        },
+        quantity,
+        frontLayers,
+        backLayers,
+        mockupPreview: frontFlattened ?? backFlattened,
+        frontPreview: frontFlattened,
+        backPreview: backFlattened,
+        unitPrice: price.unitPrice,
+        lineTotal: price.lineTotal,
+        createdAt: new Date().toISOString(),
+      };
 
-    const item: CartItem = {
-      id: crypto.randomUUID(),
-      productId: selectedProduct.id,
-      productName: `Custom ${selectedProduct.name} (${price.printType})`,
-      size,
-      color: {
-        name: color.name,
-        value: color.swatch,
-      },
-      quantity,
-      frontLayers,
-      backLayers,
-      mockupPreview: frontFlattened ?? backFlattened,
-      frontPreview: frontFlattened,
-      backPreview: backFlattened,
-      unitPrice: price.unitPrice,
-      lineTotal: price.lineTotal,
-      createdAt: new Date().toISOString(),
-    };
-    const currentCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[];
-
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([...currentCart, item]));
-    trackStorefrontEvent("added_to_cart", {
-      product_id: selectedProduct.id,
-      product_name: selectedProduct.name,
-      quantity,
-      print_type: price.printType,
-      line_total: price.lineTotal,
-    });
-    window.location.href = "/cart";
+      await addCartItem(item);
+      trackStorefrontEvent("added_to_cart", {
+        product_id: selectedProduct.id,
+        product_name: selectedProduct.name,
+        quantity,
+        print_type: price.printType,
+        line_total: price.lineTotal,
+      });
+      window.location.href = "/cart";
+    } catch {
+      setNotice("Could not add this artwork to cart. Try a smaller image or remove one layer.");
+    }
   }
 
   return (

@@ -8,13 +8,13 @@ import URLImage from "@/components/customizer/URLImage";
 import URLText from "@/components/customizer/URLText";
 import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 import {
-  CART_STORAGE_KEY,
   CartItem,
   DesignLayer,
   formatMoney,
   getProduct,
   priceDesign,
 } from "@/data/shop";
+import { addCartItem } from "@/lib/cart-storage";
 
 const fonts = ["Arial", "Impact", "Helvetica", "Verdana", "Georgia", "Times New Roman", "Courier New"];
 const sides = ["front", "back"] as const;
@@ -308,33 +308,36 @@ export default function BusinessCardDesignerPage() {
       sideHasContent(backLayers) ? flattenCardSide("back") : Promise.resolve(null),
     ]);
 
-    const item: CartItem = {
-      id: crypto.randomUUID(),
-      productId: product.id,
-      productName: `Custom ${product.name}`,
-      size,
-      color: finish,
-      quantity,
-      frontLayers,
-      backLayers,
-      mockupPreview: frontFlattened ?? backFlattened,
-      frontPreview: frontFlattened,
-      backPreview: backFlattened,
-      unitPrice: price.unitPrice,
-      lineTotal: price.lineTotal,
-      createdAt: new Date().toISOString(),
-    };
-    const currentCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[];
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([...currentCart, item]));
-    trackStorefrontEvent("added_to_cart", {
-      product_id: product.id,
-      product_name: product.name,
-      quantity,
-      line_total: price.lineTotal,
-      front_layers: frontLayers.length,
-      back_layers: backLayers.length,
-    });
-    window.location.href = "/cart";
+    try {
+      const item: CartItem = {
+        id: crypto.randomUUID(),
+        productId: product.id,
+        productName: `Custom ${product.name}`,
+        size,
+        color: finish,
+        quantity,
+        frontLayers,
+        backLayers,
+        mockupPreview: frontFlattened ?? backFlattened,
+        frontPreview: frontFlattened,
+        backPreview: backFlattened,
+        unitPrice: price.unitPrice,
+        lineTotal: price.lineTotal,
+        createdAt: new Date().toISOString(),
+      };
+      await addCartItem(item);
+      trackStorefrontEvent("added_to_cart", {
+        product_id: product.id,
+        product_name: product.name,
+        quantity,
+        line_total: price.lineTotal,
+        front_layers: frontLayers.length,
+        back_layers: backLayers.length,
+      });
+      window.location.href = "/cart";
+    } catch {
+      setNotice("Could not add this artwork to cart. Try a smaller image or remove one layer.");
+    }
   }
 
   return (

@@ -5,6 +5,8 @@ export type DesignLayer = {
   type: "image" | "text";
   preview?: string;
   originalPreview?: string;
+  previewKey?: string;
+  originalPreviewKey?: string;
   text?: string;
   fontSize?: number;
   fontFamily?: string;
@@ -58,6 +60,9 @@ export type CartItem = {
   mockupPreview?: string | null;
   frontPreview?: string | null;
   backPreview?: string | null;
+  mockupPreviewKey?: string | null;
+  frontPreviewKey?: string | null;
+  backPreviewKey?: string | null;
   unitPrice: number;
   lineTotal: number;
   createdAt: string;

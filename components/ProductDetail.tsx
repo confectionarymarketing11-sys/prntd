@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import ProductMockup from "@/components/ProductMockup";
 import {
-  CART_STORAGE_KEY,
   CartItem,
   DesignLayer,
   Product,
@@ -12,6 +11,7 @@ import {
   priceDesign,
 } from "@/data/shop";
 import type { Review } from "@/features/reviews/data/reviews";
+import { addCartItem } from "@/lib/cart-storage";
 import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 
 type StoredDesign = {
@@ -166,7 +166,7 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
       : `/designer?product=${encodeURIComponent(product.id)}`;
   }
 
-  function addToCart() {
+  async function addToCart() {
     try {
       const item: CartItem = {
         id: crypto.randomUUID(),
@@ -184,9 +184,9 @@ export default function ProductDetail({ product, reviews = [] }: { product: Prod
         lineTotal: price.lineTotal,
         createdAt: new Date().toISOString(),
       };
-      const currentCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[];
 
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([...currentCart, item]));
+      setStatus("Preparing cart item...");
+      await addCartItem(item);
       trackStorefrontEvent("added_to_cart", {
         product_id: product.id,
         product_name: product.name,

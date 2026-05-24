@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import ProductMockup from "@/components/ProductMockup";
 import ShopHeader from "@/components/ShopHeader";
 import { usePrntdAccount } from "@/hooks/usePrntdAccount";
+import { loadCartItems, saveCartItems } from "@/lib/cart-storage";
 import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 import {
   CART_STORAGE_KEY,
@@ -91,7 +92,9 @@ export default function CartPage() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setItems(JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[]);
+      loadCartItems()
+        .then(setItems)
+        .catch(() => setItems(JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[]));
     }, 0);
 
     return () => window.clearTimeout(timer);
@@ -178,7 +181,9 @@ export default function CartPage() {
         };
       });
 
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(updated));
+      void saveCartItems(updated).catch(() => {
+        setStatus("Cart updated, but artwork storage could not be refreshed.");
+      });
       return updated;
     });
   }
@@ -186,7 +191,9 @@ export default function CartPage() {
   function removeItem(itemId: string) {
     setItems((current) => {
       const updated = current.filter((item) => item.id !== itemId);
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(updated));
+      void saveCartItems(updated).catch(() => {
+        setStatus("Cart updated, but artwork storage could not be refreshed.");
+      });
       return updated;
     });
   }
