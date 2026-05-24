@@ -549,28 +549,28 @@ const [selectedStickerVariant, setSelectedStickerVariant] =
             )}
 
             <label className="grid gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
-                Quantity
-              </span>
+  <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+    Quantity
+  </span>
 
-              <input
-                value={quantity}
-                type="number"
-                min={product.minimumQuantity}
-                onChange={(event) =>
-                  setQuantity(
-                    Math.max(
-                      product.minimumQuantity,
-                      Number(
-                        event.target.value,
-                      ) ||
-                        product.minimumQuantity,
-                    ),
-                  )
-                }
-                className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
-              />
-            </label>
+  <input
+    value={quantity}
+    type="number"
+    min={product.minimumQuantity}
+    onChange={(event) =>
+      setQuantity(
+        Math.max(
+          product.minimumQuantity,
+          Number(
+            event.target.value,
+          ) ||
+            product.minimumQuantity,
+        ),
+      )
+    }
+    className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
+  />
+</label>
           </div>
 
           {/* PRICE */}
