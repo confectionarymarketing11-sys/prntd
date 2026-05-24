@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -25,7 +24,6 @@ import {
   Customer,
   Order,
   ProductPricing,
-  findPricingVariant,
   SHIPPING_RATE,
   createOrderId,
   formatMoney,
@@ -328,7 +326,8 @@ export default function CartPage() {
           },
           body: JSON.stringify({
             code: discountCode,
-            customerEmail: email,
+            customerEmail:
+              email || customer.email,
             subtotal:
               baseTotals.subtotal,
             shipping:
@@ -390,13 +389,9 @@ export default function CartPage() {
     const checkoutEmail =
       email || customer.email;
 
-    if (
-      !customer.name ||
-      !checkoutEmail ||
-      !customer.address
-    ) {
+    if (testModeEnabled && !checkoutEmail) {
       setStatus(
-        "Name, email, and shipping address are required.",
+        "Test mode needs an email because Stripe is bypassed.",
       );
 
       return;
@@ -406,7 +401,35 @@ export default function CartPage() {
       id: createOrderId(),
       customer: {
         ...customer,
+        name:
+          testModeEnabled
+            ? customer.name
+            : "",
         email: checkoutEmail,
+        phone:
+          testModeEnabled
+            ? customer.phone
+            : "",
+        company:
+          testModeEnabled
+            ? customer.company
+            : "",
+        address:
+          testModeEnabled
+            ? customer.address
+            : "",
+        city:
+          testModeEnabled
+            ? customer.city
+            : "",
+        region:
+          testModeEnabled
+            ? customer.region
+            : "",
+        postal:
+          testModeEnabled
+            ? customer.postal
+            : "",
       },
       items,
       subtotal: totals.subtotal,
@@ -663,92 +686,62 @@ export default function CartPage() {
 
             <div className="mt-7 rounded-[26px] border border-white/10 bg-white/[0.05] p-5">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
-                Customer Account
+                Customer Information
               </p>
 
-              <p className="mt-3 break-all text-lg font-black">
+              <p className="mt-3 break-all text-base font-semibold leading-7 text-[#cbd5e1]">
                 {email
-                  ? email
-                  : `Guest checkout (${accountStatus})`}
+                  ? `Signed in as ${email}. Stripe will confirm shipping and contact details.`
+                  : `Guest checkout (${accountStatus}). Stripe will collect email, phone, and shipping details securely.`}
               </p>
             </div>
 
-            {/* FORM */}
+            {testModeEnabled && (
+              <div className="mt-7 rounded-[26px] border border-amber-400/20 bg-amber-400/10 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-200">
+                  Test Mode Contact
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-amber-100/80">
+                  Stripe is bypassed in test mode, so this internal-only contact block is used for the fake order.
+                </p>
+
+                <div className="mt-4 grid gap-4">
+                  {[
+                    ["name", "Full Name"],
+                    ["phone", "Phone Number"],
+                    ["address", "Shipping Address"],
+                    ["city", "City"],
+                    ["region", "Province / State"],
+                    ["postal", "Postal Code"],
+                  ].map(([key, placeholder]) => (
+                    <input
+                      key={key}
+                      value={customer[key as keyof Customer] as string}
+                      onChange={(event) =>
+                        updateCustomer(key as keyof Customer, event.target.value)
+                      }
+                      placeholder={placeholder}
+                      className="h-[58px] rounded-2xl border border-white/10 bg-white/[0.04] px-5 text-white placeholder:text-[#94a3b8]"
+                    />
+                  ))}
+
+                  {!email && (
+                    <input
+                      value={customer.email}
+                      onChange={(event) =>
+                        updateCustomer("email", event.target.value)
+                      }
+                      type="email"
+                      placeholder="Email Address"
+                      className="h-[58px] rounded-2xl border border-white/10 bg-white/[0.04] px-5 text-white placeholder:text-[#94a3b8]"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="mt-7 grid gap-4">
-              {[
-                [
-                  "name",
-                  "Full Name",
-                ],
-                [
-                  "phone",
-                  "Phone Number/Email",
-                ],
-                [
-                  "company",
-                  "Company",
-                ],
-                [
-                  "address",
-                  "Shipping Address",
-                ],
-                ["city", "City"],
-                [
-                  "region",
-                  "Province / State",
-                ],
-                [
-                  "postal",
-                  "Postal Code",
-                ],
-              ].map(
-                ([
-                  key,
-                  placeholder,
-                ]) => (
-                  <input
-                    key={key}
-                    value={
-                      customer[
-                        key as keyof Customer
-                      ] as string
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateCustomer(
-                        key as keyof Customer,
-                        event.target
-                          .value,
-                      )
-                    }
-                    placeholder={
-                      placeholder
-                    }
-                    className="h-[58px] rounded-2xl border border-white/10 bg-white/[0.04] px-5 text-white placeholder:text-[#64748b]"
-                  />
-                ),
-              )}
-
-              {!email && (
-                <input
-                  value={
-                    customer.email
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    updateCustomer(
-                      "email",
-                      event.target.value,
-                    )
-                  }
-                  type="email"
-                  placeholder="Email Address"
-                  className="h-[58px] rounded-2xl border border-white/10 bg-white/[0.04] px-5 text-white placeholder:text-[#64748b]"
-                />
-              )}
-
               <textarea
                 value={customer.notes}
                 onChange={(event) =>

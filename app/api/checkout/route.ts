@@ -30,7 +30,7 @@ const checkoutOrderSchema = z
     id: z.string().trim().min(3).max(120).regex(/^[A-Za-z0-9._-]+$/),
     customer: z.object({
       name: z.string().trim().max(160).optional().default(""),
-      email: z.string().trim().toLowerCase().email(),
+      email: z.string().trim().toLowerCase().email().or(z.literal("")).optional().default(""),
       phone: z.string().trim().max(80).optional().default(""),
       company: z.string().trim().max(160).optional().default(""),
       address: z.string().trim().max(240).optional().default(""),
@@ -55,6 +55,14 @@ function stripeProductType(productId: string) {
 function compactMetadataValue(value: unknown) {
   const serialized = JSON.stringify(value ?? {});
   return serialized.length > 450 ? serialized.slice(0, 450) : serialized;
+}
+
+function requestIdentifier(request: Request) {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
 }
 
 function dataUrlToUpload(dataUrl: string) {
@@ -548,14 +556,14 @@ export async function POST(req: NextRequest) {
     const parsedOrder = checkoutOrderSchema.parse(await req.json()) as Order;
     const order = await repriceOrder(parsedOrder);
     checkRequestRateLimit(req, "checkout:email", {
-      identifier: order.customer.email,
+      identifier: order.customer.email || requestIdentifier(req),
       limit: 8,
       windowMs: 10 * 60_000,
     });
 
     const origin = req.headers.get("origin") ?? "http://localhost:3000";
 
-    if (!order?.items?.length || !order.customer?.email) {
+    if (!order?.items?.length) {
       return NextResponse.json({ error: "Invalid checkout payload" }, { status: 400 });
     }
 
@@ -588,6 +596,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Test mode checkout requires an active admin session." }, { status: 403 });
       }
 
+      if (!order.customer.email) {
+        return NextResponse.json({ error: "Test mode checkout requires an email because Stripe is bypassed." }, { status: 400 });
+      }
+
       const dbOrderId = await finalizeTestModeOrder({
         order,
         uploadIds,
@@ -613,7 +625,6 @@ export async function POST(req: NextRequest) {
       mode: "payment",
       success_url: `${origin}/success?order=${encodeURIComponent(order.id)}&mode=stripe&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/cart`,
-      customer_email: order.customer.email,
       "metadata[order_id]": order.id,
       "metadata[source]": "cart",
       "metadata[test_mode]": settings.test_mode_enabled ? "true" : "false",
@@ -630,6 +641,7 @@ export async function POST(req: NextRequest) {
       "metadata[shipping_cents]": String(finalShippingCents),
       "metadata[upload_ids]": compactMetadataValue(uploadIds),
       "metadata[design_references]": compactMetadataValue(designReferences),
+      "metadata[order_notes]": compactMetadataValue(order.customer.notes),
       "metadata[customization]": compactMetadataValue({
         cart_item_count: order.items.length,
         first_item: {
@@ -640,11 +652,14 @@ export async function POST(req: NextRequest) {
           backLayers: firstItem.backLayers.length,
         },
       }),
-      "metadata[customer_name]": order.customer.name,
-      "metadata[customer_phone]": order.customer.phone,
     });
 
+    if (order.customer.email) {
+      params.append("customer_email", order.customer.email);
+    }
+
     params.append("billing_address_collection", "auto");
+    params.append("customer_creation", "always");
     params.append("phone_number_collection[enabled]", "true");
     params.append("shipping_address_collection[allowed_countries][0]", "CA");
     params.append("shipping_address_collection[allowed_countries][1]", "US");

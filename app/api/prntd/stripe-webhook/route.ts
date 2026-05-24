@@ -49,6 +49,17 @@ function parseMetadataArray(value: string | undefined) {
   return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
 }
 
+function parseMetadataString(value: string | undefined) {
+  if (!value) return "";
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === "string" ? parsed : "";
+  } catch {
+    return value;
+  }
+}
+
 function formatCurrency(cents: number, currency: string) {
   return new Intl.NumberFormat("en-CA", {
     style: "currency",
@@ -322,6 +333,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     total_details: session.total_details ?? null,
     shipping_cost: session.shipping_cost ?? null,
   };
+  const orderNotes = parseMetadataString(session.metadata?.order_notes).trim() || null;
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -346,7 +358,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       checkout_session_id: session.id,
       guest_checkout: !customer.auth_user_id,
       currency,
-      notes: null,
+      notes: orderNotes,
       source: "storefront",
       external_order_id: session.id,
     })
@@ -372,7 +384,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           tax_cents: session.total_details?.amount_tax ?? 0,
           total_cents: session.amount_total ?? 0,
           currency,
-          notes: null,
+          notes: orderNotes,
           source: "storefront",
           external_order_id: session.id,
         })
