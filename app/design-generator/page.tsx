@@ -777,7 +777,7 @@ export default function DesignGeneratorPage() {
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#c7d2fe] backdrop-blur">
                   <Sparkles className="h-4 w-4" />
-                  PRNTD AI Studio
+                  PRNTD Studio
                 </div>
 
                 <h1 className="mt-7 text-[clamp(56px,8vw,110px)] font-black leading-[0.9] tracking-[-0.06em]">
@@ -791,7 +791,7 @@ export default function DesignGeneratorPage() {
                   Create custom shirts,
                   logos, labels, stickers,
                   and business cards with
-                  AI-powered design tools.
+                  modern design tools.
                 </p>
 
                 <div className="mt-8 flex flex-wrap gap-4">
@@ -828,7 +828,7 @@ export default function DesignGeneratorPage() {
 
                 <div className="mt-8 rounded-[26px] border border-white/10 bg-[#0f172a]/80 p-6">
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-[#94a3b8]">
-                    AI Credits
+                    Credits
                   </p>
 
                   <p className="mt-4 text-[52px] font-black leading-none">
@@ -840,7 +840,7 @@ export default function DesignGeneratorPage() {
 
                   <p className="mt-3 text-sm leading-7 text-[#cbd5e1]">
                     Each generation
-                    uses 1 AI credit.
+                    uses 1 credit.
                   </p>
                 </div>
               </div>
@@ -888,7 +888,7 @@ export default function DesignGeneratorPage() {
                         </p>
 
                         <p className="mt-3 text-xs leading-6 opacity-80">
-                          AI-powered
+                          
                           premium
                           graphics.
                         </p>
@@ -1035,7 +1035,7 @@ export default function DesignGeneratorPage() {
             {/* PREVIEW */}
             <aside className="sticky top-5 h-fit overflow-hidden rounded-[36px] border border-white/10 bg-[linear-gradient(135deg,#111827_0%,#1e1b4b_100%)] p-7 shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[#c7d2fe]">
-                AI Render Preview
+                Image Render Preview
               </p>
 
               <h2 className="mt-4 text-[46px] font-black leading-[0.95] tracking-[-0.04em]">
