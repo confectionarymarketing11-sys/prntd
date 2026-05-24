@@ -147,7 +147,7 @@ export const shopProducts: Product[] = [
     ],
     printAreas: ["front"],
     minimumQuantity: 10,
-    mockupImage: "/mockups/stickers.png",
+    mockupImage: "/mockups/newstickers.png",
   },
   {
     id: "business-cards",
