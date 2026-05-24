@@ -17,6 +17,8 @@ function newVariant(): ProductFormVariant {
     option1_value: "",
     option2_name: "",
     option2_value: "",
+    option3_name: "",
+    option3_value: "",
     active: true,
   };
 }
@@ -101,7 +103,7 @@ export default function VariantEditor({ variants: initialVariants }: { variants:
               </label>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <label className="grid gap-1 text-sm font-semibold">
                 Option 1 name
                 <Input value={variant.option1_name ?? ""} onChange={(event) => updateVariant(index, { option1_name: event.target.value })} placeholder="Size" />
@@ -117,6 +119,14 @@ export default function VariantEditor({ variants: initialVariants }: { variants:
               <label className="grid gap-1 text-sm font-semibold">
                 Option 2 value
                 <Input value={variant.option2_value ?? ""} onChange={(event) => updateVariant(index, { option2_value: event.target.value })} placeholder="Black" />
+              </label>
+              <label className="grid gap-1 text-sm font-semibold">
+                Option 3 name
+                <Input value={variant.option3_name ?? ""} onChange={(event) => updateVariant(index, { option3_name: event.target.value })} placeholder="Print Sides" />
+              </label>
+              <label className="grid gap-1 text-sm font-semibold">
+                Option 3 value
+                <Input value={variant.option3_value ?? ""} onChange={(event) => updateVariant(index, { option3_value: event.target.value })} placeholder="1 Side" />
               </label>
               <label className="grid gap-1 text-sm font-semibold">
                 Inventory policy

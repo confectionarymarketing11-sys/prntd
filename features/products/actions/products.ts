@@ -19,6 +19,8 @@ const variantSchema = z.object({
   option1_value: z.string().trim().optional(),
   option2_name: z.string().trim().optional(),
   option2_value: z.string().trim().optional(),
+  option3_name: z.string().trim().optional(),
+  option3_value: z.string().trim().optional(),
   active: z.coerce.boolean(),
 });
 
@@ -92,6 +94,8 @@ function parseProductForm(formData: FormData) {
     option1_value: variant.option1_value || undefined,
     option2_name: variant.option2_name || undefined,
     option2_value: variant.option2_value || undefined,
+    option3_name: variant.option3_name || undefined,
+    option3_value: variant.option3_value || undefined,
   }));
 
   return {

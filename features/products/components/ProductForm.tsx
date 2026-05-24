@@ -66,9 +66,32 @@ export default function ProductForm({ product, action, submitLabel }: ProductFor
         <Card>
           <CardHeader>
             <CardTitle>Variants</CardTitle>
-            <CardDescription>Variants control sellable combinations, SKU, price, and inventory.</CardDescription>
+            <CardDescription>
+              Variants control sellable combinations, SKU, price, and inventory. Use options like Size, Finish, and Print Sides.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="grid gap-4">
+            {product?.variants?.length ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-black">Saved variants loaded into editor</p>
+                <div className="mt-3 grid gap-2">
+                  {product.variants.map((variant) => (
+                    <div key={variant.id} className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600 md:grid-cols-[minmax(0,1fr)_auto]">
+                      <div>
+                        <p className="text-sm font-black text-slate-950">{variant.title}</p>
+                        <p className="mt-1">{variant.sku || "No SKU"}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {variant.option1_name && <span className="rounded-full bg-slate-100 px-2 py-1">{variant.option1_name}: {variant.option1_value}</span>}
+                          {variant.option2_name && <span className="rounded-full bg-slate-100 px-2 py-1">{variant.option2_name}: {variant.option2_value}</span>}
+                          {variant.option3_name && <span className="rounded-full bg-slate-100 px-2 py-1">{variant.option3_name}: {variant.option3_value}</span>}
+                        </div>
+                      </div>
+                      <div className="font-black text-slate-950">${(variant.price_cents / 100).toFixed(2)} CAD</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <VariantEditor variants={defaults.variants} />
           </CardContent>
         </Card>
@@ -168,6 +191,7 @@ export default function ProductForm({ product, action, submitLabel }: ProductFor
                     <span>Inventory: {variant.inventory_quantity}</span>
                     {variant.option1_name && <span>{variant.option1_name}: {variant.option1_value}</span>}
                     {variant.option2_name && <span>{variant.option2_name}: {variant.option2_value}</span>}
+                    {variant.option3_name && <span>{variant.option3_name}: {variant.option3_value}</span>}
                   </div>
                 </div>
               ))}

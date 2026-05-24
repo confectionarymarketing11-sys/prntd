@@ -352,6 +352,8 @@ async function replaceProductVariants(productId: string, variants: ProductFormVa
     option1_value: variant.option1_value || null,
     option2_name: variant.option2_name || null,
     option2_value: variant.option2_value || null,
+    option3_name: variant.option3_name || null,
+    option3_value: variant.option3_value || null,
     price_cents: Number(variant.price_cents ?? 0),
     inventory_quantity: Number(variant.inventory_quantity ?? 0),
     inventory_policy: variant.inventory_policy || "deny",
@@ -422,6 +424,8 @@ export function productToFormDefaults(product?: ProductListItem) {
       option1_value: variant.option1_value ?? "",
       option2_name: variant.option2_name ?? "",
       option2_value: variant.option2_value ?? "",
+      option3_name: variant.option3_name ?? "",
+      option3_value: variant.option3_value ?? "",
       active: variant.active,
     })),
     images: (product?.images ?? []).map((image) => ({

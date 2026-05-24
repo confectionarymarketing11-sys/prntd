@@ -12,6 +12,8 @@ import {
   CartItem,
   Customer,
   Order,
+  ProductPricing,
+  findPricingVariant,
   SHIPPING_RATE,
   createOrderId,
   formatMoney,
@@ -50,7 +52,7 @@ export default function CartPage() {
   const shippingMethods = useMemo(() => getAvailableShippingMethods(items), [items]);
   const [shippingMethod, setShippingMethod] = useState("tracked");
   const [testModeEnabled, setTestModeEnabled] = useState(false);
-  const [adminPricing, setAdminPricing] = useState<Record<string, { price?: number }>>({});
+  const [adminPricing, setAdminPricing] = useState<Record<string, ProductPricing>>({});
 
   const baseTotals = useMemo(() => {
     const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
@@ -114,7 +116,7 @@ export default function CartPage() {
 
     fetch("/api/products/pricing")
       .then((response) => response.json())
-      .then((pricing: Record<string, { price?: number }>) => {
+      .then((pricing: Record<string, ProductPricing>) => {
         if (active) setAdminPricing(pricing);
       })
       .catch(() => undefined);
@@ -163,10 +165,12 @@ export default function CartPage() {
         const pricedProduct = typeof adminBasePrice === "number" && adminBasePrice > 0 ? { ...product, basePrice: adminBasePrice } : product;
         const frontHasArt = item.frontLayers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
         const backHasArt = item.backLayers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
+        const printType = frontHasArt && backHasArt ? "2 Side" : "1 Side";
+        const printVariant = findPricingVariant(adminPricing[item.productId], "Print Sides", printType);
         const price =
           item.productId === "classic-tee"
             ? (() => {
-                const basePrice = (adminBasePrice ?? item.unitPrice) + (frontHasArt && backHasArt ? 10 : 0);
+                const basePrice = printVariant?.price ?? (adminBasePrice ?? item.unitPrice) + (frontHasArt && backHasArt ? 10 : 0);
                 const discount = quantity >= 6 ? 20 : quantity >= 2 ? 11 : 0;
                 const unitPrice = Math.max(basePrice - discount, 0);
                 return { unitPrice, lineTotal: roundMoney(unitPrice * quantity) };

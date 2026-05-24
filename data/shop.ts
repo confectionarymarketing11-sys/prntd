@@ -48,6 +48,23 @@ export type Product = {
   mockupImage?: string;
 };
 
+export type ProductPricingVariant = {
+  id: string;
+  title: string;
+  sku: string | null;
+  price: number;
+  currency: string;
+  inventory_quantity: number;
+  active: boolean;
+  options: Record<string, string>;
+};
+
+export type ProductPricing = {
+  price: number;
+  currency: string;
+  variants?: ProductPricingVariant[];
+};
+
 export type CartItem = {
   id: string;
   productId: string;
@@ -211,6 +228,19 @@ export function formatMoney(value: number) {
     style: "currency",
     currency: "CAD",
   }).format(value);
+}
+
+export function getVariantOption(variant: ProductPricingVariant, optionName: string) {
+  const normalizedOptionName = optionName.trim().toLowerCase();
+  const match = Object.entries(variant.options).find(([name]) => name.trim().toLowerCase() === normalizedOptionName);
+
+  return match?.[1] ?? "";
+}
+
+export function findPricingVariant(pricing: ProductPricing | undefined, optionName: string, optionValue: string) {
+  const normalizedOptionValue = optionValue.trim().toLowerCase();
+
+  return pricing?.variants?.find((variant) => variant.active && getVariantOption(variant, optionName).trim().toLowerCase() === normalizedOptionValue);
 }
 
 export function getAvailableShippingMethods(items: CartItem[]) {

@@ -116,6 +116,8 @@ export type ProductFormVariant = {
   option1_value?: string;
   option2_name?: string;
   option2_value?: string;
+  option3_name?: string;
+  option3_value?: string;
   active: boolean;
 };
 

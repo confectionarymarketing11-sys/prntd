@@ -11,6 +11,8 @@ import { trackStorefrontEvent } from "@/lib/storefront-analytics";
 import {
   CartItem,
   DesignLayer,
+  ProductPricing,
+  findPricingVariant,
   formatMoney,
   getProduct,
   roundMoney,
@@ -303,6 +305,7 @@ export default function DesignerPage() {
   const [undoStack, setUndoStack] = useState<DesignerSnapshot[]>([]);
   const [redoStack, setRedoStack] = useState<DesignerSnapshot[]>([]);
   const [adminBasePrice, setAdminBasePrice] = useState(oneSidePrice);
+  const [adminPricing, setAdminPricing] = useState<Record<string, ProductPricing>>({});
   const stageWrapRef = useRef<HTMLDivElement | null>(null);
   const generatedImageLoadedRef = useRef(false);
 
@@ -315,17 +318,21 @@ export default function DesignerPage() {
   const selectedTextLayer = selectedLayer?.type === "text" ? selectedLayer : null;
   const price = useMemo(() => {
     const isDoubleSided = layerHasArt(frontLayers) && layerHasArt(backLayers);
-    const basePrice = isDoubleSided ? adminBasePrice + 10 : adminBasePrice;
+    const printType = isDoubleSided ? "2 Side" : "1 Side";
+    const shirtPricing = adminPricing["classic-tee"];
+    const printVariant = findPricingVariant(shirtPricing, "Print Sides", printType);
+    const basePrice = printVariant?.price ?? (isDoubleSided ? adminBasePrice + 10 : adminBasePrice);
     const discount = quantity >= 6 ? 20 : quantity >= 2 ? 11 : 0;
     const unitPrice = Math.max(basePrice - discount, 0);
 
     return {
-      printType: isDoubleSided ? "2 Side" : "1 Side",
+      printType,
+      variantTitle: printVariant?.title ?? printType,
       perShirtDiscount: discount,
       unitPrice,
       lineTotal: roundMoney(unitPrice * quantity),
     };
-  }, [adminBasePrice, quantity, frontLayers, backLayers]);
+  }, [adminBasePrice, adminPricing, quantity, frontLayers, backLayers]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -341,7 +348,8 @@ export default function DesignerPage() {
 
     fetch("/api/products/pricing")
       .then((response) => response.json())
-      .then((pricing: Record<string, { price?: number }>) => {
+      .then((pricing: Record<string, ProductPricing>) => {
+        if (active) setAdminPricing(pricing);
         const nextPrice = pricing["classic-tee"]?.price;
         if (active && typeof nextPrice === "number" && nextPrice > 0) {
           setAdminBasePrice(nextPrice);
