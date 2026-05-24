@@ -8,148 +8,96 @@ import { createSupabaseAdminClient } from "@/lib/supabase/service";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type CustomerCreditRow = {
-  id: string;
-  credits_balance: number | null;
-  has_received_free_credits?: boolean | null;
-  free_credits_granted_at?: string | null;
-  subscription_status: string | null;
-  plan_tier: string | null;
-};
-
 type BgCreditRow = {
   credits: number | null;
   subscription_credits: number | null;
-  has_received_free_credits?: boolean | null;
+  total_credits?: number | null;
 };
 
-const customerCreditColumns =
-  "id, credits_balance, has_received_free_credits, free_credits_granted_at, subscription_status, plan_tier";
+type CreditSnapshot = {
+  credits: number;
+  subscriptionCredits: number;
+  totalCredits: number;
+  source: "bg_users.total_credits" | "bg_users.computed";
+};
 
-async function loadBgCredits(supabase: ReturnType<typeof createSupabaseAdminClient>, email: string) {
-  const { data, error } = await supabase
-    .from("bg_users")
-    .select("credits, subscription_credits, has_received_free_credits")
-    .eq("email", email)
-    .maybeSingle<BgCreditRow>();
+function toCreditSnapshot(row: BgCreditRow | null): CreditSnapshot {
+  const credits = Number(row?.credits ?? 0);
+  const subscriptionCredits = Number(row?.subscription_credits ?? 0);
+  const storedTotal = row?.total_credits;
 
-  if (error && error.code !== "PGRST116") {
-    throw error;
-  }
-
-  return {
-    credits: Number(data?.credits ?? 0),
-    subscriptionCredits: Number(data?.subscription_credits ?? 0),
-    hasReceivedFreeCredits: Boolean(data?.has_received_free_credits),
-  };
-}
-
-function getDuplicatedWelcomeCredits(customer: CustomerCreditRow, bg: Awaited<ReturnType<typeof loadBgCredits>>) {
-  const customerCredits = Number(customer.credits_balance ?? 0);
-  const legacyCredits = Number(bg.credits ?? 0);
-
-  if (!customer.has_received_free_credits || !bg.hasReceivedFreeCredits) {
-    return 0;
-  }
-
-  return Math.min(3, customerCredits, legacyCredits);
-}
-
-async function ensureCustomerCredits(supabase: ReturnType<typeof createSupabaseAdminClient>, email: string) {
-  const { data: existing, error } = await supabase
-    .from("customers")
-    .select(customerCreditColumns)
-    .eq("email", email)
-    .maybeSingle<CustomerCreditRow>();
-
-  if (error && (error.code === "42703" || error.message?.includes("has_received_free_credits"))) {
-    const legacy = await supabase
-      .from("customers")
-      .select("id, credits_balance, subscription_status, plan_tier")
-      .eq("email", email)
-      .maybeSingle<CustomerCreditRow>();
-
-    if (legacy.error && legacy.error.code !== "PGRST116") {
-      throw legacy.error;
-    }
-
-    if (legacy.data) {
-      return legacy.data;
-    }
-
-    const created = await supabase
-      .from("customers")
-      .insert({
-        email,
-        credits_balance: 3,
-        updated_at: new Date().toISOString(),
-      })
-      .select("id, credits_balance, subscription_status, plan_tier")
-      .single<CustomerCreditRow>();
-
-    if (created.error) {
-      throw created.error;
-    }
-
-    return created.data;
-  }
-
-  if (error && error.code !== "PGRST116") {
-    throw error;
-  }
-
-  if (existing) {
-    const hasReceived = existing.has_received_free_credits ?? false;
-
-    if (hasReceived) {
-      return existing;
-    }
-
-    const nextCredits = Number(existing.credits_balance ?? 0) + 3;
-    const now = new Date().toISOString();
-    const { data: updated, error: updateError } = await supabase
-      .from("customers")
-      .update({
-        credits_balance: nextCredits,
-        has_received_free_credits: true,
-        free_credits_granted_at: now,
-        updated_at: now,
-      })
-      .eq("id", existing.id)
-      .eq("has_received_free_credits", false)
-      .select(customerCreditColumns)
-      .maybeSingle<CustomerCreditRow>();
-
-    if (!updateError && updated) {
-      return updated;
-    }
-
+  if (storedTotal !== null && storedTotal !== undefined) {
     return {
-      ...existing,
-      credits_balance: nextCredits,
-      has_received_free_credits: true,
-      free_credits_granted_at: now,
+      credits,
+      subscriptionCredits,
+      totalCredits: Number(storedTotal ?? 0),
+      source: "bg_users.total_credits",
     };
   }
 
-  const now = new Date().toISOString();
-  const { data: created, error: insertError } = await supabase
-    .from("customers")
-    .insert({
-      email,
-      credits_balance: 3,
-      has_received_free_credits: true,
-      free_credits_granted_at: now,
-      updated_at: now,
-    })
-    .select(customerCreditColumns)
-    .single<CustomerCreditRow>();
+  return {
+    credits,
+    subscriptionCredits,
+    totalCredits: credits + subscriptionCredits,
+    source: "bg_users.computed",
+  };
+}
 
-  if (insertError) {
-    throw insertError;
+async function selectBgCredits(supabase: ReturnType<typeof createSupabaseAdminClient>, email: string) {
+  const withTotal = await supabase
+    .from("bg_users")
+    .select("credits, subscription_credits, total_credits")
+    .eq("email", email)
+    .maybeSingle<BgCreditRow>();
+
+  if (!withTotal.error || withTotal.error.code === "PGRST116") {
+    return { data: withTotal.data, hasTotalColumn: true };
   }
 
-  return created;
+  if (withTotal.error.code !== "42703" && !withTotal.error.message?.includes("total_credits")) {
+    throw withTotal.error;
+  }
+
+  const fallback = await supabase
+    .from("bg_users")
+    .select("credits, subscription_credits")
+    .eq("email", email)
+    .maybeSingle<BgCreditRow>();
+
+  if (fallback.error && fallback.error.code !== "PGRST116") {
+    throw fallback.error;
+  }
+
+  return { data: fallback.data, hasTotalColumn: false };
+}
+
+async function createBgUserCredits(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  email: string,
+  hasTotalColumn: boolean,
+) {
+  const row: Record<string, unknown> = {
+    email,
+    credits: 3,
+    subscription_credits: 0,
+    has_received_free_credits: true,
+  };
+
+  if (hasTotalColumn) {
+    row.total_credits = 3;
+  }
+
+  const created = await supabase
+    .from("bg_users")
+    .insert(row)
+    .select(hasTotalColumn ? "credits, subscription_credits, total_credits" : "credits, subscription_credits")
+    .single<BgCreditRow>();
+
+  if (created.error) {
+    throw created.error;
+  }
+
+  return created.data;
 }
 
 export async function GET(request: Request) {
@@ -165,25 +113,16 @@ export async function GET(request: Request) {
     });
 
     const supabase = createSupabaseAdminClient();
-    const [customer, bg] = await Promise.all([ensureCustomerCredits(supabase, email), loadBgCredits(supabase, email)]);
-    const customerCredits = Number(customer.credits_balance ?? 0);
-    const legacyCredits = bg.credits;
-    const subscriptionCredits = bg.subscriptionCredits;
-    const duplicatedWelcomeCredits = getDuplicatedWelcomeCredits(customer, bg);
-    const unifiedCredits = customerCredits + legacyCredits - duplicatedWelcomeCredits;
+    const selected = await selectBgCredits(supabase, email);
+    const row = selected.data ?? (await createBgUserCredits(supabase, email, selected.hasTotalColumn));
+    const snapshot = toCreditSnapshot(row);
 
     return apiJson(request, {
       success: true,
-      credits: unifiedCredits,
-      subscription_credits: subscriptionCredits,
-      total_credits: unifiedCredits + subscriptionCredits,
-      customer_credits: customerCredits,
-      legacy_credits: legacyCredits,
-      duplicated_welcome_credits: duplicatedWelcomeCredits,
-      subscription_status: customer.subscription_status ?? "inactive",
-      plan_tier: customer.plan_tier ?? "none",
-      has_received_free_credits: customer.has_received_free_credits ?? false,
-      source: "customers+bg_users",
+      credits: snapshot.credits,
+      subscription_credits: snapshot.subscriptionCredits,
+      total_credits: snapshot.totalCredits,
+      source: snapshot.source,
     });
   });
 }

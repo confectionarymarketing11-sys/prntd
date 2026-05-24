@@ -2,7 +2,6 @@ import { z } from "zod";
 import { ApiError, apiJson, withApiErrorHandling } from "@/lib/api-response";
 import { requirePrntdEmail } from "@/lib/auth/jwt";
 import { corsPreflight } from "@/lib/cors";
-import { recordCreditTransaction } from "@/lib/credits";
 import { checkRequestRateLimit } from "@/lib/rate-limit";
 import { assertJsonContentType, assertTrustedOrigin } from "@/lib/security";
 import { createSupabaseAdminClient } from "@/lib/supabase/service";
@@ -14,35 +13,92 @@ const bodySchema = z.object({
   amount: z.coerce.number().int().positive().max(100),
 });
 
-type CustomerCreditRow = {
-  id: string;
-  auth_user_id: string | null;
-  credits_balance: number | null;
-  has_received_free_credits?: boolean | null;
-};
-
 type BgCreditRow = {
   credits: number | null;
   subscription_credits: number | null;
-  has_received_free_credits?: boolean | null;
+  total_credits?: number | null;
 };
 
-function getDuplicatedWelcomeCredits({
-  customerCredits,
-  purchasedCredits,
-  customerHasFreeCredits,
-  legacyHasFreeCredits,
-}: {
-  customerCredits: number;
-  purchasedCredits: number;
-  customerHasFreeCredits: boolean;
-  legacyHasFreeCredits: boolean;
-}) {
-  if (!customerHasFreeCredits || !legacyHasFreeCredits) {
-    return 0;
+async function selectBgCredits(supabase: ReturnType<typeof createSupabaseAdminClient>, email: string) {
+  const withTotal = await supabase
+    .from("bg_users")
+    .select("credits, subscription_credits, total_credits")
+    .eq("email", email)
+    .maybeSingle<BgCreditRow>();
+
+  if (!withTotal.error || withTotal.error.code === "PGRST116") {
+    return { data: withTotal.data, hasTotalColumn: true };
   }
 
-  return Math.min(3, customerCredits, purchasedCredits);
+  if (withTotal.error.code !== "42703" && !withTotal.error.message?.includes("total_credits")) {
+    throw withTotal.error;
+  }
+
+  const fallback = await supabase
+    .from("bg_users")
+    .select("credits, subscription_credits")
+    .eq("email", email)
+    .maybeSingle<BgCreditRow>();
+
+  if (fallback.error && fallback.error.code !== "PGRST116") {
+    throw fallback.error;
+  }
+
+  return { data: fallback.data, hasTotalColumn: false };
+}
+
+async function updateBgCredits({
+  supabase,
+  email,
+  previousPurchased,
+  previousSubscription,
+  purchased,
+  subscriptionCredits,
+  hasTotalColumn,
+}: {
+  supabase: ReturnType<typeof createSupabaseAdminClient>;
+  email: string;
+  previousPurchased: number;
+  previousSubscription: number;
+  purchased: number;
+  subscriptionCredits: number;
+  hasTotalColumn: boolean;
+}) {
+  const payload: Record<string, unknown> = {
+    credits: purchased,
+    subscription_credits: subscriptionCredits,
+  };
+
+  if (hasTotalColumn) {
+    payload.total_credits = purchased + subscriptionCredits;
+  }
+
+  const update = await supabase
+    .from("bg_users")
+    .update(payload)
+    .eq("email", email)
+    .eq("credits", previousPurchased)
+    .eq("subscription_credits", previousSubscription)
+    .select("email")
+    .maybeSingle<{ email: string }>();
+
+  if (!update.error) {
+    return update.data;
+  }
+
+  if (!hasTotalColumn || (update.error.code !== "42703" && !update.error.message?.includes("total_credits"))) {
+    throw update.error;
+  }
+
+  return updateBgCredits({
+    supabase,
+    email,
+    previousPurchased,
+    previousSubscription,
+    purchased,
+    subscriptionCredits,
+    hasTotalColumn: false,
+  });
 }
 
 export async function POST(request: Request) {
@@ -60,153 +116,49 @@ export async function POST(request: Request) {
 
     const { amount } = bodySchema.parse(await request.json());
     const supabase = createSupabaseAdminClient();
-    const { data: customer, error: customerError } = await supabase
-      .from("customers")
-      .select("id, auth_user_id, credits_balance, has_received_free_credits")
-      .eq("email", email)
-      .maybeSingle<CustomerCreditRow>();
+    const { data: user, hasTotalColumn } = await selectBgCredits(supabase, email);
 
-    let activeCustomer = customer;
-    let freeCreditTrackingAvailable = true;
-
-    if (customerError && (customerError.code === "42703" || customerError.message?.includes("has_received_free_credits"))) {
-      freeCreditTrackingAvailable = false;
-      const legacy = await supabase
-        .from("customers")
-        .select("id, auth_user_id, credits_balance")
-        .eq("email", email)
-        .maybeSingle<CustomerCreditRow>();
-
-      if (legacy.error && legacy.error.code !== "PGRST116") {
-        throw legacy.error;
-      }
-
-      activeCustomer = legacy.data ?? null;
-    } else if (customerError && customerError.code !== "PGRST116") {
-      throw customerError;
+    if (!user) {
+      throw new ApiError("User not found", 404, "user_not_found");
     }
 
-    const { data: user, error } = await supabase
-      .from("bg_users")
-      .select("credits, subscription_credits, has_received_free_credits")
-      .eq("email", email)
-      .maybeSingle<BgCreditRow>();
+    const purchased = Number(user.credits ?? 0);
+    const subscriptionCredits = Number(user.subscription_credits ?? 0);
+    const availableCredits = purchased + subscriptionCredits;
 
-    if (error && error.code !== "PGRST116") {
-      throw error;
-    }
-
-    let customerCredits = Number(activeCustomer?.credits_balance ?? 0);
-
-    if (activeCustomer && freeCreditTrackingAvailable && !activeCustomer.has_received_free_credits) {
-      customerCredits += 3;
-    }
-
-    const purchased = Number(user?.credits || 0);
-    const subscriptionCredits = Number(user?.subscription_credits || 0);
-    const duplicatedWelcomeCredits = getDuplicatedWelcomeCredits({
-      customerCredits,
-      purchasedCredits: purchased,
-      customerHasFreeCredits:
-        Boolean(activeCustomer?.has_received_free_credits) ||
-        Boolean(activeCustomer && freeCreditTrackingAvailable),
-      legacyHasFreeCredits: Boolean(user?.has_received_free_credits),
-    });
-    const unifiedAvailableCredits =
-      customerCredits +
-      subscriptionCredits +
-      purchased -
-      duplicatedWelcomeCredits;
-
-    if (unifiedAvailableCredits < amount) {
+    if (availableCredits < amount) {
       throw new ApiError("Not enough credits", 400, "insufficient_credits");
     }
 
     let remaining = amount;
-    const customerUsed = Math.min(customerCredits, remaining);
-    remaining -= customerUsed;
-
     const subscriptionUsed = Math.min(subscriptionCredits, remaining);
     remaining -= subscriptionUsed;
 
     const purchasedUsed = Math.min(purchased, remaining);
-    const nextCustomerCredits = customerCredits - customerUsed;
-    const newSubscriptionCredits = subscriptionCredits - subscriptionUsed;
-    const newPurchasedCredits = purchased - purchasedUsed;
-    const nextDuplicatedWelcomeCredits = getDuplicatedWelcomeCredits({
-      customerCredits: nextCustomerCredits,
-      purchasedCredits: newPurchasedCredits,
-      customerHasFreeCredits:
-        Boolean(activeCustomer?.has_received_free_credits) ||
-        customerUsed > 0,
-      legacyHasFreeCredits: Boolean(user?.has_received_free_credits),
+    const nextSubscriptionCredits = subscriptionCredits - subscriptionUsed;
+    const nextPurchasedCredits = purchased - purchasedUsed;
+    const nextTotalCredits = nextPurchasedCredits + nextSubscriptionCredits;
+
+    const updated = await updateBgCredits({
+      supabase,
+      email,
+      previousPurchased: purchased,
+      previousSubscription: subscriptionCredits,
+      purchased: nextPurchasedCredits,
+      subscriptionCredits: nextSubscriptionCredits,
+      hasTotalColumn,
     });
-    const nextUnifiedCredits =
-      nextCustomerCredits +
-      newPurchasedCredits -
-      nextDuplicatedWelcomeCredits;
 
-    if (activeCustomer && customerUsed > 0) {
-      const updatePayload: Record<string, unknown> = {
-        credits_balance: nextCustomerCredits,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (freeCreditTrackingAvailable && !activeCustomer.has_received_free_credits) {
-        updatePayload.has_received_free_credits = true;
-        updatePayload.free_credits_granted_at = new Date().toISOString();
-      }
-
-      const { data: updated, error: updateCustomerError } = await supabase
-        .from("customers")
-        .update(updatePayload)
-        .eq("id", activeCustomer.id)
-        .select("id")
-        .maybeSingle<{ id: string }>();
-
-      if (updateCustomerError || !updated) {
-        throw new ApiError("Conflict, retry request", 409, "credit_conflict");
-      }
-
-      await recordCreditTransaction({
-        customerId: activeCustomer.id,
-        authUserId: activeCustomer.auth_user_id,
-        amount: -customerUsed,
-        reason: "usage",
-        source: "prntd_api",
-        metadata: {
-          endpoint: "use-credits",
-        },
-      });
-    }
-
-    if ((subscriptionUsed > 0 || purchasedUsed > 0) && user) {
-      const { data: updated, error: updateError } = await supabase
-        .from("bg_users")
-        .update({
-          credits: newPurchasedCredits,
-          subscription_credits: newSubscriptionCredits,
-        })
-        .eq("email", email)
-        .eq("credits", purchased)
-        .eq("subscription_credits", subscriptionCredits)
-        .select("email")
-        .maybeSingle<{ email: string }>();
-
-      if (updateError || !updated) {
-        throw new ApiError("Conflict, retry request", 409, "credit_conflict");
-      }
+    if (!updated) {
+      throw new ApiError("Conflict, retry request", 409, "credit_conflict");
     }
 
     return apiJson(request, {
       success: true,
-      credits: nextUnifiedCredits,
-      subscription_credits: newSubscriptionCredits,
-      total_credits: nextUnifiedCredits + newSubscriptionCredits,
-      customer_credits: nextCustomerCredits,
-      legacy_credits: newPurchasedCredits,
-      duplicated_welcome_credits: nextDuplicatedWelcomeCredits,
-      source: "customers+bg_users",
+      credits: nextPurchasedCredits,
+      subscription_credits: nextSubscriptionCredits,
+      total_credits: nextTotalCredits,
+      source: hasTotalColumn ? "bg_users.total_credits" : "bg_users.computed",
     });
   });
 }
