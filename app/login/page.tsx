@@ -56,7 +56,7 @@ export default async function LoginPage({
               <p className="mt-8 max-w-2xl text-base leading-8 text-[#cbd5e1] sm:text-lg sm:leading-9">
                 Access your premium
                 creator dashboard,
-                AI design tools,
+                design tools,
                 saved artwork,
                 QR management,
                 subscriptions,
@@ -67,7 +67,7 @@ export default async function LoginPage({
               {/* FEATURES */}
               <div className="mt-10 grid gap-4 sm:grid-cols-2">
                 {[
-                  "AI Design Generator",
+                  "Design Creator",
                   "Saved Design Vault",
                   "Dynamic QR Tools",
                   "Premium Print Orders",
@@ -96,9 +96,9 @@ export default async function LoginPage({
                 <div className="mt-4 flex flex-wrap gap-3">
                   {[
                     "Stripe Protected",
-                    "Cloud Saved",
-                    "AI Powered",
-                    "Commercial Ready",
+                    "Saved Designs",
+                    "App Powered",
+                    "Print Ready",
                   ].map((badge) => (
                     <div
                       key={badge}
