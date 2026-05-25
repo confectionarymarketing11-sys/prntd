@@ -6,7 +6,10 @@ import ProductMockup from "@/components/ProductMockup";
 import {
   CartItem,
   DesignLayer,
+  FixedPriceVariant,
   Product,
+  ProductPricing,
+  fixedPriceVariantsFromPricing,
   formatMoney,
   priceDesign,
   roundMoney,
@@ -148,6 +151,16 @@ export default function ProductDetail({
     product.basePrice,
   );
 
+  const [stickerVariants, setStickerVariants] =
+    useState<FixedPriceVariant[]>(
+      product.stickerVariants ?? [],
+    );
+
+  const [businessCardVariants, setBusinessCardVariants] =
+    useState<FixedPriceVariant[]>(
+      product.businessCardVariants ?? [],
+    );
+
   const designPreview =
     uploadedDesign || design?.image || "";
 
@@ -194,14 +207,8 @@ export default function ProductDetail({
       selectedBusinessCardVariant
     ) {
       const hasCustomDesign = Boolean(designPreview);
-      const designFee =
-        hasCustomDesign &&
-        selectedBusinessCardVariant.quantity > 1
-          ? product.designFee ?? 0
-          : 0;
       const lineTotal = roundMoney(
-        selectedBusinessCardVariant.price +
-          designFee,
+        selectedBusinessCardVariant.price,
       );
 
       return {
@@ -227,7 +234,6 @@ export default function ProductDetail({
     isBusinessCard,
     selectedStickerVariant,
     selectedBusinessCardVariant,
-    product.designFee,
     designPreview,
     pricedProduct,
     quantity,
@@ -257,13 +263,12 @@ export default function ProductDetail({
       .then((response) => response.json())
       .then(
         (
-          pricing: Record<
-            string,
-            { price?: number }
-          >,
+          pricing: Record<string, ProductPricing>,
         ) => {
+          const productPricing =
+            pricing[product.id];
           const nextPrice =
-            pricing[product.id]?.price;
+            productPricing?.price;
 
           if (
             active &&
@@ -272,6 +277,64 @@ export default function ProductDetail({
           ) {
             setAdminBasePrice(nextPrice);
           }
+
+          if (active && isSticker) {
+            const nextVariants =
+              fixedPriceVariantsFromPricing(
+                product.id,
+                productPricing,
+                product.stickerVariants ?? [],
+              );
+
+            setStickerVariants(nextVariants);
+            setSelectedStickerVariant((current) => {
+              const match =
+                nextVariants.find(
+                  (variant) =>
+                    variant.label === current?.label,
+                ) ??
+                nextVariants[0] ??
+                null;
+
+              if (match) {
+                setQuantity(match.quantity);
+                setSelectedSize(match.size);
+              }
+
+              return match;
+            });
+          }
+
+          if (active && isBusinessCard) {
+            const nextVariants =
+              fixedPriceVariantsFromPricing(
+                product.id,
+                productPricing,
+                product.businessCardVariants ?? [],
+              );
+
+            setBusinessCardVariants(nextVariants);
+            setSelectedBusinessCardVariant((current) => {
+              const match =
+                nextVariants.find(
+                  (variant) =>
+                    variant.label === current?.label,
+                ) ??
+                nextVariants.find(
+                  (variant) =>
+                    variant.quantity === 50,
+                ) ??
+                nextVariants[0] ??
+                null;
+
+              if (match) {
+                setQuantity(match.quantity);
+                setSelectedSize(match.size);
+              }
+
+              return match;
+            });
+          }
         },
       )
       .catch(() => undefined);
@@ -279,7 +342,13 @@ export default function ProductDetail({
     return () => {
       active = false;
     };
-  }, [product.id]);
+  }, [
+    isBusinessCard,
+    isSticker,
+    product.businessCardVariants,
+    product.id,
+    product.stickerVariants,
+  ]);
 
   async function handleUpload(
     event: ChangeEvent<HTMLInputElement>,
@@ -563,7 +632,7 @@ export default function ProductDetail({
 
           {/* OPTIONS */}
           <div className="mt-6 grid gap-5">
-            {isSticker && product.stickerVariants?.length ? (
+            {isSticker && stickerVariants.length ? (
               <>
                 <label className="grid gap-2">
                   <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
@@ -574,7 +643,7 @@ export default function ProductDetail({
                     value={selectedStickerVariant?.label ?? ""}
                     onChange={(event) => {
                       const next =
-                        product.stickerVariants?.find(
+                        stickerVariants.find(
                           (variant) =>
                             variant.label ===
                             event.target.value,
@@ -589,7 +658,7 @@ export default function ProductDetail({
                     }}
                     className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
                   >
-                    {product.stickerVariants.map(
+                    {stickerVariants.map(
                       (variant) => (
                         <option
                           key={variant.label}
@@ -634,7 +703,7 @@ export default function ProductDetail({
                 </label>
               </>
             ) : isBusinessCard &&
-              product.businessCardVariants?.length ? (
+              businessCardVariants.length ? (
               <label className="grid gap-2">
                 <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
                   Card Quantity
@@ -644,7 +713,7 @@ export default function ProductDetail({
                   value={selectedBusinessCardVariant?.label ?? ""}
                   onChange={(event) => {
                     const next =
-                      product.businessCardVariants?.find(
+                      businessCardVariants.find(
                         (variant) =>
                           variant.label === event.target.value,
                       ) ?? null;
@@ -658,7 +727,7 @@ export default function ProductDetail({
                   }}
                   className="rounded-2xl border border-white/10 bg-[#0f172a] px-5 py-4 text-white outline-none"
                 >
-                  {product.businessCardVariants.map(
+                  {businessCardVariants.map(
                     (variant) => (
                       <option
                         key={variant.label}

@@ -4,6 +4,7 @@ import {
   DesignLayer,
   ProductPricing,
   findPricingVariant,
+  fixedPriceVariantsFromPricing,
   getAvailableShippingMethods,
   getProduct,
   Order,
@@ -217,10 +218,15 @@ async function repriceOrder(order: Order): Promise<Order> {
     }
 
     if (item.productId === "die-cut-stickers") {
+      const stickerVariants = fixedPriceVariantsFromPricing(
+        product.id,
+        productPricing,
+        product.stickerVariants ?? [],
+      );
       const stickerVariant =
-        product.stickerVariants?.find((variant) => variant.label === item.size) ??
-        product.stickerVariants?.find((variant) => variant.quantity === quantity) ??
-        product.stickerVariants?.[0];
+        stickerVariants.find((variant) => variant.label === item.size) ??
+        stickerVariants.find((variant) => variant.quantity === quantity) ??
+        stickerVariants[0];
       const lineTotal = roundMoney(stickerVariant?.price ?? item.lineTotal);
       const variantQuantity = stickerVariant?.quantity ?? quantity;
 
@@ -236,17 +242,17 @@ async function repriceOrder(order: Order): Promise<Order> {
     }
 
     if (item.productId === "business-cards") {
+      const businessCardVariants = fixedPriceVariantsFromPricing(
+        product.id,
+        productPricing,
+        product.businessCardVariants ?? [],
+      );
       const cardVariant =
-        product.businessCardVariants?.find((variant) => variant.label === item.size) ??
-        product.businessCardVariants?.find((variant) => variant.quantity === quantity) ??
-        product.businessCardVariants?.[1] ??
-        product.businessCardVariants?.[0];
-      const hasCustomDesign = frontHasArt || backHasArt;
-      const designFee =
-        hasCustomDesign && (cardVariant?.quantity ?? quantity) > 1
-          ? product.designFee ?? 0
-          : 0;
-      const lineTotal = roundMoney((cardVariant?.price ?? item.lineTotal) + designFee);
+        businessCardVariants.find((variant) => variant.label === item.size) ??
+        businessCardVariants.find((variant) => variant.quantity === quantity) ??
+        businessCardVariants.find((variant) => variant.quantity === 50) ??
+        businessCardVariants[0];
+      const lineTotal = roundMoney(cardVariant?.price ?? item.lineTotal);
       const variantQuantity = cardVariant?.quantity ?? quantity;
 
       return {

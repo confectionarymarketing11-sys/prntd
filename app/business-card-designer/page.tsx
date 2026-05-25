@@ -25,6 +25,9 @@ import {
 import {
   CartItem,
   DesignLayer,
+  FixedPriceVariant,
+  ProductPricing,
+  fixedPriceVariantsFromPricing,
   formatMoney,
   getProduct,
   roundMoney,
@@ -201,6 +204,13 @@ export default function BusinessCardDesignerPage() {
     setSelectedCardVariant,
   ] = useState(defaultCardVariant);
 
+  const [
+    businessCardVariants,
+    setBusinessCardVariants,
+  ] = useState<FixedPriceVariant[]>(
+    product.businessCardVariants ?? [],
+  );
+
   const size =
     selectedCardVariant?.label ??
     product.sizes[0] ??
@@ -280,15 +290,13 @@ export default function BusinessCardDesignerPage() {
   const price = useMemo(() => {
     const variant =
       selectedCardVariant ??
-      product.businessCardVariants?.[1] ??
-      product.businessCardVariants?.[0];
-    const designFee =
-      variant && variant.quantity > 1
-        ? product.designFee ?? 0
-        : 0;
+      businessCardVariants.find(
+        (cardVariant) =>
+          cardVariant.quantity === 50,
+      ) ??
+      businessCardVariants[0];
     const lineTotal = roundMoney(
-      (variant?.price ?? adminBasePrice) +
-        designFee,
+      variant?.price ?? adminBasePrice,
     );
     const quantityForUnit =
       variant?.quantity ?? quantity;
@@ -306,8 +314,7 @@ export default function BusinessCardDesignerPage() {
     };
   }, [
     selectedCardVariant,
-    product.businessCardVariants,
-    product.designFee,
+    businessCardVariants,
     adminBasePrice,
     quantity,
     frontLayers,
@@ -325,17 +332,14 @@ export default function BusinessCardDesignerPage() {
       )
       .then(
         (
-          pricing: Record<
-            string,
-            {
-              price?: number;
-            }
-          >,
+          pricing: Record<string, ProductPricing>,
         ) => {
-          const nextPrice =
+          const productPricing =
             pricing[
               product.id
-            ]?.price;
+            ];
+          const nextPrice =
+            productPricing?.price;
 
           if (
             active &&
@@ -347,6 +351,43 @@ export default function BusinessCardDesignerPage() {
               nextPrice,
             );
           }
+
+          if (active) {
+            const nextVariants =
+              fixedPriceVariantsFromPricing(
+                product.id,
+                productPricing,
+                product.businessCardVariants ?? [],
+              );
+
+            setBusinessCardVariants(
+              nextVariants,
+            );
+            setSelectedCardVariant(
+              (current) => {
+                const match =
+                  nextVariants.find(
+                    (variant) =>
+                      variant.label ===
+                      current?.label,
+                  ) ??
+                  nextVariants.find(
+                    (variant) =>
+                      variant.quantity ===
+                      50,
+                  ) ??
+                  nextVariants[0];
+
+                if (match) {
+                  setQuantity(
+                    match.quantity,
+                  );
+                }
+
+                return match;
+              },
+            );
+          }
         },
       )
       .catch(
@@ -356,7 +397,10 @@ export default function BusinessCardDesignerPage() {
     return () => {
       active = false;
     };
-  }, [product.id]);
+  }, [
+    product.businessCardVariants,
+    product.id,
+  ]);
 
   useEffect(() => {
     const element =
@@ -1491,7 +1535,7 @@ export default function BusinessCardDesignerPage() {
                     event,
                   ) => {
                     const next =
-                      product.businessCardVariants?.find(
+                      businessCardVariants.find(
                         (variant) =>
                           variant.label ===
                           event.target.value,
@@ -1507,7 +1551,7 @@ export default function BusinessCardDesignerPage() {
                     );
                   }}
                 >
-                  {product.businessCardVariants?.map(
+                  {businessCardVariants.map(
                     (variant) => (
                       <option
                         key={variant.label}

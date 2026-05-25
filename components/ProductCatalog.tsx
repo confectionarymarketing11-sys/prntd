@@ -3,6 +3,8 @@ import Link from "next/link";
 import ProductMockup from "@/components/ProductMockup";
 
 import {
+  ProductPricing,
+  displayPriceFromPricing,
   formatMoney,
   shopProducts,
 } from "@/data/shop";
@@ -10,10 +12,207 @@ import {
 import {
   getPublishedReviewSummary,
 } from "@/features/reviews/data/reviews";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+async function loadProductPricing() {
+  const fallback: Record<string, ProductPricing> =
+    Object.fromEntries(
+      shopProducts.map((product) => [
+        product.id,
+        {
+          price: product.basePrice,
+          currency: "CAD",
+          variants: [],
+        },
+      ]),
+    );
+
+  try {
+    const supabase =
+      createSupabaseAdminClient();
+
+    const { data, error } =
+      await supabase
+        .from("products")
+        .select(
+          `
+          slug,
+          price_cents,
+          currency,
+          status,
+          visibility,
+          variants:product_variants(
+            id,
+            title,
+            sku,
+            price_cents,
+            inventory_quantity,
+            active,
+            option1_name,
+            option1_value,
+            option2_name,
+            option2_value,
+            option3_name,
+            option3_value,
+            position
+          )
+        `,
+        )
+        .in(
+          "slug",
+          shopProducts.map(
+            (product) =>
+              product.id,
+          ),
+        );
+
+    if (error) return fallback;
+
+    const pricing = {
+      ...fallback,
+    };
+
+    for (const row of data ?? []) {
+      const record =
+        row as Record<
+          string,
+          unknown
+        >;
+      const slug = String(
+        record.slug ?? "",
+      );
+      const status = String(
+        record.status ?? "",
+      );
+      const visibility =
+        String(
+          record.visibility ??
+            "",
+        );
+
+      if (
+        !slug ||
+        status === "archived" ||
+        visibility === "hidden"
+      ) {
+        continue;
+      }
+
+      pricing[slug] = {
+        price:
+          Number(
+            record.price_cents ??
+              0,
+          ) / 100,
+        currency: String(
+          record.currency ??
+            "CAD",
+        ),
+        variants: ((
+          record.variants ??
+          []
+        ) as Array<
+          Record<
+            string,
+            unknown
+          >
+        >)
+          .sort(
+            (a, b) =>
+              Number(
+                a.position ??
+                  0,
+              ) -
+              Number(
+                b.position ??
+                  0,
+              ),
+          )
+          .map(
+            (variant) => ({
+              id: String(
+                variant.id ??
+                  "",
+              ),
+              title: String(
+                variant.title ??
+                  "Default Title",
+              ),
+              sku: variant.sku
+                ? String(
+                    variant.sku,
+                  )
+                : null,
+              price:
+                Number(
+                  variant.price_cents ??
+                    0,
+                ) / 100,
+              currency: String(
+                record.currency ??
+                  "CAD",
+              ),
+              inventory_quantity:
+                Number(
+                  variant.inventory_quantity ??
+                    0,
+                ),
+              active: Boolean(
+                variant.active,
+              ),
+              options:
+                Object.fromEntries(
+                  [
+                    [
+                      variant.option1_name,
+                      variant.option1_value,
+                    ],
+                    [
+                      variant.option2_name,
+                      variant.option2_value,
+                    ],
+                    [
+                      variant.option3_name,
+                      variant.option3_value,
+                    ],
+                  ]
+                    .filter(
+                      ([
+                        name,
+                        value,
+                      ]) =>
+                        name && value,
+                    )
+                    .map(
+                      ([
+                        name,
+                        value,
+                      ]) => [
+                        String(
+                          name,
+                        ),
+                        String(
+                          value,
+                        ),
+                      ],
+                    ),
+                ),
+            }),
+          ),
+      };
+    }
+
+    return pricing;
+  } catch {
+    return fallback;
+  }
+}
 
 export default async function ProductCatalog() {
   const reviewSummary =
     await getPublishedReviewSummary();
+  const pricing =
+    await loadProductPricing();
 
   return (
     <section className="relative overflow-hidden bg-[#020617] px-5 py-[70px] pb-[110px] text-white">
@@ -60,6 +259,11 @@ export default async function ProductCatalog() {
                 product.id,
               ) ??
               reviewSummary.get("all");
+            const displayPrice =
+              displayPriceFromPricing(
+                product,
+                pricing[product.id],
+              );
 
             return (
               <Link
@@ -84,10 +288,10 @@ export default async function ProductCatalog() {
                         </p>
 
                         <p className="text-xl font-black text-white">
+                          From{" "}
                           {formatMoney(
-                            product.basePrice,
+                            displayPrice,
                           )}
-                          +
                         </p>
                       </div>
 

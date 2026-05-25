@@ -39,7 +39,6 @@ export type FixedPriceVariant = {
   quantity: number;
   size: string;
   price: number;
-  includesDesignFee?: boolean;
 };
 
 export type Product = {
@@ -56,7 +55,6 @@ export type Product = {
   mockupImage?: string;
   stickerVariants?: FixedPriceVariant[];
   businessCardVariants?: FixedPriceVariant[];
-  designFee?: number;
 };
 
 export type ProductPricingVariant = {
@@ -197,7 +195,6 @@ export const shopProducts: Product[] = [
     printAreas: ["front", "back"],
     minimumQuantity: 1,
     mockupImage: "/mockups/business-cards.png",
-    designFee: 14.83,
     businessCardVariants: [
       { label: "Sample Non Custom", quantity: 1, size: "Sample", price: 2.57 },
       { label: "50 Business Cards", quantity: 50, size: "Standard", price: 23.86 },
@@ -292,8 +289,7 @@ const detailFee =
       };
 
     const total =
-      matchedTier.price +
-      (sidesUsed > 0 ? product.designFee ?? 0 : 0);
+      matchedTier.price;
 
     return {
       unitPrice:
@@ -388,6 +384,80 @@ export function findPricingVariant(pricing: ProductPricing | undefined, optionNa
   const normalizedOptionValue = optionValue.trim().toLowerCase();
 
   return pricing?.variants?.find((variant) => variant.active && getVariantOption(variant, optionName).trim().toLowerCase() === normalizedOptionValue);
+}
+
+function normalizedVariantText(variant: ProductPricingVariant) {
+  return [
+    variant.title,
+    variant.sku,
+    ...Object.entries(variant.options).flatMap(([name, value]) => [name, value]),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function variantLabel(variant: ProductPricingVariant) {
+  if (variant.title && variant.title !== "Default Title") {
+    return variant.title;
+  }
+
+  return (
+    getVariantOption(variant, "Quantity") ||
+    getVariantOption(variant, "Pack") ||
+    getVariantOption(variant, "Size") ||
+    getVariantOption(variant, "Cards") ||
+    getVariantOption(variant, "Credits") ||
+    "Default Title"
+  );
+}
+
+function parseQuantityFromLabel(label: string) {
+  if (label.toLowerCase().includes("sample")) return 1;
+
+  const match = label.match(/\b(\d{1,5})\b/);
+
+  return match ? Number(match[1]) : 1;
+}
+
+function parseSizeFromLabel(label: string) {
+  const match = label.match(/\b(\d+(?:\.\d+)?)\s*"/);
+
+  return match ? `${match[1]}"` : label;
+}
+
+export function fixedPriceVariantsFromPricing(
+  productId: string,
+  pricing: ProductPricing | undefined,
+  fallback: FixedPriceVariant[] = [],
+) {
+  const variants = pricing?.variants
+    ?.filter((variant) => variant.active && variant.price > 0)
+    .filter((variant) => !normalizedVariantText(variant).includes("design fee"))
+    .map((variant) => {
+      const label = variantLabel(variant);
+
+      return {
+        label,
+        quantity: parseQuantityFromLabel(label),
+        size: productId === "die-cut-stickers" ? parseSizeFromLabel(label) : label,
+        price: variant.price,
+      };
+    });
+
+  return variants?.length ? variants : fallback;
+}
+
+export function displayPriceFromPricing(product: Product, pricing: ProductPricing | undefined) {
+  const variantPrice = fixedPriceVariantsFromPricing(
+    product.id,
+    pricing,
+    product.id === "die-cut-stickers" ? product.stickerVariants : product.businessCardVariants,
+  )
+    .filter((variant) => variant.price > 0)
+    .sort((a, b) => a.price - b.price)[0]?.price;
+
+  return variantPrice ?? pricing?.price ?? product.basePrice;
 }
 
 export function getAvailableShippingMethods(items: CartItem[]) {
