@@ -1,1563 +1,924 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Group, Layer, Stage } from "react-konva";
 import ShopHeader from "@/components/ShopHeader";
-import { usePrntdAccount } from "@/hooks/usePrntdAccount";
+import URLImage from "@/components/customizer/URLImage";
+import URLText from "@/components/customizer/URLText";
+import {
+  CART_STORAGE_KEY,
+  CartItem,
+  DesignLayer,
+  formatMoney,
+  getProduct,
+  roundMoney,
+} from "@/data/shop";
+import { updateLayerList } from "@/store/customizerStore";
 
-type ProductChoice = {
-  label: string;
-  value: string;
+type ShirtSide = "front" | "back";
+
+type ShirtColor = {
+  key: string;
+  name: string;
+  swatch: string;
+  images: Record<ShirtSide, string>;
 };
 
-type GenerationResult = {
-  imageUrl?: string;
-  image?: string;
-  url?: string;
-  designId?: string | null;
-  designPath?: string;
-  error?: string;
-};
-
-type SpeechRecognitionConstructor = new () => {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start: () => void;
-  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-};
-
-const apiBase = "/api/prntd";
-
-const products: ProductChoice[] = [
-  { label: "Business Card", value: "business card design," },
-  { label: "Sticker", value: "sticker design," },
-  { label: "Shirt", value: "apparel graphic design," },
-  { label: "Label", value: "product label design," },
-  { label: "Logo", value: "logo design," },
+const shirtColors: ShirtColor[] = [
+  {
+    key: "white",
+    name: "White",
+    swatch: "#ffffff",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_White_flat_front.webp?v=1778969128",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_White_flat_back_V2.webp?v=1778969128",
+    },
+  },
+  {
+    key: "black",
+    name: "Black",
+    swatch: "#111111",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Black_flat_front.webp?v=1778968991",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Black_flat_back.webp?v=1778968991",
+    },
+  },
+  {
+    key: "sportgrey",
+    name: "Sport Grey",
+    swatch: "#9ca3af",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sport_Grey_flat_front.webp?v=1778969128",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sport_Grey_flat_back.webp?v=1778969128",
+    },
+  },
+  {
+    key: "navy",
+    name: "Navy",
+    swatch: "#1e3a8a",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Navy_flat_front.webp?v=1778970017",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Navy_flat_back.webp?v=1778970017",
+    },
+  },
+  {
+    key: "red",
+    name: "Red",
+    swatch: "#dc2626",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Red_flat_front.webp?v=1778970097",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Red_flat_back.webp?v=1778970097",
+    },
+  },
+  {
+    key: "forestgreen",
+    name: "Forest Green",
+    swatch: "#14532d",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Forest_Green_flat_front.webp?v=1778970200",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Forest_Green_flat_back.webp?v=1778970200",
+    },
+  },
+  {
+    key: "militarygreen",
+    name: "Military Green",
+    swatch: "#4b5320",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Military_Green_flat_front.webp?v=1778970281",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Military_Green_flat_back.webp?v=1778970281",
+    },
+  },
+  {
+    key: "sand",
+    name: "Sand",
+    swatch: "#d6c7a1",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sand_flat_front.webp?v=1778969128",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sand_flat_back.webp?v=1778969127",
+    },
+  },
+  {
+    key: "carolinablue",
+    name: "Carolina Blue",
+    swatch: "#7dd3fc",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Carolina_Blue_flat_front.webp?v=1778968991",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Carolina_Blue_flat_back.webp?v=1778968991",
+    },
+  },
+  {
+    key: "sapphire",
+    name: "Sapphire",
+    swatch: "#0284c7",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sapphire_flat_front.webp?v=1778969128",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sapphire_flat_back.webp?v=1778969128",
+    },
+  },
+  {
+    key: "purple",
+    name: "Purple",
+    swatch: "#7e22ce",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Purple_flat_front.webp?v=1778970507",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Purple_flat_back.webp?v=1778970506",
+    },
+  },
+  {
+    key: "HeatherRadiantOrchid",
+    name: "Heather Radiant Orchid",
+    swatch: "#a15a95",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Heather_Radiant_Orchid_flat_front.webp?v=1779113578",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Heather_Radiant_Orchid_flat_back.webp?v=1779113578",
+    },
+  },
+  {
+    key: "heliconia",
+    name: "Heliconia",
+    swatch: "#ec4899",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Heliconia_flat_front.webp?v=1778970569",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Heliconia_flat_back.webp?v=1778970569",
+    },
+  },
+  {
+    key: "orange",
+    name: "Orange",
+    swatch: "#ea580c",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Orange_flat_front.webp?v=1778970629",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Orange_flat_back.webp?v=1778970629",
+    },
+  },
+  {
+    key: "safetyorange",
+    name: "Safety Orange",
+    swatch: "#f97316",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Safety_Orange_flat_front.webp?v=1778969127",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Safety_Orange_flat_back.webp?v=1778969127",
+    },
+  },
+  {
+    key: "maroon",
+    name: "Maroon",
+    swatch: "#7f1d1d",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Maroon_flat_front.webp?v=1778970744",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Maroon_flat_back.webp?v=1778970744",
+    },
+  },
 ];
 
-const styleTemplates: Record<string, string[]> = {
-  luxury: ["luxurious style"],
-  minimal: ["minimalist style"],
-  watercolor: ["watercolor style"],
-  streetwear: ["streetwear style"],
-  text: ["text"],
-  cartoon: ["cartoon style"],
-  cyberpunk: ["cyberpunk style"],
-  bold: ["bold style"],
-  vintage: ["retro vintage style"],
-  modern: ["modern style"],
-  photorealistic: ["photorealistic style"],
-  anime: ["anime style"],
-  professional: ["professional style"],
-  urban: ["urban style"],
-  futuristic: ["high-tech futuristic style"],
-  pencil: ["pencil style"],
-};
-
-const styleOptions = [
-  "luxury",
-  "minimal",
-  "bold",
-  "modern",
-  "professional",
-  "vintage",
-  "retro",
-  "urban",
-  "streetwear",
-  "anime",
-  "cartoon",
-  "futuristic",
-  "cyberpunk",
-  "pencil",
-  "watercolor",
-  "photorealistic",
-  "text",
+const fontFamilies = [
+  "Arial",
+  "Impact",
+  "Helvetica",
+  "Verdana",
+  "Tahoma",
+  "Trebuchet MS",
+  "Georgia",
+  "Times New Roman",
+  "Garamond",
+  "Courier New",
+  "Brush Script MT",
+  "Comic Sans MS",
+  "Lucida Handwriting",
+  "Palatino Linotype",
+  "Copperplate",
 ];
 
-function getSpeechRecognitionConstructor() {
-  if (typeof window === "undefined") return undefined;
+const shirtSizes = ["Small", "Medium", "Large"];
+const oneSidePrice = 35;
+const twoSidePrice = 45;
 
-  return (
-    (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor })
-      .SpeechRecognition ??
-    (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor })
-      .webkitSpeechRecognition
-  );
+function getPrintArea(width: number, height: number) {
+  const areaWidth = width * 0.3;
+  const areaHeight = height * 0.39;
+
+  return {
+    x: width * 0.505 - areaWidth / 2,
+    y: height * 0.51 - areaHeight / 2,
+    width: areaWidth,
+    height: areaHeight,
+  };
 }
 
-function pickStyleText(style: string) {
-  const source = styleTemplates[style] ?? [`${style} style`];
-  return source[Math.floor(Math.random() * source.length)];
+function layerHasArt(layers: DesignLayer[]) {
+  return layers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
 }
 
-function downloadImage(url: string) {
-  fetch(url)
-    .then((response) => response.blob())
-    .then((blob) => {
-      const localUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = localUrl;
-      anchor.download = `design-${Date.now()}.png`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(localUrl);
-    })
-    .catch(() => {
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `design-${Date.now()}.png`;
-      anchor.target = "_blank";
-      document.body.appendChild(anchor);
-      anchor.click();"use client";
+function calculateShirtPrice(quantity: number, frontLayers: DesignLayer[], backLayers: DesignLayer[]) {
+  const isDoubleSided = layerHasArt(frontLayers) && layerHasArt(backLayers);
+  const basePrice = isDoubleSided ? twoSidePrice : oneSidePrice;
+  const discount = quantity >= 6 ? 20 : quantity >= 2 ? 11 : 0;
+  const unitPrice = Math.max(basePrice - discount, 0);
 
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ShopHeader from "@/components/ShopHeader";
-import { usePrntdAccount } from "@/hooks/usePrntdAccount";
-
-type ProductChoice = {
-  label: string;
-  value: string;
-};
-
-type GenerationResult = {
-  imageUrl?: string;
-  image?: string;
-  url?: string;
-  designId?: string | null;
-  designPath?: string;
-  error?: string;
-};
-
-type SpeechRecognitionConstructor = new () => {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start: () => void;
-  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-};
-
-const apiBase = "/api/prntd";
-
-const products: ProductChoice[] = [
-  { label: "Business Card", value: "business card design," },
-  { label: "Sticker", value: "sticker design," },
-  { label: "Shirt", value: "apparel graphic design," },
-  { label: "Label", value: "product label design," },
-  { label: "Logo", value: "logo design," },
-];
-
-const styleTemplates: Record<string, string[]> = {
-  luxury: ["luxurious style"],
-  minimal: ["minimalist style"],
-  watercolor: ["watercolor style"],
-  streetwear: ["streetwear style"],
-  text: ["text"],
-  cartoon: ["cartoon style"],
-  cyberpunk: ["cyberpunk style"],
-  bold: ["bold style"],
-  vintage: ["retro vintage style"],
-  modern: ["modern style"],
-  photorealistic: ["photorealistic style"],
-  anime: ["anime style"],
-  professional: ["professional style"],
-  urban: ["urban style"],
-  futuristic: ["high-tech futuristic style"],
-  pencil: ["pencil style"],
-};
-
-const styleOptions = [
-  "luxury",
-  "minimal",
-  "bold",
-  "modern",
-  "professional",
-  "vintage",
-  "retro",
-  "urban",
-  "streetwear",
-  "anime",
-  "cartoon",
-  "futuristic",
-  "cyberpunk",
-  "pencil",
-  "watercolor",
-  "photorealistic",
-  "text",
-];
-
-function getSpeechRecognitionConstructor() {
-  if (typeof window === "undefined") return undefined;
-
-  return (
-    (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor })
-      .SpeechRecognition ??
-    (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor })
-      .webkitSpeechRecognition
-  );
+  return {
+    printType: isDoubleSided ? "2 Side" : "1 Side",
+    perShirtDiscount: discount,
+    unitPrice,
+    lineTotal: roundMoney(unitPrice * quantity),
+  };
 }
 
-function pickStyleText(style: string) {
-  const source = styleTemplates[style] ?? [`${style} style`];
-  return source[Math.floor(Math.random() * source.length)];
+function readImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
 }
 
-function downloadImage(url: string) {
-  fetch(url)
-    .then((response) => response.blob())
-    .then((blob) => {
-      const localUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = localUrl;
-      anchor.download = `design-${Date.now()}.png`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(localUrl);
-    })
-    .catch(() => {
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `design-${Date.now()}.png`;
-      anchor.target = "_blank";
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-    });
-}
+function trimTransparentPixels(img: HTMLImageElement) {
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
 
-export default function DesignGeneratorPage() {
-  const { email, token: accountToken, status: accountStatus, loadAccount } = usePrntdAccount();
-  const [authToken, setAuthToken] = useState("");
-  const [credits, setCredits] = useState("Credits: --");
-  const [selectedProduct, setSelectedProduct] = useState("");
-  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
-  const [styleTexts, setStyleTexts] = useState<Record<string, string>>({});
-  const [brandDetails, setBrandDetails] = useState("");
-  const [businessCardDetails, setBusinessCardDetails] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [colorInput, setColorInput] = useState("");
-  const [colors, setColors] = useState<string[]>([]);
-  const [quality, setQuality] = useState("standard");
-  const [transparentBackground, setTransparentBackground] = useState("true");
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [progressText, setProgressText] = useState("Preparing your design...");
-  const [result, setResult] = useState<GenerationResult | null>(null);
-  const [resultImage, setResultImage] = useState("");
-  const [editRequest, setEditRequest] = useState("");
-  const [voiceSupported, setVoiceSupported] = useState(() => Boolean(getSpeechRecognitionConstructor()));
-  const [voiceListening, setVoiceListening] = useState(false);
-  const generationInterval = useRef<number | null>(null);
-  const editInterval = useRef<number | null>(null);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return img.src;
 
-  const prompt = useMemo(() => {
-    const parts: string[] = [];
+  ctx.drawImage(img, 0, 0);
 
-    if (selectedProduct) parts.push(selectedProduct);
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  let top: number | null = null;
+  let left: number | null = null;
+  let right: number | null = null;
+  let bottom: number | null = null;
 
-    const chosenStyles = selectedStyles.map((style) => styleTexts[style]).filter(Boolean);
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const alpha = data[(y * canvas.width + x) * 4 + 3];
 
-    if (chosenStyles.length > 0) parts.push(`with ${chosenStyles.join(", ")}`);
-    if (industry.trim()) parts.push(`for a ${industry.trim()}`);
-    if (colors.length > 0) parts.push(`using colors: ${colors.join(", ")}`);
-    if (brandDetails.trim()) parts.push(`details: ${brandDetails.trim()}`);
-    if (businessCardDetails.trim()) parts.push(`business card details include: ${businessCardDetails.trim()}`);
-
-    return parts.join(" ");
-  }, [selectedProduct, selectedStyles, styleTexts, industry, colors, brandDetails, businessCardDetails]);
-
-  const generateButtonText = useMemo(() => {
-    if (!selectedProduct) return "Choose a Product First";
-    if (selectedProduct.toLowerCase().includes("business card") && !businessCardDetails.trim()) {
-      return "Please Enter Business Card Details";
+      if (alpha > 10) {
+        top = top === null ? y : top;
+        left = left === null || x < left ? x : left;
+        right = right === null || x > right ? x : right;
+        bottom = bottom === null || y > bottom ? y : bottom;
+      }
     }
-    if (!selectedProduct.toLowerCase().includes("business card") && !brandDetails.trim()) {
-      return "Please Enter Design Details";
-    }
+  }
 
-    return "Create Your Design";
-  }, [selectedProduct, businessCardDetails, brandDetails]);
+  if (top === null || left === null || right === null || bottom === null) {
+    return img.src;
+  }
 
-  const loadDesignCredits = useCallback(async (nextToken = authToken) => {
-    if (!nextToken) {
-      setCredits("Credits: --");
-      return;
-    }
+  const trimmedWidth = Math.max(1, right - left + 1);
+  const trimmedHeight = Math.max(1, bottom - top + 1);
+  const trimmedCanvas = document.createElement("canvas");
+  trimmedCanvas.width = trimmedWidth;
+  trimmedCanvas.height = trimmedHeight;
 
-    try {
-      const response = await fetch(`${apiBase}/credits`, {
-        headers: {
-          Authorization: `Bearer ${nextToken}`,
-        },
-      });
-      const data = (await response.json()) as {
-        total_credits?: number;
-        credits?: number;
-        subscription_credits?: number;
-      };
-      const total = data.total_credits ?? Number(data.credits ?? 0) + Number(data.subscription_credits ?? 0);
+  const trimmedCtx = trimmedCanvas.getContext("2d");
+  if (!trimmedCtx) return img.src;
 
-      setCredits(`Credits: ${total}`);
-    } catch {
-      setCredits("Credits: --");
-    }
-  }, [authToken]);
+  trimmedCtx.drawImage(canvas, left, top, trimmedWidth, trimmedHeight, 0, 0, trimmedWidth, trimmedHeight);
+
+  return trimmedCanvas.toDataURL("image/png");
+}
+
+export default function DesignerPage() {
+  const [productId, setProductId] = useState("classic-tee");
+  const [currentView, setCurrentView] = useState<ShirtSide>("front");
+  const [currentColorKey, setCurrentColorKey] = useState("white");
+  const [frontLayers, setFrontLayers] = useState<DesignLayer[]>([]);
+  const [backLayers, setBackLayers] = useState<DesignLayer[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [size, setSize] = useState("Medium");
+  const [fontFamily, setFontFamily] = useState("Arial");
+  const [textColor, setTextColor] = useState("#111111");
+  const [stageWidth, setStageWidth] = useState(720);
+  const [notice, setNotice] = useState("Keep everything inside the blue-lined card.");
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
+  const stageWrapRef = useRef<HTMLDivElement | null>(null);
+  const generatedImageLoadedRef = useRef(false);
+
+  const stageHeight = stageWidth * 1.2;
+  const printArea = useMemo(() => getPrintArea(stageWidth, stageHeight), [stageWidth, stageHeight]);
+  const color = shirtColors.find((item) => item.key === currentColorKey) ?? shirtColors[0];
+  const selectedProduct = getProduct(productId);
+  const layers = currentView === "front" ? frontLayers : backLayers;
+  const selectedLayer = layers.find((layer) => layer.id === selectedId);
+  const selectedTextLayer = selectedLayer?.type === "text" ? selectedLayer : null;
+  const price = useMemo(() => calculateShirtPrice(quantity, frontLayers, backLayers), [quantity, frontLayers, backLayers]);
 
   useEffect(() => {
-    if (!accountToken) return;
     const timer = window.setTimeout(() => {
-      void loadDesignCredits(accountToken);
+      const params = new URLSearchParams(window.location.search);
+      setProductId(params.get("product") ?? "classic-tee");
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [accountToken, loadDesignCredits]);
+  }, []);
 
-  async function ensureAuthToken() {
-    if (authToken || accountToken) return authToken || accountToken;
-    const session = accountToken ? { token: accountToken } : await loadAccount();
+  useEffect(() => {
+    const element = stageWrapRef.current;
 
-    if (!session?.token) return "";
+    if (!element) return;
 
-    setAuthToken(session.token);
-    await loadDesignCredits(session.token);
-    return session.token;
-  }
+    const observer = new ResizeObserver(([entry]) => {
+      setStageWidth(Math.min(820, Math.max(300, entry.contentRect.width)));
+    });
 
-  function selectProduct(product: ProductChoice) {
-    setSelectedProduct(product.value);
-    setSelectedStyles([]);
-    setStyleTexts({});
-    setColors([]);
-    setIndustry("");
-    setResult(null);
-    setResultImage("");
-  }
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
-  function toggleStyle(style: string) {
-    if (selectedStyles.includes(style)) {
-      setSelectedStyles((current) => current.filter((item) => item !== style));
-      setStyleTexts((current) => {
-        const next = { ...current };
-        delete next[style];
-        return next;
+  useEffect(() => {
+    if (generatedImageLoadedRef.current) return;
+
+    const generatedImage = localStorage.getItem("prntd_generated_image");
+
+    if (!generatedImage) return;
+
+    generatedImageLoadedRef.current = true;
+
+    const startSize = window.innerWidth < 768 ? 160 : 300;
+
+    readImage(generatedImage)
+      .then((image) => {
+        const aspect = image.width / image.height;
+        const width = aspect >= 1 ? startSize : startSize * aspect;
+        const height = aspect >= 1 ? startSize / aspect : startSize;
+        const generatedLayer: DesignLayer = {
+          id: crypto.randomUUID(),
+          type: "image",
+          preview: generatedImage,
+          x: (stageWidth - width) / 2,
+          y: (stageHeight - height) / 2,
+          width,
+          height,
+          rotation: 0,
+        };
+
+        setCurrentView("front");
+        setFrontLayers((current) => [...current, generatedLayer]);
+        setSelectedId(generatedLayer.id);
+        setNotice("Generated design loaded. Position it inside the blue-lined card.");
+        localStorage.removeItem("prntd_generated_image");
+      })
+      .catch(() => {
+        setNotice("Generated design could not be loaded.");
       });
-      return;
+  }, [stageHeight, stageWidth]);
+
+  useEffect(() => {
+    function handleDelete(event: KeyboardEvent) {
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      if (!selectedId) return;
+
+      event.preventDefault();
+      deleteSelectedLayer();
     }
 
-    setSelectedStyles((current) => [...current, style]);
-    setStyleTexts((current) => ({ ...current, [style]: pickStyleText(style) }));
+    window.addEventListener("keydown", handleDelete);
+    return () => window.removeEventListener("keydown", handleDelete);
+  });
+
+  function updateLayers(nextLayers: DesignLayer[]) {
+    if (currentView === "front") {
+      setFrontLayers(nextLayers);
+    } else {
+      setBackLayers(nextLayers);
+    }
   }
 
-  function addColorValue(value = colorInput) {
-    const cleanValue = value.trim();
-
-    if (!cleanValue || colors.includes(cleanValue)) return;
-
-    setColors((current) => [...current, cleanValue]);
-    setColorInput("");
+  function updateLayer(id: string, updates: Partial<DesignLayer>) {
+    if (currentView === "front") {
+      setFrontLayers((current) => updateLayerList(current, id, updates));
+    } else {
+      setBackLayers((current) => updateLayerList(current, id, updates));
+    }
   }
 
-  function startFakeLoading(mode: "generate" | "edit") {
-    const isUltra = quality === "ultra" && mode === "generate";
-    let nextProgress = 0;
-    const intervalRef = mode === "generate" ? generationInterval : editInterval;
-
-    if (intervalRef.current) window.clearInterval(intervalRef.current);
-
-    setProgress(0);
-    setProgressText(isUltra ? "Ultra quality can take a little longer..." : mode === "edit" ? "Reviewing your current design..." : "Preparing your design...");
-
-    intervalRef.current = window.setInterval(() => {
-      if (isUltra) {
-        if (nextProgress < 8) {
-          nextProgress += 0.7;
-          setProgressText("Preparing ultra quality render...");
-        } else if (nextProgress < 20) {
-          nextProgress += 0.5;
-          setProgressText("Building detailed composition...");
-        } else if (nextProgress < 40) {
-          nextProgress += 0.35;
-          setProgressText("Rendering enhanced details...");
-        } else if (nextProgress < 60) {
-          nextProgress += 0.22;
-          setProgressText("Applying ultra quality refinements...");
-        } else if (nextProgress < 78) {
-          nextProgress += 0.12;
-          setProgressText("Enhancing textures and print quality...");
-        } else if (nextProgress < 88) {
-          nextProgress += 0.06;
-          setProgressText("Final ultra quality rendering...");
-        } else if (nextProgress < 94) {
-          nextProgress += 0.025;
-          setProgressText("Almost finished...");
-        }
-      } else if (mode === "edit") {
-        if (nextProgress < 25) {
-          nextProgress += 2;
-          setProgressText("Reviewing your current design...");
-        } else if (nextProgress < 55) {
-          nextProgress += 1.25;
-          setProgressText("Applying requested changes...");
-        } else if (nextProgress < 88) {
-          nextProgress += 0.55;
-          setProgressText("Generating updated version...");
-        } else if (nextProgress < 95) {
-          nextProgress += 0.2;
-          setProgressText("Almost done...");
-        }
-      } else if (nextProgress < 15) {
-        nextProgress += 2;
-        setProgressText("Preparing your design...");
-      } else if (nextProgress < 40) {
-        nextProgress += 1.5;
-        setProgressText("Getting your design ready...");
-      } else if (nextProgress < 70) {
-        nextProgress += 1;
-        setProgressText("Creating your concept...");
-      } else if (nextProgress < 90) {
-        nextProgress += 0.5;
-        setProgressText("Finalizing your design...");
-      } else if (nextProgress < 95) {
-        nextProgress += 0.2;
-        setProgressText("Almost done...");
-      }
-
-      setProgress(Math.min(nextProgress, 95));
-    }, 300);
+  function addLayers(nextLayers: DesignLayer[]) {
+    const updatedLayers = [...layers, ...nextLayers];
+    updateLayers(updatedLayers);
+    setSelectedId(nextLayers.at(-1)?.id ?? null);
   }
 
-  function finishFakeLoading(mode: "generate" | "edit") {
-    const intervalRef = mode === "generate" ? generationInterval : editInterval;
-
-    if (intervalRef.current) window.clearInterval(intervalRef.current);
-
-    setProgress(100);
-    setProgressText(mode === "edit" ? "Update complete!" : "Design complete!");
-    window.setTimeout(() => setProgress(0), 700);
+  function setSide(nextView: ShirtSide) {
+    setCurrentView(nextView);
+    setSelectedId(null);
+    setNotice(`${nextView === "front" ? "Front" : "Back"} side selected.`);
   }
 
-  async function runGeneration() {
-    if (!selectedProduct) {
-      alert("Please choose what you're creating first.");
+  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    const imageLayerCount = layers.filter((layer) => layer.type === "image").length;
+
+    if (!files.length) return;
+
+    if (imageLayerCount + files.length > 3) {
+      setNotice("Maximum 3 images allowed per side.");
+      event.target.value = "";
       return;
     }
 
-    if (!brandDetails.trim() && !businessCardDetails.trim()) {
-      alert("Please add your design details first.");
+    const startSize = window.innerWidth < 768 ? 160 : 300;
+    const builtLayers = await Promise.all(
+      files.map(
+        (file) =>
+          new Promise<DesignLayer>((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = async (readerEvent) => {
+              try {
+                const image = await readImage(String(readerEvent.target?.result));
+                const aspect = image.width / image.height;
+                const width = aspect >= 1 ? startSize : startSize * aspect;
+                const height = aspect >= 1 ? startSize / aspect : startSize;
+
+                resolve({
+                  id: crypto.randomUUID(),
+                  type: "image",
+                  preview: trimTransparentPixels(image),
+                  x: (stageWidth - width) / 2,
+                  y: (stageHeight - height) / 2,
+                  width,
+                  height,
+                  rotation: 0,
+                });
+              } catch (error) {
+                reject(error);
+              }
+            };
+
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          })
+      )
+    );
+
+    addLayers(builtLayers);
+    setNotice(`${builtLayers.length} design${builtLayers.length === 1 ? "" : "s"} added to the ${currentView}.`);
+    event.target.value = "";
+  }
+
+  function addText() {
+    const newLayer: DesignLayer = {
+      id: crypto.randomUUID(),
+      type: "text",
+      text: "Double click to edit",
+      x: stageWidth / 2 - 120,
+      y: stageHeight / 2 - 20,
+      fontSize: 42,
+      fontFamily,
+      fill: textColor,
+      rotation: 0,
+    };
+
+    addLayers([newLayer]);
+    setNotice("Text added. Edit it in the selected text field or double click the text.");
+  }
+
+  function editTextLayer(layer: DesignLayer) {
+    const nextText = window.prompt("Edit text", layer.text ?? "");
+
+    if (nextText === null) return;
+
+    updateLayer(layer.id, { text: nextText });
+  }
+
+  function deleteSelectedLayer() {
+    if (!selectedId) return;
+
+    updateLayers(layers.filter((layer) => layer.id !== selectedId));
+    setSelectedId(null);
+    setNotice("Selected design deleted.");
+  }
+
+  function moveSelectedLayer(direction: "forward" | "backward") {
+    if (!selectedId) return;
+
+    const index = layers.findIndex((layer) => layer.id === selectedId);
+    const nextIndex = direction === "forward" ? index + 1 : index - 1;
+
+    if (index < 0 || nextIndex < 0 || nextIndex >= layers.length) return;
+
+    const updatedLayers = [...layers];
+    [updatedLayers[index], updatedLayers[nextIndex]] = [updatedLayers[nextIndex], updatedLayers[index]];
+    updateLayers(updatedLayers);
+  }
+
+  function resetImageSize(layer: DesignLayer, image: HTMLImageElement) {
+    const startSize = window.innerWidth < 768 ? 160 : 300;
+    const aspect = image.width / image.height;
+    const width = aspect >= 1 ? startSize : startSize * aspect;
+    const height = aspect >= 1 ? startSize / aspect : startSize;
+
+    updateLayer(layer.id, { width, height, rotation: 0 });
+  }
+
+  async function removeBackground() {
+    if (!selectedLayer || selectedLayer.type !== "image" || !selectedLayer.preview) {
+      setNotice("Select an image first.");
       return;
     }
 
-    if (quality === "ultra" && transparentBackground === "true") {
-      alert("Ultra quality currently does not support transparent backgrounds.");
-      return;
-    }
-
-    const token = await ensureAuthToken();
-
-    if (!token) {
-      alert("Sign in before creating a design.");
-      return;
-    }
-
-    setIsGenerating(true);
-    setResult(null);
-    setResultImage("");
-    startFakeLoading("generate");
+    setIsRemovingBg(true);
+    setNotice("Removing background...");
 
     try {
-      const response = await fetch(`${apiBase}/generate-design`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          prompt,
-          productType: selectedProduct,
-          quality,
-          transparentBackground: transparentBackground === "true",
-        }),
+      const image = await readImage(selectedLayer.preview);
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas unavailable.");
+
+      ctx.drawImage(image, 0, 0);
+
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((nextBlob) => (nextBlob ? resolve(nextBlob) : reject(new Error("Image export failed."))), "image/png");
       });
-      const data = (await response.json()) as GenerationResult;
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "Generation failed");
-      }
-
-      const image = data.imageUrl ?? data.image ?? data.url ?? "";
-
-      if (!image) {
-        throw new Error("No image returned from backend");
-      }
-
-      setResult(data);
-      setResultImage(image);
-      finishFakeLoading("generate");
-      downloadImage(image);
-      await loadDesignCredits(token);
-    } catch (error) {
-      if (generationInterval.current) window.clearInterval(generationInterval.current);
-      setProgressText(error instanceof Error ? error.message : "Something went wrong. Please try again.");
-      setResult({ error: error instanceof Error ? error.message : "Generation failed." });
-    } finally {
-      setIsGenerating(false);
-    }
-  }
-
-  async function runEdit() {
-    if (!resultImage || !editRequest.trim()) {
-      alert("Describe the changes you'd like first.");
-      return;
-    }
-
-    const token = await ensureAuthToken();
-
-    if (!token) {
-      alert("Sign in before editing a design.");
-      return;
-    }
-
-    setIsEditing(true);
-    startFakeLoading("edit");
-
-    try {
-      const response = await fetch(resultImage);
-      const imageBlob = await response.blob();
       const formData = new FormData();
-      formData.append("image", imageBlob, "design.png");
-      formData.append("editRequest", editRequest);
+      formData.append("image", blob, "image.png");
 
-      const editResponse = await fetch(`${apiBase}/edit-image`, {
+      const response = await fetch("https://prntd-bg-remover.onrender.com/api/remove-bg", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${localStorage.getItem("prntd_jwt") ?? ""}`,
         },
         body: formData,
       });
-      const data = (await editResponse.json()) as GenerationResult;
 
-      if (!editResponse.ok) {
-        throw new Error(data.error ?? "Edit failed");
+      if (!response.ok) {
+        throw new Error("Background removal failed.");
       }
 
-      const image = data.imageUrl ?? data.image ?? data.url ?? "";
-
-      if (!image) throw new Error("No image returned from edit.");
-
-      setResult(data);
-      setResultImage(image);
-      setEditRequest("");
-      finishFakeLoading("edit");
-      downloadImage(image);
-      await loadDesignCredits(token);
+      const resultBlob = await response.blob();
+      updateLayer(selectedLayer.id, { preview: URL.createObjectURL(resultBlob) });
+      setNotice("Background removed.");
     } catch (error) {
-      if (editInterval.current) window.clearInterval(editInterval.current);
-      setProgressText(error instanceof Error ? error.message : "Edit failed.");
+      setNotice(error instanceof Error ? error.message : "Something went wrong.");
     } finally {
-      setIsEditing(false);
+      setIsRemovingBg(false);
     }
   }
 
-  function startVoice() {
-    const Recognition = getSpeechRecognitionConstructor();
+  async function flattenSide(side: ShirtSide) {
+    const sideLayers = side === "front" ? frontLayers : backLayers;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(printArea.width);
+    canvas.height = Math.round(printArea.height);
 
-    if (!Recognition) {
-      setVoiceSupported(false);
-      return;
-    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
 
-    const recognition = new Recognition();
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-    recognition.onresult = (event) => {
-      let transcript = "";
+    ctx.translate(-printArea.x, -printArea.y);
 
-      for (let index = 0; index < event.results.length; index += 1) {
-        transcript += `${event.results[index][0].transcript} `;
+    for (const layer of sideLayers) {
+      if (layer.type === "image" && layer.preview && layer.width && layer.height) {
+        const image = await readImage(layer.preview);
+
+        ctx.save();
+        ctx.translate(layer.x + layer.width / 2, layer.y + layer.height / 2);
+        ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
+        ctx.drawImage(image, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+        ctx.restore();
       }
 
-      setBrandDetails(transcript.trim());
-    };
-    recognition.onerror = () => setVoiceListening(false);
-    recognition.onend = () => setVoiceListening(false);
-    setVoiceListening(true);
-    recognition.start();
+      if (layer.type === "text" && layer.text) {
+        ctx.save();
+        ctx.translate(layer.x, layer.y);
+        ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
+        ctx.font = `${layer.fontSize ?? 42}px ${layer.fontFamily ?? "Arial"}`;
+        ctx.fillStyle = layer.fill ?? "#111111";
+        ctx.textBaseline = "top";
+        ctx.fillText(layer.text, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    return canvas.toDataURL("image/png");
   }
 
-  function applyToProduct() {
-    if (!resultImage) return;
+  async function addToCart() {
+    setNotice("Preparing design for cart...");
 
-    localStorage.setItem("prntd_generated_image", resultImage);
+    const [frontFlattened, backFlattened] = await Promise.all([
+      layerHasArt(frontLayers) ? flattenSide("front") : Promise.resolve(null),
+      layerHasArt(backLayers) ? flattenSide("back") : Promise.resolve(null),
+    ]);
+
     localStorage.setItem(
-      "prntd_design",
+      "prntd_last_flattened_design",
       JSON.stringify({
-        image: resultImage,
-        designId: result?.designId,
-        designPath: result?.designPath,
-        type: "generated-design",
+        front: frontFlattened,
+        back: backFlattened,
       })
     );
 
-    const product = selectedProduct.toLowerCase();
+    const item: CartItem = {
+      id: crypto.randomUUID(),
+      productId: selectedProduct.id,
+      productName: `Custom ${selectedProduct.name} (${price.printType})`,
+      size,
+      color: {
+        name: color.name,
+        value: color.swatch,
+      },
+      quantity,
+      frontLayers,
+      backLayers,
+      unitPrice: price.unitPrice,
+      lineTotal: price.lineTotal,
+      createdAt: new Date().toISOString(),
+    };
+    const currentCart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? "[]") as CartItem[];
 
-    if (product.includes("shirt") || product.includes("apparel")) {
-      localStorage.setItem("prntd_product", "tshirt");
-      window.location.href = "/designer";
-      return;
-    }
-
-    if (product.includes("sticker")) {
-      localStorage.setItem("prntd_product", "sticker");
-    } else if (product.includes("business card")) {
-      localStorage.setItem("prntd_product", "businesscard");
-    } else if (product.includes("label")) {
-      localStorage.setItem("prntd_product", "label");
-    } else {
-      localStorage.setItem("prntd_product", "product");
-    }
-
-    window.location.href = "/products";
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([...currentCart, item]));
+    window.location.href = "/cart";
   }
 
-  const showBusinessCard = selectedProduct.toLowerCase().includes("business card");
-  const hasProgress = isGenerating || isEditing || progress > 0;
-
   return (
-  <main className="min-h-screen bg-[#020617] text-white">
-    <ShopHeader />
+    <main className="min-h-screen bg-[#f5f7fb] text-[#111827]">
+      <ShopHeader />
 
-    <section className="mx-auto w-full max-w-[1400px] px-5 py-[55px] pb-[90px]">
-      <div className="mb-[42px] rounded-[36px] border border-white/10 bg-[linear-gradient(135deg,#020617_0%,#0f172a_50%,#312e81_100%)] p-10 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
-        <div className="grid gap-10 lg:grid-cols-[1fr_340px] lg:items-center">
-          <div>
-            <div className="mb-5 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-5 py-2 text-xs font-black uppercase tracking-[0.22em] text-slate-300">
-              PRNTD Studio
-            </div>
-
-            <h1 className="mb-5 text-[clamp(52px,6vw,92px)] font-black leading-[0.95] tracking-[-0.04em]">
-              Generate
-              <br />
-              <span className="bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#c084fc_100%)] bg-clip-text text-transparent">
-                Premium Designs
-              </span>
-            </h1>
-
-            <p className="max-w-[760px] text-lg leading-[1.8] text-slate-400">
-              Create custom shirts, logos, labels, stickers, and business cards with modern AI-powered design tools.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Link
-                href="/subscriptions"
-                className="flex h-[56px] items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#2563eb_0%,#7c3aed_100%)] px-7 text-sm font-extrabold text-white shadow-[0_20px_40px_rgba(99,102,241,0.35)] transition hover:scale-[1.02]"
-              >
-                Buy Credits
-              </Link>
-
-              <Link
-                href="/dashboard"
-                className="flex h-[56px] items-center justify-center rounded-[18px] border border-white/10 bg-white/5 px-7 text-sm font-bold text-white transition hover:bg-white/10"
-              >
-                Open Dashboard
-              </Link>
-            </div>
-          </div>
-
-          <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-7 backdrop-blur-xl">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-              Creator Account
-            </p>
-
-            <p className="mt-3 break-words text-[34px] font-black leading-tight text-white">
-              {email || "Loading..."}
-            </p>
-
-            <p className="mt-2 text-sm text-slate-400">{accountStatus}</p>
-
-            <div className="mt-7 rounded-[24px] border border-white/10 bg-[#0b1120] p-6">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                Credits
-              </p>
-
-              <p className="mt-3 text-[64px] font-black leading-none text-white">
-                {credits.replace("Credits: ", "")}
-              </p>
-
-              <p className="mt-3 text-sm text-slate-400">
-                Each generation uses 1 credit.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid items-start gap-[26px] lg:grid-cols-[minmax(0,1fr)_400px] max-[1100px]:grid-cols-1">
-        <div className="rounded-[30px] border border-white/10 bg-white/[0.03] p-[30px] shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl max-[640px]:p-[22px]">
-          <section className="mb-8">
-            <h2 className="mb-2.5 text-2xl font-extrabold text-white">
-              Product Type
-            </h2>
-
-            <p className="mb-[18px] text-sm leading-7 text-slate-400">
-              Select what you'd like to create.
-            </p>
-
-            <div className="grid grid-cols-5 gap-3.5 max-[900px]:grid-cols-3 max-[640px]:grid-cols-2">
-              {products.map((product) => (
+      <section className="mx-auto w-full max-w-7xl px-[22px] py-10">
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] max-[1100px]:gap-7 max-[860px]:grid-cols-1">
+          <div className="relative rounded-[32px] bg-[#f5f7fb] p-7 max-[860px]:rounded-3xl max-[860px]:p-[18px]">
+            <div className="mb-[18px] flex gap-2.5 overflow-auto max-[860px]:w-full">
+              {(["front", "back"] as ShirtSide[]).map((side) => (
                 <button
-                  key={product.value}
+                  key={side}
                   type="button"
-                  onClick={() => selectProduct(product)}
-                  className={`min-h-[88px] rounded-[24px] border p-4 text-left text-[14px] font-bold transition hover:-translate-y-0.5 ${
-                    selectedProduct === product.value
-                      ? "border-white/10 bg-[linear-gradient(135deg,#2563eb_0%,#7c3aed_50%,#9333ea_100%)] text-white shadow-[0_20px_40px_rgba(99,102,241,0.35)]"
-                      : "border-white/10 bg-[linear-gradient(135deg,#111827_0%,#1e293b_45%,#312e81_100%)] text-slate-300 hover:shadow-[0_12px_26px_rgba(99,102,241,0.18)]"
+                  onClick={() => setSide(side)}
+                  className={`rounded-full px-[18px] py-3 text-sm font-bold capitalize max-[860px]:min-w-30 max-[860px]:flex-1 ${
+                    currentView === side ? "bg-[#111827] text-white" : "bg-[#e5e7eb] text-[#111827]"
                   }`}
                 >
-                  <div className="text-lg font-black">{product.label}</div>
-
-                  <div className="mt-2 text-xs text-slate-400">
-                    premium graphics.
-                  </div>
+                  {side}
                 </button>
               ))}
             </div>
-          </section>
 
-          {!showBusinessCard && (
-            <section className="mb-8">
-              <h2 className="mb-2.5 text-2xl font-extrabold text-white">
-                Describe Your Design
-              </h2>
+            <div className="absolute right-7 top-5 z-50 flex max-w-[calc(100%-210px)] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-red-500/10 bg-white/90 px-[18px] py-2.5 text-sm font-semibold text-[#111827] shadow-[0_8px_24px_rgba(0,0,0,0.08)] backdrop-blur max-[860px]:static max-[860px]:mb-4 max-[860px]:w-full max-[860px]:max-w-none max-[860px]:justify-start max-[860px]:whitespace-normal max-[860px]:rounded-[18px]">
+              <span className="font-extrabold text-red-500">Important:</span>
+              Keep everything inside the blue-lined card. Prints exactly as shown.
+            </div>
 
-              <p className="mb-[18px] text-sm leading-7 text-slate-400">
-                Explain your idea, layout, text, colors, branding, or style.
-              </p>
-
-              <div className="relative">
-                <textarea
-                  value={brandDetails}
-                  onChange={(event) => setBrandDetails(event.target.value)}
-                  className="min-h-[170px] w-full resize-y rounded-[22px] border border-white/10 bg-[#020617] p-[18px] pr-[70px] text-[15px] text-white outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20"
-                  placeholder="Example: Modern streetwear shirt with chrome typography and neon blue accents."
-                />
-
-                {voiceSupported && (
-                  <button
-                    type="button"
-                    onClick={startVoice}
-                    className={`absolute bottom-3.5 right-3.5 flex h-11 w-11 items-center justify-center rounded-[14px] text-sm font-black text-white shadow-[0_10px_25px_rgba(99,102,241,0.35)] ${
-                      voiceListening
-                        ? "bg-[linear-gradient(135deg,#ef4444,#dc2626)]"
-                        : "bg-[linear-gradient(135deg,#2563eb,#7c3aed)]"
-                    }`}
-                  >
-                    Mic
-                  </button>
-                )}
-              </div>
-            </section>
-          )}
-
-          {showBusinessCard && (
-            <section className="mb-8">
-              <h2 className="mb-2.5 text-2xl font-extrabold text-white">
-                Business Card Details
-              </h2>
-
-              <textarea
-                value={businessCardDetails}
-                onChange={(event) =>
-                  setBusinessCardDetails(event.target.value)
-                }
-                className="min-h-[170px] w-full resize-y rounded-[22px] border border-white/10 bg-[#020617] p-[18px] text-[15px] text-white outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20"
-                placeholder={`Business Name:\nYour Name:\nPhone:\nEmail:\nWebsite:`}
+            <div ref={stageWrapRef} className="relative mx-auto aspect-[1/1.2] w-full overflow-hidden rounded-[28px] bg-[#eef2f7] max-[860px]:rounded-[20px]">
+              <Image
+                src={color.images[currentView]}
+                alt={`${color.name} shirt ${currentView}`}
+                fill
+                priority
+                sizes="(max-width: 860px) calc(100vw - 80px), 760px"
+                className="pointer-events-none select-none object-contain"
               />
-            </section>
-          )}
 
-          <section className="mb-8">
-            <h2 className="mb-2.5 text-2xl font-extrabold text-white">
-              Choose a Style
-            </h2>
-
-            <div className="flex flex-wrap gap-3">
-              {styleOptions.map((style) => (
-                <button
-                  key={style}
-                  type="button"
-                  onClick={() => toggleStyle(style)}
-                  className={`rounded-full border px-[18px] py-3 text-sm font-bold capitalize transition ${
-                    selectedStyles.includes(style)
-                      ? "border-white/10 bg-[linear-gradient(135deg,#2563eb_0%,#7c3aed_50%,#9333ea_100%)] text-white shadow-[0_14px_30px_rgba(99,102,241,0.25)]"
-                      : "border-white/10 bg-[#111827] text-slate-300 hover:bg-[#1e293b]"
-                  }`}
-                >
-                  {style}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="mb-8 grid gap-8 md:grid-cols-2">
-            <div>
-              <h2 className="mb-2.5 text-2xl font-extrabold text-white">
-                Design Quality
-              </h2>
-
-              <select
-                value={quality}
-                onChange={(event) => {
-                  const nextQuality = event.target.value;
-
-                  setQuality(nextQuality);
-                  setTransparentBackground(
-                    nextQuality === "ultra" ? "false" : "true"
-                  );
-                }}
-                className="h-[58px] w-full rounded-[20px] border border-white/10 bg-[#020617] px-[17px] text-[15px] text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20"
-              >
-                <option value="basic">
-                  Fastest Speed - Basic Quality - (25secs)
-                </option>
-
-                <option value="standard">
-                  Medium Speed - High Quality - (40secs)
-                </option>
-
-                <option value="premium">
-                  Medium Speed - Best Quality - (1 min)
-                </option>
-
-                <option value="ultra">
-                  Slowest Speed - Ultra Quality - (3 mins)
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <h2 className="mb-2.5 text-2xl font-extrabold text-white">
-                Transparent Background
-              </h2>
-
-              <select
-                value={transparentBackground}
-                disabled={quality === "ultra"}
-                onChange={(event) =>
-                  setTransparentBackground(event.target.value)
-                }
-                className="h-[58px] w-full rounded-[20px] border border-white/10 bg-[#020617] px-[17px] text-[15px] text-white outline-none disabled:opacity-60 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20"
-              >
-                <option value="false">Off</option>
-                <option value="true">On</option>
-              </select>
-            </div>
-          </section>
-
-          <button
-            type="button"
-            onClick={runGeneration}
-            disabled={isGenerating}
-            className="mt-5 flex h-[62px] w-full items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#2563eb_0%,#7c3aed_100%)] text-[15px] font-extrabold text-white shadow-[0_20px_40px_rgba(99,102,241,0.35)] transition hover:scale-[1.01] disabled:opacity-60"
-          >
-            {isGenerating ? "Creating..." : generateButtonText}
-          </button>
-
-          {hasProgress && (
-            <div className="mt-6">
-              <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full bg-[linear-gradient(135deg,#2563eb_0%,#7c3aed_100%)] transition-all"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-
-              <p className="mt-3 text-center text-sm text-slate-400">
-                {progressText}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <aside className="sticky top-5 rounded-[30px] border border-white/10 bg-white/[0.03] p-[30px] shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl max-[1100px]:relative max-[1100px]:top-auto max-[640px]:p-[22px]">
-          <h2 className="mb-2.5 text-2xl font-extrabold text-white">
-            Live Preview
-          </h2>
-
-          <div className="min-h-[500px] rounded-3xl border border-white/10 bg-[#020617] p-5">
-            {!resultImage && !result?.error && (
-              <div className="pt-[100px] text-center">
-                <h3 className="mb-3 text-2xl font-black text-white">
-                  Your Design Preview
-                </h3>
-
-                <p className="text-slate-400">
-                  Generated designs appear here.
-                </p>
-              </div>
-            )}
-
-            {result?.error && (
-              <div className="rounded-[18px] border border-red-500/20 bg-red-500/10 p-5 text-center">
-                <p className="text-base text-white">{result.error}</p>
-              </div>
-            )}
-
-            {resultImage && (
-              <div className="text-center">
-                <img
-                  src={resultImage}
-                  alt="Generated design"
-                  className="w-full rounded-[24px] bg-[linear-gradient(45deg,#111827_25%,transparent_25%),linear-gradient(-45deg,#111827_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#111827_75%),linear-gradient(-45deg,transparent_75%,#111827_75%)] bg-[length:24px_24px] bg-[position:0_0,0_12px,12px_-12px,-12px_0px] p-3 shadow-[0_20px_50px_rgba(0,0,0,0.55)]"
-                />
-
-                <p className="mt-5 text-sm leading-7 text-slate-400">
-                  Download finishes automatically after generation.
-                </p>
-
-                <div className="mt-8 border-t border-white/10 pt-6">
-                  <textarea
-                    value={editRequest}
-                    onChange={(event) =>
-                      setEditRequest(event.target.value)
-                    }
-                    className="min-h-[120px] w-full rounded-[22px] border border-white/10 bg-[#020617] p-[18px] text-[15px] text-white outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20"
-                    placeholder="Describe the changes you'd like..."
-                  />
-
-                  <button
-                    type="button"
-                    onClick={runEdit}
-                    disabled={isEditing}
-                    className="mt-5 flex h-[58px] w-full items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#2563eb_0%,#7c3aed_100%)] text-sm font-extrabold text-white shadow-[0_20px_40px_rgba(99,102,241,0.35)] transition hover:scale-[1.01]"
-                  >
-                    {isEditing ? "Updating..." : "Update Design - 1 Credit"}
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResult(null);
-                    setResultImage("");
-                    setEditRequest("");
-                  }}
-                  className="mt-4 flex h-[58px] w-full items-center justify-center rounded-[20px] border border-white/10 bg-white/5 text-sm font-bold text-white transition hover:bg-white/10"
-                >
-                  New Design
-                </button>
-
-                <button
-                  type="button"
-                  onClick={applyToProduct}
-                  className="mt-4 flex h-[58px] w-full items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#2563eb_0%,#7c3aed_100%)] text-sm font-extrabold text-white shadow-[0_20px_40px_rgba(99,102,241,0.35)] transition hover:scale-[1.01]"
-                >
-                  Apply To Product
-                </button>
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
-    </section>
-  </main>
-);
-      anchor.remove();
-    });
-}
-
-export default function DesignGeneratorPage() {
-  const { email, token: accountToken, status: accountStatus, loadAccount } = usePrntdAccount();
-  const [authToken, setAuthToken] = useState("");
-  const [credits, setCredits] = useState("Credits: --");
-  const [selectedProduct, setSelectedProduct] = useState("");
-  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
-  const [styleTexts, setStyleTexts] = useState<Record<string, string>>({});
-  const [brandDetails, setBrandDetails] = useState("");
-  const [businessCardDetails, setBusinessCardDetails] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [colorInput, setColorInput] = useState("");
-  const [colors, setColors] = useState<string[]>([]);
-  const [quality, setQuality] = useState("standard");
-  const [transparentBackground, setTransparentBackground] = useState("true");
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [progressText, setProgressText] = useState("Preparing your design...");
-  const [result, setResult] = useState<GenerationResult | null>(null);
-  const [resultImage, setResultImage] = useState("");
-  const [editRequest, setEditRequest] = useState("");
-  const [voiceSupported, setVoiceSupported] = useState(() => Boolean(getSpeechRecognitionConstructor()));
-  const [voiceListening, setVoiceListening] = useState(false);
-  const generationInterval = useRef<number | null>(null);
-  const editInterval = useRef<number | null>(null);
-
-  const prompt = useMemo(() => {
-    const parts: string[] = [];
-
-    if (selectedProduct) parts.push(selectedProduct);
-
-    const chosenStyles = selectedStyles.map((style) => styleTexts[style]).filter(Boolean);
-
-    if (chosenStyles.length > 0) parts.push(`with ${chosenStyles.join(", ")}`);
-    if (industry.trim()) parts.push(`for a ${industry.trim()}`);
-    if (colors.length > 0) parts.push(`using colors: ${colors.join(", ")}`);
-    if (brandDetails.trim()) parts.push(`details: ${brandDetails.trim()}`);
-    if (businessCardDetails.trim()) parts.push(`business card details include: ${businessCardDetails.trim()}`);
-
-    return parts.join(" ");
-  }, [selectedProduct, selectedStyles, styleTexts, industry, colors, brandDetails, businessCardDetails]);
-
-  const generateButtonText = useMemo(() => {
-    if (!selectedProduct) return "Choose a Product First";
-    if (selectedProduct.toLowerCase().includes("business card") && !businessCardDetails.trim()) {
-      return "Please Enter Business Card Details";
-    }
-    if (!selectedProduct.toLowerCase().includes("business card") && !brandDetails.trim()) {
-      return "Please Enter Design Details";
-    }
-
-    return "Create Your Design";
-  }, [selectedProduct, businessCardDetails, brandDetails]);
-
-  const loadDesignCredits = useCallback(async (nextToken = authToken) => {
-    if (!nextToken) {
-      setCredits("Credits: --");
-      return;
-    }
-
-    try {
-      const response = await fetch(`${apiBase}/credits`, {
-        headers: {
-          Authorization: `Bearer ${nextToken}`,
-        },
-      });
-      const data = (await response.json()) as {
-        total_credits?: number;
-        credits?: number;
-        subscription_credits?: number;
-      };
-      const total = data.total_credits ?? Number(data.credits ?? 0) + Number(data.subscription_credits ?? 0);
-
-      setCredits(`Credits: ${total}`);
-    } catch {
-      setCredits("Credits: --");
-    }
-  }, [authToken]);
-
-  useEffect(() => {
-    if (!accountToken) return;
-    const timer = window.setTimeout(() => {
-      void loadDesignCredits(accountToken);
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [accountToken, loadDesignCredits]);
-
-  async function ensureAuthToken() {
-    if (authToken || accountToken) return authToken || accountToken;
-    const session = accountToken ? { token: accountToken } : await loadAccount();
-
-    if (!session?.token) return "";
-
-    setAuthToken(session.token);
-    await loadDesignCredits(session.token);
-    return session.token;
-  }
-
-  function selectProduct(product: ProductChoice) {
-    setSelectedProduct(product.value);
-    setSelectedStyles([]);
-    setStyleTexts({});
-    setColors([]);
-    setIndustry("");
-    setResult(null);
-    setResultImage("");
-  }
-
-  function toggleStyle(style: string) {
-    if (selectedStyles.includes(style)) {
-      setSelectedStyles((current) => current.filter((item) => item !== style));
-      setStyleTexts((current) => {
-        const next = { ...current };
-        delete next[style];
-        return next;
-      });
-      return;
-    }
-
-    setSelectedStyles((current) => [...current, style]);
-    setStyleTexts((current) => ({ ...current, [style]: pickStyleText(style) }));
-  }
-
-  function addColorValue(value = colorInput) {
-    const cleanValue = value.trim();
-
-    if (!cleanValue || colors.includes(cleanValue)) return;
-
-    setColors((current) => [...current, cleanValue]);
-    setColorInput("");
-  }
-
-  function startFakeLoading(mode: "generate" | "edit") {
-    const isUltra = quality === "ultra" && mode === "generate";
-    let nextProgress = 0;
-    const intervalRef = mode === "generate" ? generationInterval : editInterval;
-
-    if (intervalRef.current) window.clearInterval(intervalRef.current);
-
-    setProgress(0);
-    setProgressText(isUltra ? "Ultra quality can take a little longer..." : mode === "edit" ? "Reviewing your current design..." : "Preparing your design...");
-
-    intervalRef.current = window.setInterval(() => {
-      if (isUltra) {
-        if (nextProgress < 8) {
-          nextProgress += 0.7;
-          setProgressText("Preparing ultra quality render...");
-        } else if (nextProgress < 20) {
-          nextProgress += 0.5;
-          setProgressText("Building detailed composition...");
-        } else if (nextProgress < 40) {
-          nextProgress += 0.35;
-          setProgressText("Rendering enhanced details...");
-        } else if (nextProgress < 60) {
-          nextProgress += 0.22;
-          setProgressText("Applying ultra quality refinements...");
-        } else if (nextProgress < 78) {
-          nextProgress += 0.12;
-          setProgressText("Enhancing textures and print quality...");
-        } else if (nextProgress < 88) {
-          nextProgress += 0.06;
-          setProgressText("Final ultra quality rendering...");
-        } else if (nextProgress < 94) {
-          nextProgress += 0.025;
-          setProgressText("Almost finished...");
-        }
-      } else if (mode === "edit") {
-        if (nextProgress < 25) {
-          nextProgress += 2;
-          setProgressText("Reviewing your current design...");
-        } else if (nextProgress < 55) {
-          nextProgress += 1.25;
-          setProgressText("Applying requested changes...");
-        } else if (nextProgress < 88) {
-          nextProgress += 0.55;
-          setProgressText("Generating updated version...");
-        } else if (nextProgress < 95) {
-          nextProgress += 0.2;
-          setProgressText("Almost done...");
-        }
-      } else if (nextProgress < 15) {
-        nextProgress += 2;
-        setProgressText("Preparing your design...");
-      } else if (nextProgress < 40) {
-        nextProgress += 1.5;
-        setProgressText("Getting your design ready...");
-      } else if (nextProgress < 70) {
-        nextProgress += 1;
-        setProgressText("Creating your concept...");
-      } else if (nextProgress < 90) {
-        nextProgress += 0.5;
-        setProgressText("Finalizing your design...");
-      } else if (nextProgress < 95) {
-        nextProgress += 0.2;
-        setProgressText("Almost done...");
-      }
-
-      setProgress(Math.min(nextProgress, 95));
-    }, 300);
-  }
-
-  function finishFakeLoading(mode: "generate" | "edit") {
-    const intervalRef = mode === "generate" ? generationInterval : editInterval;
-
-    if (intervalRef.current) window.clearInterval(intervalRef.current);
-
-    setProgress(100);
-    setProgressText(mode === "edit" ? "Update complete!" : "Design complete!");
-    window.setTimeout(() => setProgress(0), 700);
-  }
-
-  async function runGeneration() {
-    if (!selectedProduct) {
-      alert("Please choose what you're creating first.");
-      return;
-    }
-
-    if (!brandDetails.trim() && !businessCardDetails.trim()) {
-      alert("Please add your design details first.");
-      return;
-    }
-
-    if (quality === "ultra" && transparentBackground === "true") {
-      alert("Ultra quality currently does not support transparent backgrounds.");
-      return;
-    }
-
-    const token = await ensureAuthToken();
-
-    if (!token) {
-      alert("Sign in before creating a design.");
-      return;
-    }
-
-    setIsGenerating(true);
-    setResult(null);
-    setResultImage("");
-    startFakeLoading("generate");
-
-    try {
-      const response = await fetch(`${apiBase}/generate-design`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          prompt,
-          productType: selectedProduct,
-          quality,
-          transparentBackground: transparentBackground === "true",
-        }),
-      });
-      const data = (await response.json()) as GenerationResult;
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "Generation failed");
-      }
-
-      const image = data.imageUrl ?? data.image ?? data.url ?? "";
-
-      if (!image) {
-        throw new Error("No image returned from backend");
-      }
-
-      setResult(data);
-      setResultImage(image);
-      finishFakeLoading("generate");
-      downloadImage(image);
-      await loadDesignCredits(token);
-    } catch (error) {
-      if (generationInterval.current) window.clearInterval(generationInterval.current);
-      setProgressText(error instanceof Error ? error.message : "Something went wrong. Please try again.");
-      setResult({ error: error instanceof Error ? error.message : "Generation failed." });
-    } finally {
-      setIsGenerating(false);
-    }
-  }
-
-  async function runEdit() {
-    if (!resultImage || !editRequest.trim()) {
-      alert("Describe the changes you'd like first.");
-      return;
-    }
-
-    const token = await ensureAuthToken();
-
-    if (!token) {
-      alert("Sign in before editing a design.");
-      return;
-    }
-
-    setIsEditing(true);
-    startFakeLoading("edit");
-
-    try {
-      const response = await fetch(resultImage);
-      const imageBlob = await response.blob();
-      const formData = new FormData();
-      formData.append("image", imageBlob, "design.png");
-      formData.append("editRequest", editRequest);
-
-      const editResponse = await fetch(`${apiBase}/edit-image`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      const data = (await editResponse.json()) as GenerationResult;
-
-      if (!editResponse.ok) {
-        throw new Error(data.error ?? "Edit failed");
-      }
-
-      const image = data.imageUrl ?? data.image ?? data.url ?? "";
-
-      if (!image) throw new Error("No image returned from edit.");
-
-      setResult(data);
-      setResultImage(image);
-      setEditRequest("");
-      finishFakeLoading("edit");
-      downloadImage(image);
-      await loadDesignCredits(token);
-    } catch (error) {
-      if (editInterval.current) window.clearInterval(editInterval.current);
-      setProgressText(error instanceof Error ? error.message : "Edit failed.");
-    } finally {
-      setIsEditing(false);
-    }
-  }
-
-  function startVoice() {
-    const Recognition = getSpeechRecognitionConstructor();
-
-    if (!Recognition) {
-      setVoiceSupported(false);
-      return;
-    }
-
-    const recognition = new Recognition();
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-    recognition.onresult = (event) => {
-      let transcript = "";
-
-      for (let index = 0; index < event.results.length; index += 1) {
-        transcript += `${event.results[index][0].transcript} `;
-      }
-
-      setBrandDetails(transcript.trim());
-    };
-    recognition.onerror = () => setVoiceListening(false);
-    recognition.onend = () => setVoiceListening(false);
-    setVoiceListening(true);
-    recognition.start();
-  }
-
-  function applyToProduct() {
-    if (!resultImage) return;
-
-    localStorage.setItem("prntd_generated_image", resultImage);
-    localStorage.setItem(
-      "prntd_design",
-      JSON.stringify({
-        image: resultImage,
-        designId: result?.designId,
-        designPath: result?.designPath,
-        type: "generated-design",
-      })
-    );
-
-    const product = selectedProduct.toLowerCase();
-
-    if (product.includes("shirt") || product.includes("apparel")) {
-      localStorage.setItem("prntd_product", "tshirt");
-      window.location.href = "/designer";
-      return;
-    }
-
-    if (product.includes("sticker")) {
-      localStorage.setItem("prntd_product", "sticker");
-    } else if (product.includes("business card")) {
-      localStorage.setItem("prntd_product", "businesscard");
-    } else if (product.includes("label")) {
-      localStorage.setItem("prntd_product", "label");
-    } else {
-      localStorage.setItem("prntd_product", "product");
-    }
-
-    window.location.href = "/products";
-  }
-
-  const showBusinessCard = selectedProduct.toLowerCase().includes("business card");
-  const hasProgress = isGenerating || isEditing || progress > 0;
-
- return (
-  <main className="min-h-screen bg-[#020617] text-white">
-    <ShopHeader />
-
-    <section className="mx-auto w-full max-w-[1450px] px-5 py-[60px] pb-[110px]">
-      <div className="mb-[52px] text-center">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#cbd5e1]">
-          AI Powered Creator Studio
-        </div>
-
-        <h1 className="mx-auto max-w-[950px] text-[clamp(48px,6vw,84px)] font-black leading-[0.96] tracking-[-0.05em]">
-          Create Premium
-          <span className="bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#c084fc_100%)] bg-clip-text text-transparent">
-            {" "}
-            Custom Designs
-          </span>
-        </h1>
-
-        <p className="mx-auto mt-7 max-w-[820px] text-lg leading-[1.9] text-[#94a3b8]">
-          Generate business cards, stickers, logos, apparel graphics,
-          labels, posters, and creator assets with AI-powered commercial
-          design tools.
-        </p>
-
-        <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <Link
-            href="/subscriptions"
-            className="rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-7 py-4 text-sm font-black uppercase tracking-[0.12em] text-white shadow-[0_22px_45px_rgba(99,102,241,0.35)] transition hover:-translate-y-0.5"
-          >
-            Buy Credits
-          </Link>
-
-          <Link
-            href="/dashboard"
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-7 py-4 text-sm font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/[0.08]"
-          >
-            Customer Portal
-          </Link>
-
-          <Link
-            href="/my-designs"
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-7 py-4 text-sm font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/[0.08]"
-          >
-            Saved Designs
-          </Link>
-        </div>
-
-        <div className="mx-auto mt-[22px] grid max-w-xl gap-3">
-          <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 text-left backdrop-blur">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
-              Customer Account
-            </p>
-
-            <p className="mt-2 text-xl font-black text-white">
-              {email || "Loading..."}
-            </p>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <div className="rounded-full bg-[#312e81] px-4 py-2 text-sm font-black text-[#c7d2fe]">
-                {credits}
-              </div>
-
-              <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-black text-[#cbd5e1]">
-                1 Credit Per Generation
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid items-start gap-[28px] lg:grid-cols-[minmax(0,1fr)_430px] max-[1150px]:grid-cols-1">
-        <div className="rounded-[34px] border border-white/10 bg-white/[0.04] p-[34px] shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur">
-          <section className="mb-10">
-            <h2 className="mb-3 text-3xl font-black">
-              What are you creating?
-            </h2>
-
-            <p className="mb-6 text-[#94a3b8]">
-              Select the type of product or asset you want to generate.
-            </p>
-
-            <div className="grid grid-cols-5 gap-4 max-[900px]:grid-cols-3 max-[640px]:grid-cols-2">
-              {products.map((product) => (
-                <button
-                  key={product.value}
-                  type="button"
-                  onClick={() => selectProduct(product)}
-                  className={`min-h-[95px] rounded-[26px] p-5 text-center text-[13px] font-black uppercase tracking-[0.12em] transition ${
-                    selectedProduct === product.value
-                      ? "bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_24px_50px_rgba(99,102,241,0.35)]"
-                      : "border border-white/10 bg-white/[0.04] text-[#cbd5e1] hover:bg-white/[0.08]"
-                  }`}
-                >
-                  {product.label}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {!showBusinessCard && (
-            <section className="mb-10">
-              <h2 className="mb-3 text-3xl font-black">
-                Describe Your Design
-              </h2>
-
-              <p className="mb-6 text-[#94a3b8]">
-                Explain the vibe, colors, layout, typography, or concept.
-              </p>
-
-              <div className="relative">
-                <textarea
-                  value={brandDetails}
-                  onChange={(event) =>
-                    setBrandDetails(event.target.value)
+              <Stage
+                width={stageWidth}
+                height={stageHeight}
+                className="!absolute inset-0 z-20"
+                onMouseDown={(event) => {
+                  if (event.target === event.target.getStage()) {
+                    setSelectedId(null);
                   }
-                  className="min-h-[190px] w-full resize-y rounded-[26px] border border-white/10 bg-[#0f172a] p-6 pr-[78px] text-[15px] text-white outline-none transition focus:border-[#6366f1]/50 focus:bg-[#111827]"
-                  placeholder="Example: Luxury streetwear design with chrome typography and futuristic cyberpunk details."
-                />
+                }}
+                onTouchStart={(event) => {
+                  if (event.target === event.target.getStage()) {
+                    setSelectedId(null);
+                  }
+                }}
+              >
+                <Layer clipX={printArea.x} clipY={printArea.y} clipWidth={printArea.width} clipHeight={printArea.height}>
+                  <Group>
+                    {layers.map((layer) =>
+                      layer.type === "image" ? (
+                        <URLImage
+                          key={layer.id}
+                          layer={layer}
+                          isSelected={selectedId === layer.id}
+                          onSelect={() => setSelectedId(layer.id)}
+                          updateLayer={updateLayer}
+                          onResetSize={resetImageSize}
+                        />
+                      ) : (
+                        <URLText
+                          key={layer.id}
+                          layer={layer}
+                          isSelected={selectedId === layer.id}
+                          onSelect={() => setSelectedId(layer.id)}
+                          updateLayer={updateLayer}
+                          onEdit={editTextLayer}
+                        />
+                      )
+                    )}
+                  </Group>
+                </Layer>
+              </Stage>
 
-                {voiceSupported && (
-                  <button
-                    type="button"
-                    onClick={startVoice}
-                    className={`absolute bottom-4 right-4 flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-black text-white shadow-[0_12px_25px_rgba(99,102,241,0.3)] ${
-                      voiceListening
-                        ? "bg-[linear-gradient(135deg,#ef4444,#dc2626)]"
-                        : "bg-[linear-gradient(135deg,#3b82f6,#8b5cf6)]"
-                    }`}
-                  >
-                    {voiceListening ? "●" : "Mic"}
-                  </button>
-                )}
-              </div>
-            </section>
-          )}
-
-          {showBusinessCard && (
-            <section className="mb-10">
-              <h2 className="mb-3 text-3xl font-black">
-                Business Card Details
-              </h2>
-
-              <textarea
-                value={businessCardDetails}
-                onChange={(event) =>
-                  setBusinessCardDetails(event.target.value)
-                }
-                className="min-h-[190px] w-full resize-y rounded-[26px] border border-white/10 bg-[#0f172a] p-6 text-[15px] text-white outline-none transition focus:border-[#6366f1]/50"
-                placeholder={`Business Name:\nYour Name:\nPhone:\nEmail:\nWebsite:`}
+              <div
+                className="pointer-events-none absolute z-30 box-border rounded-[18px] border-2 border-dashed border-blue-500/75"
+                style={{
+                  left: "50.5%",
+                  top: "51%",
+                  width: "30%",
+                  height: "39%",
+                  transform: "translate(-50%, -50%)",
+                }}
               />
-            </section>
-          )}
+            </div>
 
-          <section className="mb-10">
-            <h2 className="mb-3 text-3xl font-black">
-              Choose a Style
-            </h2>
+            <p className="mt-4 rounded-[18px] bg-white/80 px-4 py-3 text-sm font-semibold text-[#4b5563] shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
+              {notice}
+            </p>
+          </div>
 
+          <aside className="flex flex-col gap-[18px] rounded-[28px] bg-white p-7 shadow-[0_10px_28px_rgba(0,0,0,0.05)] max-[860px]:rounded-3xl max-[860px]:p-[22px] max-[480px]:p-[18px]">
+            <h1 className="mb-2 text-[52px] font-black leading-[0.92] tracking-[-0.05em] max-[1100px]:text-[42px] max-[860px]:text-[34px] max-[480px]:text-3xl">
+              Customize T-Shirts
+            </h1>
+            <div className="h-px bg-black/5" />
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Upload Design(s)</label>
+            <input
+              className="w-full rounded-[20px] border-2 border-dashed border-indigo-500/20 bg-[#fafbff] p-[18px] text-base"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              onChange={handleUpload}
+            />
+
+            <button type="button" onClick={addText} className="prntd-gradient-btn">
+              Add Text
+            </button>
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Font and Text Color</label>
+            <select
+              value={fontFamily}
+              onChange={(event) => {
+                setFontFamily(event.target.value);
+
+                if (selectedTextLayer) {
+                  updateLayer(selectedTextLayer.id, { fontFamily: event.target.value });
+                }
+              }}
+              className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base"
+            >
+              {fontFamilies.map((font) => (
+                <option key={font} value={font}>
+                  {font === "Brush Script MT" ? "Brush Script" : font === "Comic Sans MS" ? "Comic Sans" : font}
+                </option>
+              ))}
+            </select>
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Text Color</label>
+            <input
+              type="color"
+              value={textColor}
+              onChange={(event) => {
+                setTextColor(event.target.value);
+
+                if (selectedTextLayer) {
+                  updateLayer(selectedTextLayer.id, { fill: event.target.value });
+                }
+              }}
+              className="h-[52px] w-full rounded-2xl border border-slate-950/10 bg-white p-1.5"
+            />
+
+            {selectedTextLayer && (
+              <>
+                <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Selected Text</label>
+                <input
+                  value={selectedTextLayer.text ?? ""}
+                  onChange={(event) => updateLayer(selectedTextLayer.id, { text: event.target.value })}
+                  className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base"
+                />
+              </>
+            )}
+
+            <button type="button" onClick={deleteSelectedLayer} className="min-h-[54px] rounded-[18px] border border-red-500/15 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              Delete Selected Design
+            </button>
+
+            <Link
+              href="/designer"
+              className="relative flex min-h-14 w-full items-center justify-center overflow-hidden rounded-[20px] bg-[linear-gradient(135deg,#8b5cf6_0%,#6366f1_45%,#3b82f6_100%)] px-4 py-3 text-center text-[15px] font-extrabold tracking-[0.02em] text-white no-underline shadow-[0_14px_34px_rgba(99,102,241,0.24)] transition hover:-translate-y-0.5"
+            >
+              Create New Design
+            </Link>
+
+            <button type="button" disabled={isRemovingBg} onClick={removeBackground} className="prntd-gradient-btn disabled:cursor-not-allowed disabled:opacity-70">
+              {isRemovingBg ? (
+                <>
+                  <span className="inline-block h-[18px] w-[18px] animate-spin rounded-full border-2 border-white/25 border-t-white" />
+                  Removing Background...
+                </>
+              ) : (
+                "Remove Image Background - 2 Credits"
+              )}
+            </button>
+
+            <div className="grid grid-cols-2 gap-3 max-[860px]:grid-cols-1">
+              <button type="button" onClick={() => moveSelectedLayer("backward")} className="prntd-gradient-btn">
+                Send Backward
+              </button>
+              <button type="button" onClick={() => moveSelectedLayer("forward")} className="prntd-gradient-btn">
+                Bring Forward
+              </button>
+            </div>
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Quantity</label>
+            <input
+              className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-[18px] text-base"
+              type="number"
+              min={1}
+              value={quantity}
+              onChange={(event) => setQuantity(Math.max(1, Number(event.target.value)))}
+            />
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Size</label>
+            <select
+              value={size}
+              onChange={(event) => setSize(event.target.value)}
+              className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base"
+            >
+              {shirtSizes.map((shirtSize) => (
+                <option key={shirtSize} value={shirtSize}>
+                  {shirtSize}
+                </option>
+              ))}
+            </select>
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Shirt Color</label>
             <div className="flex flex-wrap gap-3">
-              {styleOptions.map((style) => (
+              {shirtColors.map((shirtColor) => (
                 <button
-                  key={style}
+                  key={shirtColor.key}
                   type="button"
-                  onClick={() => toggleStyle(style)}
-                  className={`rounded-full px-5 py-3 text-sm font-black capitalize transition ${
-                    selectedStyles.includes(style)
-                      ? "bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_14px_28px_rgba(99,102,241,0.25)]"
-                      : "border border-white/10 bg-white/[0.04] text-[#cbd5e1] hover:bg-white/[0.08]"
+                  aria-label={`${shirtColor.name} Shirt`}
+                  title={shirtColor.name}
+                  onClick={() => setCurrentColorKey(shirtColor.key)}
+                  className={`h-11 w-11 rounded-full border-[3px] ${
+                    currentColorKey === shirtColor.key ? "border-[#7c3aed]" : "border-transparent"
                   }`}
-                >
-                  {style}
-                </button>
+                  style={{ background: shirtColor.swatch }}
+                />
               ))}
             </div>
-          </section>
+
+            <div className="mt-2 flex flex-col gap-[18px] rounded-3xl bg-[#f5f7fb] p-[22px]">
+              <div className="flex items-start justify-between gap-5 max-[640px]:flex-col">
+                <div>
+                  <p className="text-[15px] font-bold text-[#111827]">Estimated Total</p>
+                  <p className="mt-1 text-[13px] text-[#6b7280]">Pricing updates automatically</p>
+                </div>
+                <strong className="text-right text-[34px] font-extrabold leading-none text-[#111827] max-[640px]:text-left max-[640px]:text-[30px]">
+                  {formatMoney(price.lineTotal)}
+                  {price.perShirtDiscount > 0 && (
+                    <span className="block pt-2 text-sm font-bold text-[#7c3aed]">
+                      -{formatMoney(price.perShirtDiscount)}/shirt
+                    </span>
+                  )}
+                </strong>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
+                <div className="rounded-[18px] border border-violet-600/10 bg-white p-3.5 shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
+                  <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#7c3aed]">2+ Shirts</p>
+                  <p className="mt-1.5 text-base font-extrabold text-[#111827]">Save $11/shirt</p>
+                </div>
+                <div className="rounded-[18px] border border-violet-600/10 bg-white p-3.5 shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
+                  <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#7c3aed]">6+ Shirts</p>
+                  <p className="mt-1.5 text-base font-extrabold text-[#111827]">Save $20/shirt</p>
+                </div>
+              </div>
+
+              <p className="rounded-[14px] bg-[#eef2ff] px-3.5 py-3 text-[13px] font-semibold text-[#4b5563]">
+                Double-sided printing costs extra. Current print type: {price.printType}.
+              </p>
+            </div>
+
+            <button type="button" onClick={addToCart} className="prntd-gradient-btn">
+              Add To Cart
+            </button>
+
+            <div className="rounded-[18px] border border-orange-600/10 bg-[#fff7ed] px-[18px] py-4 text-[13px] leading-[1.55] text-[#7c2d12]">
+              <p>By uploading or creating a design, you confirm that:</p>
+              <ul className="ml-[18px] mt-2.5 list-disc space-y-1.5">
+                <li>You own the rights to the artwork, logo, image, text, or content uploaded.</li>
+                <li>Or you have obtained proper permission or licensing to use it.</li>
+                <li>Your design does not infringe any copyright, trademark, intellectual property, or third-party rights.</li>
+                <li>Your content does not contain illegal, hateful, explicit, or prohibited material.</li>
+              </ul>
+              <p className="mt-2.5">
+                PRNTD reserves the right to refuse, cancel, or remove any order(s) containing content believed to violate
+                intellectual property rights or applicable laws.
+              </p>
+            </div>
+          </aside>
         </div>
-      </div>
-    </section>
-  </main>
-);
+      </section>
+    </main>
+  );
+}
