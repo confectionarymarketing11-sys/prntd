@@ -108,7 +108,7 @@ export default function PrntdToolsLanding() {
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-5xl text-center">
             <div className="mb-8 inline-flex items-center rounded-full border border-[#6366f1]/30 bg-white/5 px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#a5b4fc] backdrop-blur">
-              Premium Print + Business Print Asset Platform
+              "Online Design & Print Studio”
             </div>
 
             <h1 className="text-[clamp(42px,15vw,110px)] font-black leading-[0.95] tracking-[-0.035em] text-white sm:leading-[0.92] sm:tracking-[-0.04em]">
@@ -119,7 +119,7 @@ export default function PrntdToolsLanding() {
             </h1>
 
             <p className="mx-auto mt-7 max-w-[900px] text-base leading-8 text-[#94a3b8] sm:mt-10 sm:text-[20px] sm:leading-[1.9]">
-              PRNTD combines premium custom printing with custom design online design
+              PRNTD combines premium custom printing with custom online design
               tools, QR systems, customer portals, and ecommerce automation -
               all in one modern platform.
             </p>
