@@ -524,29 +524,30 @@ export default function DesignGeneratorPage() {
   <main className="min-h-screen bg-[#020617] text-white">
     <ShopHeader />
 
-    <section className="mx-auto w-full max-w-[1500px] px-5 py-[55px] pb-[100px]">
-      <div className="mb-[50px] text-center">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#cbd5e1]">
-          AI Powered Design Creator
+    <section className="mx-auto w-full max-w-[1450px] px-5 py-[60px] pb-[110px]">
+      <div className="mb-[52px] text-center">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#cbd5e1]">
+          AI Powered Creator Studio
         </div>
 
-        <h1 className="mx-auto max-w-[950px] text-[clamp(48px,6vw,88px)] font-black leading-[0.95] tracking-[-0.04em]">
-          Create Professional
+        <h1 className="mx-auto max-w-[950px] text-[clamp(48px,6vw,84px)] font-black leading-[0.96] tracking-[-0.05em]">
+          Create Premium
           <span className="bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#c084fc_100%)] bg-clip-text text-transparent">
             {" "}
             Custom Designs
           </span>
         </h1>
 
-        <p className="mx-auto mt-8 max-w-[820px] text-lg leading-[1.9] text-[#94a3b8]">
-          Generate shirts, business cards, stickers, labels, logos,
-          posters, banners, and more with AI-assisted commercial design tools.
+        <p className="mx-auto mt-7 max-w-[820px] text-lg leading-[1.9] text-[#94a3b8]">
+          Generate business cards, stickers, logos, apparel graphics,
+          labels, posters, and creator assets with AI-powered commercial
+          design tools.
         </p>
 
         <div className="mt-10 flex flex-wrap justify-center gap-4">
           <Link
             href="/subscriptions"
-            className="rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-7 py-4 text-sm font-black uppercase tracking-[0.12em] text-white shadow-[0_20px_40px_rgba(99,102,241,0.35)] transition hover:-translate-y-0.5"
+            className="rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-7 py-4 text-sm font-black uppercase tracking-[0.12em] text-white shadow-[0_22px_45px_rgba(99,102,241,0.35)] transition hover:-translate-y-0.5"
           >
             Buy Credits
           </Link>
@@ -566,7 +567,7 @@ export default function DesignGeneratorPage() {
           </Link>
         </div>
 
-        <div className="mx-auto mt-8 grid max-w-xl gap-3">
+        <div className="mx-auto mt-[22px] grid max-w-xl gap-3">
           <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 text-left backdrop-blur">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
               Customer Account
@@ -576,7 +577,7 @@ export default function DesignGeneratorPage() {
               {email || "Loading..."}
             </p>
 
-            <div className="mt-5 flex flex-wrap items-center gap-3">
+            <div className="mt-5 flex flex-wrap gap-3">
               <div className="rounded-full bg-[#312e81] px-4 py-2 text-sm font-black text-[#c7d2fe]">
                 {credits}
               </div>
@@ -597,7 +598,7 @@ export default function DesignGeneratorPage() {
             </h2>
 
             <p className="mb-6 text-[#94a3b8]">
-              Select the product or asset type you want to generate.
+              Select the type of product or asset you want to generate.
             </p>
 
             <div className="grid grid-cols-5 gap-4 max-[900px]:grid-cols-3 max-[640px]:grid-cols-2">
@@ -608,7 +609,7 @@ export default function DesignGeneratorPage() {
                   onClick={() => selectProduct(product)}
                   className={`min-h-[95px] rounded-[26px] p-5 text-center text-[13px] font-black uppercase tracking-[0.12em] transition ${
                     selectedProduct === product.value
-                      ? "bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_25px_50px_rgba(99,102,241,0.35)]"
+                      ? "bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_24px_50px_rgba(99,102,241,0.35)]"
                       : "border border-white/10 bg-white/[0.04] text-[#cbd5e1] hover:bg-white/[0.08]"
                   }`}
                 >
@@ -617,3 +618,85 @@ export default function DesignGeneratorPage() {
               ))}
             </div>
           </section>
+
+          {!showBusinessCard && (
+            <section className="mb-10">
+              <h2 className="mb-3 text-3xl font-black">
+                Describe Your Design
+              </h2>
+
+              <p className="mb-6 text-[#94a3b8]">
+                Explain the vibe, colors, layout, typography, or concept.
+              </p>
+
+              <div className="relative">
+                <textarea
+                  value={brandDetails}
+                  onChange={(event) =>
+                    setBrandDetails(event.target.value)
+                  }
+                  className="min-h-[190px] w-full resize-y rounded-[26px] border border-white/10 bg-[#0f172a] p-6 pr-[78px] text-[15px] text-white outline-none transition focus:border-[#6366f1]/50 focus:bg-[#111827]"
+                  placeholder="Example: Luxury streetwear design with chrome typography and futuristic cyberpunk details."
+                />
+
+                {voiceSupported && (
+                  <button
+                    type="button"
+                    onClick={startVoice}
+                    className={`absolute bottom-4 right-4 flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-black text-white shadow-[0_12px_25px_rgba(99,102,241,0.3)] ${
+                      voiceListening
+                        ? "bg-[linear-gradient(135deg,#ef4444,#dc2626)]"
+                        : "bg-[linear-gradient(135deg,#3b82f6,#8b5cf6)]"
+                    }`}
+                  >
+                    {voiceListening ? "●" : "Mic"}
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
+
+          {showBusinessCard && (
+            <section className="mb-10">
+              <h2 className="mb-3 text-3xl font-black">
+                Business Card Details
+              </h2>
+
+              <textarea
+                value={businessCardDetails}
+                onChange={(event) =>
+                  setBusinessCardDetails(event.target.value)
+                }
+                className="min-h-[190px] w-full resize-y rounded-[26px] border border-white/10 bg-[#0f172a] p-6 text-[15px] text-white outline-none transition focus:border-[#6366f1]/50"
+                placeholder={`Business Name:\nYour Name:\nPhone:\nEmail:\nWebsite:`}
+              />
+            </section>
+          )}
+
+          <section className="mb-10">
+            <h2 className="mb-3 text-3xl font-black">
+              Choose a Style
+            </h2>
+
+            <div className="flex flex-wrap gap-3">
+              {styleOptions.map((style) => (
+                <button
+                  key={style}
+                  type="button"
+                  onClick={() => toggleStyle(style)}
+                  className={`rounded-full px-5 py-3 text-sm font-black capitalize transition ${
+                    selectedStyles.includes(style)
+                      ? "bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_14px_28px_rgba(99,102,241,0.25)]"
+                      : "border border-white/10 bg-white/[0.04] text-[#cbd5e1] hover:bg-white/[0.08]"
+                  }`}
+                >
+                  {style}
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+);
