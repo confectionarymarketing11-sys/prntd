@@ -357,7 +357,7 @@ export default function BackgroundRemoverPage() {
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#c7d2fe]">
                     <Sparkles className="h-4 w-4" />
-                    AI Image Processing
+                    Background Image Removal Processing
                   </div>
 
                   <h1 className="mt-7 text-[clamp(52px,6vw,92px)] font-black leading-[0.92] tracking-[-0.06em]">
@@ -512,7 +512,7 @@ export default function BackgroundRemoverPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-[#c7d2fe]">
-                      AI Processing
+                      Background Removal Processing
                     </p>
 
                     <h2 className="mt-4 text-[46px] font-black leading-[0.95] tracking-[-0.04em]">

@@ -22,7 +22,7 @@ const tools = [
     href: "/edit-design",
     title: "Image Editor",
     description:
-      "Upload an image and apply AI-powered edits using your creator credits.",
+      "Upload an image and apply image edits using your credits.",
     icon: ImageIcon,
   },
   {

@@ -1243,7 +1243,7 @@ export default function DesignGeneratorPage() {
             {/* PREVIEW */}
             <aside className="sticky top-5 h-fit overflow-hidden rounded-[36px] border border-white/10 bg-[linear-gradient(135deg,#111827_0%,#1e1b4b_100%)] p-7 shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[#c7d2fe]">
-                AI Render Preview
+                Image Render Preview
               </p>
 
               <h2 className="mt-4 text-[46px] font-black leading-[0.95] tracking-[-0.04em]">
