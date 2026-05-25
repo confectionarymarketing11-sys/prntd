@@ -79,7 +79,7 @@ export default function PortalSidebar() {
 
           <p className="mt-3 text-sm font-semibold leading-7 text-white/65">
             Creator workspace with
-            AI tools, QR management,
+            modern design tools, QR management,
             subscriptions, saved
             designs, and premium
             print products.
@@ -147,7 +147,7 @@ export default function PortalSidebar() {
 
         <div className="mt-4 flex flex-wrap gap-2">
           {[
-            "AI Tools",
+            "Design Tools",
             "Stripe",
             "Analytics",
             "Cloud Saved",
