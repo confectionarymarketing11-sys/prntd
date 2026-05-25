@@ -887,7 +887,7 @@ export default function DesignGeneratorPage() {
                   Create custom shirts,
                   logos, labels, stickers,
                   and business cards with
-                  AI-powered design tools.
+                  design creation tools.
                 </p>
 
                 <div className="mt-8 flex flex-wrap gap-4">
