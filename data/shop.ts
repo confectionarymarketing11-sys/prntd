@@ -178,7 +178,7 @@ export const shopProducts: Product[] = [
 
   printAreas: ["front"],
 
-  mockupImage: "/mockups/newclassic-tee.png",
+  mockupImage: "/mockups/stickers.png",
 
   productionDays: "2-4 Business Days",
 },
