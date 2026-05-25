@@ -178,6 +178,8 @@ export const shopProducts: Product[] = [
 
   printAreas: ["front"],
 
+  mockupImage: "/mockups/newclassic-tee.png",
+
   productionDays: "2-4 Business Days",
 },
   {
