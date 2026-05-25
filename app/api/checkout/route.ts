@@ -303,7 +303,7 @@ async function uploadPrintAsset({
   itemId: string;
   productId: string;
   side: "front" | "back";
-  role: "print_area" | "source_layer";
+  role: "print_area" | "placement_reference" | "source_layer";
   dataUrl?: string | null;
   placement: Record<string, unknown>;
 }) {
@@ -388,6 +388,8 @@ async function uploadOrderPrintAssets(order: Order) {
     const printAssets = [
       { side: "front" as const, role: "print_area" as const, dataUrl: item.frontPreview },
       { side: "back" as const, role: "print_area" as const, dataUrl: item.backPreview },
+      { side: "front" as const, role: "placement_reference" as const, dataUrl: item.frontPlacementPreview },
+      { side: "back" as const, role: "placement_reference" as const, dataUrl: item.backPlacementPreview },
     ];
 
     for (const asset of printAssets) {
@@ -399,7 +401,10 @@ async function uploadOrderPrintAssets(order: Order) {
         role: asset.role,
         dataUrl: asset.dataUrl,
         placement: {
-          description: "Clean clipped printable area",
+          description:
+            asset.role === "placement_reference"
+              ? "Clipped artwork on clipping-area template"
+              : "Clipped artwork for printing",
           safe_zone_inset_px: 20,
         },
       });
@@ -528,6 +533,8 @@ async function finalizeTestModeOrder({
       back_layers: item.backLayers,
       front_print_area_url: item.frontPreview,
       back_print_area_url: item.backPreview,
+      front_placement_reference_url: item.frontPlacementPreview,
+      back_placement_reference_url: item.backPlacementPreview,
       mockup_preview_url: item.mockupPreview,
       uploaded_print_asset_ids: uploadIds,
       test_mode: true,

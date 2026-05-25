@@ -5,14 +5,15 @@ import type { ArtworkUpload } from "@/features/admin/types/database";
 
 export default function ArtworkGallery({ uploads }: { uploads: ArtworkUpload[] }) {
   function roleLabel(role?: string | null) {
-    if (role === "print_area") return "Clipped print area";
-    if (role === "source_layer") return "Original upload";
+    if (role === "print_area") return "1. Clipped artwork";
+    if (role === "placement_reference") return "2. Clipped template";
+    if (role === "source_layer") return "3. Source artwork";
     return role ?? "Artwork";
   }
 
   const sortedUploads = [...uploads].sort((a, b) => {
     const roleOrder = (role?: string | null) =>
-      role === "print_area" ? 0 : role === "source_layer" ? 1 : 2;
+      role === "print_area" ? 0 : role === "placement_reference" ? 1 : role === "source_layer" ? 2 : 3;
     return roleOrder(a.asset_role) - roleOrder(b.asset_role);
   });
 
@@ -29,13 +30,14 @@ export default function ArtworkGallery({ uploads }: { uploads: ArtworkUpload[] }
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
               <p className="font-black">Fulfillment note</p>
               <p className="mt-1 leading-6">
-                Use <strong>clipped print area</strong> files for production. Original uploads are kept underneath so you can inspect source artwork,
-                placement, side, size, and rotation if a proof needs review.
+                Each custom side should include the three files you need: <strong>clipped artwork</strong> for printing,{" "}
+                <strong>clipped template</strong> showing exactly where it prints, and <strong>source artwork</strong> for reference.
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {sortedUploads.map((upload) => {
               const isPrintArea = upload.asset_role === "print_area";
+              const isPlacementReference = upload.asset_role === "placement_reference";
 
               return (
               <article
@@ -43,15 +45,22 @@ export default function ArtworkGallery({ uploads }: { uploads: ArtworkUpload[] }
                 className={`overflow-hidden rounded-xl border ${
                   isPrintArea
                     ? "border-blue-300 bg-blue-50/50"
+                    : isPlacementReference
+                      ? "border-violet-300 bg-violet-50/50"
                     : "border-slate-200 bg-white"
                 }`}
               >
-                <div className={`relative grid min-h-48 place-items-center ${isPrintArea ? "bg-white" : "bg-slate-100"}`}>
+                <div className={`relative grid min-h-48 place-items-center ${isPrintArea || isPlacementReference ? "bg-white" : "bg-slate-100"}`}>
                   {isPrintArea && (
                     <div className="pointer-events-none absolute inset-3 rounded-lg border-2 border-dashed border-blue-500">
-                      <span className="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white">
-                        Clean Clipped File
+                        <span className="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white">
+                        Clipped Artwork
                       </span>
+                    </div>
+                  )}
+                  {isPlacementReference && (
+                    <div className="pointer-events-none absolute left-3 top-3 rounded bg-violet-600 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white">
+                      Clipped Template
                     </div>
                   )}
                   {upload.preview_url || upload.file_url ? (
@@ -92,7 +101,7 @@ export default function ArtworkGallery({ uploads }: { uploads: ArtworkUpload[] }
                       <Button asChild size="sm" className="flex-1">
                         <a href={upload.file_url} download target="_blank" rel="noreferrer">
                           <Download className="h-4 w-4" />
-                          {isPrintArea ? "Download Print File" : "Download Original"}
+                          {isPrintArea ? "Download Clipped Art" : isPlacementReference ? "Download Template" : "Download Source"}
                         </a>
                       </Button>
                     )}

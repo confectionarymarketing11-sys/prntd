@@ -228,6 +228,25 @@ function readImage(src: string) {
   });
 }
 
+function drawImageContain(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  width: number,
+  height: number,
+) {
+  const scale = Math.min(width / image.width, height / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+
+  ctx.drawImage(
+    image,
+    (width - drawWidth) / 2,
+    (height - drawHeight) / 2,
+    drawWidth,
+    drawHeight,
+  );
+}
+
 async function urlToDataUrl(url: string) {
   const response = await fetch(url);
   const blob = await response.blob();
@@ -306,6 +325,7 @@ export default function DesignerPage() {
   const [redoStack, setRedoStack] = useState<DesignerSnapshot[]>([]);
   const [adminBasePrice, setAdminBasePrice] = useState(oneSidePrice);
   const [adminPricing, setAdminPricing] = useState<Record<string, ProductPricing>>({});
+  const [showPrintGuide, setShowPrintGuide] = useState(true);
   const stageWrapRef = useRef<HTMLDivElement | null>(null);
   const generatedImageLoadedRef = useRef(false);
 
@@ -717,15 +737,102 @@ export default function DesignerPage() {
       }
     }
 
-    return canvas.toDataURL("image/png");
+    try {
+      return canvas.toDataURL("image/png");
+    } catch {
+      return null;
+    }
+  }
+
+  async function renderShirtMockup(side: ShirtSide, includeGuide = true) {
+    const sideLayers = side === "front" ? frontLayers : backLayers;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(stageWidth);
+    canvas.height = Math.round(stageHeight);
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.fillStyle = "#eef2f7";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    try {
+      const shirtImage = await readImage(color.images[side]);
+      drawImageContain(ctx, shirtImage, canvas.width, canvas.height);
+    } catch {
+      ctx.fillStyle = color.swatch;
+      ctx.fillRect(canvas.width * 0.28, canvas.height * 0.17, canvas.width * 0.44, canvas.height * 0.62);
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(printArea.x, printArea.y, printArea.width, printArea.height);
+    ctx.clip();
+
+    for (const layer of sideLayers) {
+      if (layer.type === "image" && layer.preview && layer.width && layer.height) {
+        const image = await readImage(layer.preview);
+
+        ctx.save();
+        ctx.translate(layer.x + layer.width / 2, layer.y + layer.height / 2);
+        ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
+        ctx.drawImage(image, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+        ctx.restore();
+      }
+
+      if (layer.type === "text" && layer.text) {
+        ctx.save();
+        ctx.translate(layer.x, layer.y);
+        ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
+        ctx.font = `${layer.fontSize ?? 42}px ${layer.fontFamily ?? "Arial"}`;
+        ctx.fillStyle = layer.fill ?? "#111111";
+        ctx.textBaseline = "top";
+        ctx.fillText(layer.text, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    ctx.restore();
+
+    if (includeGuide) {
+      ctx.save();
+      ctx.setLineDash([10, 8]);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(37, 99, 235, 0.9)";
+      ctx.strokeRect(printArea.x, printArea.y, printArea.width, printArea.height);
+      ctx.restore();
+    }
+
+    try {
+      return canvas.toDataURL("image/png");
+    } catch {
+      return null;
+    }
   }
 
   async function addToCart() {
     setNotice("Preparing design for cart...");
 
-    const [frontFlattened, backFlattened] = await Promise.all([
+    const mockupSide = layerHasArt(frontLayers) ? "front" : "back";
+
+    const [
+      frontFlattened,
+      backFlattened,
+      cleanMockupPreview,
+      frontPlacementPreview,
+      backPlacementPreview,
+    ] = await Promise.all([
       layerHasArt(frontLayers) ? flattenSide("front") : Promise.resolve(null),
       layerHasArt(backLayers) ? flattenSide("back") : Promise.resolve(null),
+      layerHasArt(frontLayers) || layerHasArt(backLayers)
+        ? renderShirtMockup(mockupSide, false)
+        : Promise.resolve(null),
+      layerHasArt(frontLayers)
+        ? renderShirtMockup("front", true)
+        : Promise.resolve(null),
+      layerHasArt(backLayers)
+        ? renderShirtMockup("back", true)
+        : Promise.resolve(null),
     ]);
 
     try {
@@ -741,9 +848,11 @@ export default function DesignerPage() {
         quantity,
         frontLayers,
         backLayers,
-        mockupPreview: frontFlattened ?? backFlattened,
+        mockupPreview: cleanMockupPreview ?? frontFlattened ?? backFlattened,
         frontPreview: frontFlattened,
         backPreview: backFlattened,
+        frontPlacementPreview,
+        backPlacementPreview,
         unitPrice: price.unitPrice,
         lineTotal: price.lineTotal,
         createdAt: new Date().toISOString(),
@@ -783,6 +892,16 @@ export default function DesignerPage() {
                   {side}
                 </button>
               ))}
+
+              <button
+                type="button"
+                onClick={() => setShowPrintGuide((current) => !current)}
+                className={`rounded-full px-[18px] py-3 text-sm font-bold max-[860px]:min-w-36 max-[860px]:flex-1 ${
+                  showPrintGuide ? "bg-blue-50 text-blue-700" : "bg-[#e5e7eb] text-[#111827]"
+                }`}
+              >
+                {showPrintGuide ? "Hide Guide" : "Show Guide"}
+              </button>
             </div>
 
             <div className="absolute right-7 top-5 z-50 flex max-w-[calc(100%-210px)] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-red-500/10 bg-white/90 px-[18px] py-2.5 text-sm font-semibold text-[#111827] shadow-[0_8px_24px_rgba(0,0,0,0.08)] backdrop-blur max-[860px]:static max-[860px]:mb-4 max-[860px]:w-full max-[860px]:max-w-none max-[860px]:justify-start max-[860px]:whitespace-normal max-[860px]:rounded-[18px]">
@@ -842,16 +961,18 @@ export default function DesignerPage() {
                 </Layer>
               </Stage>
 
-              <div
-                className="pointer-events-none absolute z-30 box-border rounded-[18px] border-2 border-dashed border-blue-500/75"
-                style={{
-                  left: "50.5%",
-                  top: "51%",
-                  width: "30%",
-                  height: "39%",
-                  transform: "translate(-50%, -50%)",
-                }}
-              />
+              {showPrintGuide && (
+                <div
+                  className="pointer-events-none absolute z-30 box-border rounded-[18px] border-2 border-dashed border-blue-500/75"
+                  style={{
+                    left: "50.5%",
+                    top: "51%",
+                    width: "30%",
+                    height: "39%",
+                    transform: "translate(-50%, -50%)",
+                  }}
+                />
+              )}
             </div>
 
             <p className="mt-4 rounded-[18px] bg-white/80 px-4 py-3 text-sm font-semibold text-[#4b5563] shadow-[0_4px_12px_rgba(0,0,0,0.04)]">

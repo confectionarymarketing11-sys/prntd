@@ -247,6 +247,11 @@ export default function BusinessCardDesignerPage() {
     product.basePrice,
   );
 
+  const [
+    showPrintGuide,
+    setShowPrintGuide,
+  ] = useState(true);
+
   const stageWrapRef =
     useRef<HTMLDivElement | null>(
       null,
@@ -922,14 +927,198 @@ export default function BusinessCardDesignerPage() {
     );
   }
 
+  async function renderCardMockup(
+    cardSide: CardSide,
+    includeGuide = true,
+  ) {
+    const sideLayers =
+      cardSide ===
+      "front"
+        ? frontLayers
+        : backLayers;
+
+    const canvas =
+      document.createElement(
+        "canvas",
+      );
+
+    canvas.width =
+      stageWidth;
+
+    canvas.height =
+      stageHeight;
+
+    const ctx =
+      canvas.getContext(
+        "2d",
+      );
+
+    if (!ctx) return null;
+
+    ctx.fillStyle =
+      "#ffffff";
+
+    ctx.fillRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+
+    const safeZone = {
+      x: SAFE_ZONE_INSET,
+      y: SAFE_ZONE_INSET,
+      width:
+        canvas.width -
+        SAFE_ZONE_INSET * 2,
+      height:
+        canvas.height -
+        SAFE_ZONE_INSET * 2,
+    };
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(
+      safeZone.x,
+      safeZone.y,
+      safeZone.width,
+      safeZone.height,
+    );
+    ctx.clip();
+
+    for (const layer of sideLayers) {
+      if (
+        layer.type ===
+          "image" &&
+        layer.preview
+      ) {
+        const image =
+          await readImage(
+            layer.preview,
+          );
+
+        const width =
+          layer.width ??
+          180;
+
+        const height =
+          layer.height ??
+          110;
+
+        ctx.save();
+
+        ctx.translate(
+          layer.x +
+            width / 2,
+          layer.y +
+            height / 2,
+        );
+
+        ctx.rotate(
+          ((layer.rotation ??
+            0) *
+            Math.PI) /
+            180,
+        );
+
+        ctx.drawImage(
+          image,
+          -width / 2,
+          -height / 2,
+          width,
+          height,
+        );
+
+        ctx.restore();
+      }
+
+      if (
+        layer.type ===
+          "text" &&
+        layer.text
+      ) {
+        ctx.save();
+
+        ctx.translate(
+          layer.x,
+          layer.y,
+        );
+
+        ctx.rotate(
+          ((layer.rotation ??
+            0) *
+            Math.PI) /
+            180,
+        );
+
+        ctx.font = `${
+          layer.fontSize ??
+          22
+        }px ${
+          layer.fontFamily ??
+          "Arial"
+        }`;
+
+        ctx.fillStyle =
+          layer.fill ??
+          "#ffffff";
+
+        ctx.textBaseline =
+          "top";
+
+        ctx.fillText(
+          layer.text,
+          0,
+          0,
+        );
+
+        ctx.restore();
+      }
+    }
+
+    ctx.restore();
+
+    if (includeGuide) {
+      ctx.save();
+      ctx.setLineDash([
+        10,
+        8,
+      ]);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle =
+        "rgba(37, 99, 235, 0.9)";
+      ctx.strokeRect(
+        safeZone.x,
+        safeZone.y,
+        safeZone.width,
+        safeZone.height,
+      );
+      ctx.restore();
+    }
+
+    return canvas.toDataURL(
+      "image/png",
+    );
+  }
+
   async function addToCart() {
     setNotice(
       "Preparing artwork...",
     );
 
+    const mockupSide =
+      sideHasContent(
+        frontLayers,
+      )
+        ? "front"
+        : "back";
+
     const [
       frontFlattened,
       backFlattened,
+      cleanMockupPreview,
+      frontPlacementPreview,
+      backPlacementPreview,
     ] = await Promise.all([
       sideHasContent(
         frontLayers,
@@ -950,6 +1139,39 @@ export default function BusinessCardDesignerPage() {
         : Promise.resolve(
             null,
           ),
+      sideHasContent(
+        frontLayers,
+      ) ||
+      sideHasContent(
+        backLayers,
+      )
+        ? renderCardMockup(
+            mockupSide,
+            false,
+          )
+        : Promise.resolve(
+            null,
+          ),
+      sideHasContent(
+        frontLayers,
+      )
+        ? renderCardMockup(
+            "front",
+            true,
+          )
+        : Promise.resolve(
+            null,
+          ),
+      sideHasContent(
+        backLayers,
+      )
+        ? renderCardMockup(
+            "back",
+            true,
+          )
+        : Promise.resolve(
+            null,
+          ),
     ]);
 
     try {
@@ -965,12 +1187,15 @@ export default function BusinessCardDesignerPage() {
           frontLayers,
           backLayers,
           mockupPreview:
+            cleanMockupPreview ??
             frontFlattened ??
             backFlattened,
           frontPreview:
             frontFlattened,
           backPreview:
             backFlattened,
+          frontPlacementPreview,
+          backPlacementPreview,
           unitPrice:
             price.unitPrice,
           lineTotal:
@@ -1082,6 +1307,25 @@ export default function BusinessCardDesignerPage() {
                       </button>
                     ),
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPrintGuide(
+                        (current) =>
+                          !current,
+                      )
+                    }
+                    className={`flex-1 rounded-full px-5 py-3 text-sm font-black uppercase tracking-[0.08em] transition sm:flex-none ${
+                      showPrintGuide
+                        ? "bg-white text-[#111827]"
+                        : "border border-white/10 bg-white/[0.04] text-[#cbd5e1]"
+                    }`}
+                  >
+                    {showPrintGuide
+                      ? "Hide Guide"
+                      : "Show Guide"}
+                  </button>
                 </div>
 
                 {/* STAGE */}
@@ -1200,7 +1444,9 @@ export default function BusinessCardDesignerPage() {
                       </Layer>
                     </Stage>
 
-                    <div className="pointer-events-none absolute inset-5 z-20 rounded-[20px] border-2 border-dashed border-[#60a5fa]/70" />
+                    {showPrintGuide && (
+                      <div className="pointer-events-none absolute inset-5 z-20 rounded-[20px] border-2 border-dashed border-[#60a5fa]/70" />
+                    )}
                   </div>
                 </div>
 

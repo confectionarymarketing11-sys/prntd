@@ -130,12 +130,16 @@ async function stripCartItemAssets(item: CartItem): Promise<CartItem> {
     mockupPreview,
     frontPreview,
     backPreview,
+    frontPlacementPreview,
+    backPlacementPreview,
     frontLayers,
     backLayers,
   ] = await Promise.all([
     putAsset(item.mockupPreview, item.mockupPreviewKey),
     putAsset(item.frontPreview, item.frontPreviewKey),
     putAsset(item.backPreview, item.backPreviewKey),
+    putAsset(item.frontPlacementPreview, item.frontPlacementPreviewKey),
+    putAsset(item.backPlacementPreview, item.backPlacementPreviewKey),
     Promise.all(item.frontLayers.map(stripLayerAssets)),
     Promise.all(item.backLayers.map(stripLayerAssets)),
   ]);
@@ -147,9 +151,13 @@ async function stripCartItemAssets(item: CartItem): Promise<CartItem> {
     mockupPreview: mockupPreview.value,
     frontPreview: frontPreview.value,
     backPreview: backPreview.value,
+    frontPlacementPreview: frontPlacementPreview.value,
+    backPlacementPreview: backPlacementPreview.value,
     mockupPreviewKey: mockupPreview.key,
     frontPreviewKey: frontPreview.key,
     backPreviewKey: backPreview.key,
+    frontPlacementPreviewKey: frontPlacementPreview.key,
+    backPlacementPreviewKey: backPlacementPreview.key,
   };
 }
 
@@ -158,12 +166,16 @@ async function hydrateCartItemAssets(item: CartItem): Promise<CartItem> {
     mockupPreview,
     frontPreview,
     backPreview,
+    frontPlacementPreview,
+    backPlacementPreview,
     frontLayers,
     backLayers,
   ] = await Promise.all([
     item.mockupPreview ?? getAsset(item.mockupPreviewKey),
     item.frontPreview ?? getAsset(item.frontPreviewKey),
     item.backPreview ?? getAsset(item.backPreviewKey),
+    item.frontPlacementPreview ?? getAsset(item.frontPlacementPreviewKey),
+    item.backPlacementPreview ?? getAsset(item.backPlacementPreviewKey),
     Promise.all(item.frontLayers.map(hydrateLayerAssets)),
     Promise.all(item.backLayers.map(hydrateLayerAssets)),
   ]);
@@ -175,6 +187,8 @@ async function hydrateCartItemAssets(item: CartItem): Promise<CartItem> {
     mockupPreview,
     frontPreview,
     backPreview,
+    frontPlacementPreview,
+    backPlacementPreview,
   };
 }
 

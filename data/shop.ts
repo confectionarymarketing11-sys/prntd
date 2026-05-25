@@ -86,9 +86,13 @@ export type CartItem = {
   mockupPreview?: string | null;
   frontPreview?: string | null;
   backPreview?: string | null;
+  frontPlacementPreview?: string | null;
+  backPlacementPreview?: string | null;
   mockupPreviewKey?: string | null;
   frontPreviewKey?: string | null;
   backPreviewKey?: string | null;
+  frontPlacementPreviewKey?: string | null;
+  backPlacementPreviewKey?: string | null;
   unitPrice: number;
   lineTotal: number;
   createdAt: string;
