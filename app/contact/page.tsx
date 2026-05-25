@@ -36,7 +36,7 @@ export default async function ContactPage() {
 
               <p className="mt-8 max-w-2xl text-lg leading-9 text-[#cbd5e1]">
                 {settings.contact_body ||
-                  "Connect with PRNTD for custom printing, branded merchandise, business cards, stickers, apparel, AI design tools, and premium ecommerce solutions."}
+                  "Connect with PRNTD for custom printing, branded merchandise, business cards, stickers, apparel, design tools, and premium ecommerce solutions."}
               </p>
             </div>
           </div>
@@ -137,7 +137,7 @@ export default async function ContactPage() {
 
               <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
                 <p className="text-sm font-black text-white">
-                  AI Design Tools
+                  Design Tools
                 </p>
 
                 <p className="mt-2 text-sm leading-7 text-[#94a3b8]">
