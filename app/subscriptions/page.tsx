@@ -317,7 +317,7 @@ export default function SubscriptionsPage() {
                   </h1>
 
                   <p className="mt-6 max-w-3xl text-lg leading-9 text-[#cbd5e1]">
-                    Unlock AI generation,
+                    Unlock design creation,
                     premium QR analytics,
                     saved designs,
                     customization tools,
@@ -487,8 +487,8 @@ export default function SubscriptionsPage() {
 
               <p className="mt-5 max-w-2xl text-[15px] leading-8 text-[#cbd5e1]">
                 Purchase additional
-                credits for AI design
-                generation and
+                credits for design
+                creation and
                 background removal.
               </p>
 
