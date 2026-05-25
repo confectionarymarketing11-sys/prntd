@@ -460,12 +460,15 @@ export function displayPriceFromPricing(product: Product, pricing: ProductPricin
   return variantPrice ?? pricing?.price ?? product.basePrice;
 }
 
-export function getAvailableShippingMethods(items: CartItem[]) {
+export function getAvailableShippingMethods(
+  items: CartItem[],
+  methods: ShippingMethod[] = SHIPPING_METHODS,
+) {
   if (!items.length) return [];
 
   const hasApparel = items.some((item) => item.productId === "classic-tee");
   const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
-  const allowed = SHIPPING_METHODS.filter((method) => {
+  const allowed = methods.filter((method) => {
     if (method.code === "lettermail" && hasApparel) return false;
     return true;
   });

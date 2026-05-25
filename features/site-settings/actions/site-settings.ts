@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/features/admin/data/auth";
 import { updateSiteSettings } from "@/features/site-settings/data/site-settings";
+import { updateShippingRatesFromFormData } from "@/features/shipping/actions/shipping";
 
 function value(formData: FormData, key: string) {
   const raw = formData.get(key);
@@ -45,8 +46,11 @@ export async function updateSiteSettingsAction(formData: FormData) {
       .filter(Boolean),
   });
 
+  await updateShippingRatesFromFormData(formData);
+
   revalidatePath("/");
   revalidatePath("/contact");
   revalidatePath("/policies");
   revalidatePath("/admin/settings");
+  revalidatePath("/cart");
 }

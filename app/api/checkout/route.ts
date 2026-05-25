@@ -5,7 +5,6 @@ import {
   ProductPricing,
   findPricingVariant,
   fixedPriceVariantsFromPricing,
-  getAvailableShippingMethods,
   getProduct,
   Order,
   priceDesign,
@@ -15,6 +14,7 @@ import {
 import { calculateDiscount } from "@/features/discounts/data/discounts";
 import { getCurrentAdmin } from "@/features/admin/data/auth";
 import { getSiteSettings } from "@/features/site-settings/data/site-settings";
+import { getAvailableAdminShippingMethods } from "@/features/shipping/data/shipping";
 import { getOrCreateCustomerForEmail } from "@/lib/auth/customer";
 import { ApiError } from "@/lib/api-response";
 import { checkRequestRateLimit } from "@/lib/rate-limit";
@@ -578,8 +578,16 @@ export async function POST(req: NextRequest) {
     const firstItem = order.items[0];
     const designReferences = order.items.flatMap((item) => [item.frontPreview, item.backPreview].filter(Boolean));
     const subtotalCents = Math.round(order.subtotal * 100);
-    const shippingMethods = getAvailableShippingMethods(order.items);
+    const shippingMethods = await getAvailableAdminShippingMethods(order.items);
     const selectedShipping = shippingMethods.find((method) => method.code === order.shippingMethod) ?? shippingMethods[0];
+
+    if (!selectedShipping) {
+      return NextResponse.json(
+        { error: "No active shipping method is available for this cart." },
+        { status: 400 },
+      );
+    }
+
     const shippingCents = Math.round((selectedShipping?.price ?? order.shipping) * 100);
     const discount = await calculateDiscount({
       code: order.discountCode,

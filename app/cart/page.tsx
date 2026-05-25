@@ -24,7 +24,8 @@ import {
   Customer,
   Order,
   ProductPricing,
-  SHIPPING_RATE,
+  SHIPPING_METHODS,
+  ShippingMethod,
   createOrderId,
   formatMoney,
   getAvailableShippingMethods,
@@ -74,13 +75,28 @@ export default function CartPage() {
       message?: string | null;
     } | null>(null);
 
+  const [adminShippingMethods, setAdminShippingMethods] =
+    useState<ShippingMethod[]>(SHIPPING_METHODS);
+
   const shippingMethods = useMemo(
-    () => getAvailableShippingMethods(items),
-    [items],
+    () =>
+      getAvailableShippingMethods(
+        items,
+        adminShippingMethods,
+      ),
+    [adminShippingMethods, items],
   );
 
   const [shippingMethod, setShippingMethod] =
     useState("tracked");
+
+  const activeShippingMethod =
+    shippingMethods.find(
+      (method) =>
+        method.code === shippingMethod,
+    )?.code ??
+    shippingMethods[0]?.code ??
+    shippingMethod;
 
   const [testModeEnabled, setTestModeEnabled] =
     useState(false);
@@ -101,20 +117,19 @@ export default function CartPage() {
     const selectedShipping =
       shippingMethods.find(
         (method) =>
-          method.code === shippingMethod,
+          method.code === activeShippingMethod,
       ) ?? shippingMethods[0];
 
     const shipping =
       items.length > 0
-        ? selectedShipping?.price ??
-          SHIPPING_RATE
+        ? selectedShipping?.price ?? 0
         : 0;
 
     return {
       subtotal,
       shipping,
     };
-  }, [items, shippingMethod, shippingMethods]);
+  }, [activeShippingMethod, items, shippingMethods]);
 
   const totals = useMemo(() => {
     const discountAmount = roundMoney(
@@ -168,6 +183,17 @@ export default function CartPage() {
 
     return () =>
       window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/shipping/methods")
+      .then((response) => response.json())
+      .then((data: { methods?: ShippingMethod[] }) => {
+        if (data.methods?.length) {
+          setAdminShippingMethods(data.methods);
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -443,7 +469,7 @@ export default function CartPage() {
       shippingDiscount:
         totals.shippingDiscount,
       shippingMethod:
-        shippingMethod as Order["shippingMethod"],
+        activeShippingMethod as Order["shippingMethod"],
       status: "New",
       paymentMode: "stripe",
       createdAt:
@@ -767,12 +793,18 @@ export default function CartPage() {
               </div>
 
               <div className="mt-4 grid gap-3">
+                {!shippingMethods.length && (
+                  <div className="rounded-[22px] border border-amber-300/30 bg-amber-300/10 p-5 text-sm font-semibold text-amber-100">
+                    No active shipping options are available for this cart. Please contact PRNTD before checking out.
+                  </div>
+                )}
+
                 {shippingMethods.map(
                   (method) => (
                     <label
                       key={method.code}
                       className={`cursor-pointer rounded-[22px] border p-5 transition ${
-                        shippingMethod ===
+                        activeShippingMethod ===
                         method.code
                           ? "border-[#6366f1]/40 bg-[#312e81]/30"
                           : "border-white/10 bg-white/[0.04]"
@@ -783,7 +815,7 @@ export default function CartPage() {
                           <input
                             type="radio"
                             checked={
-                              shippingMethod ===
+                              activeShippingMethod ===
                               method.code
                             }
                             onChange={() =>
@@ -908,7 +940,7 @@ export default function CartPage() {
 
             <button
               type="submit"
-              disabled={isCheckingOut}
+              disabled={isCheckingOut || !shippingMethods.length}
               className="mt-7 flex w-full items-center justify-center gap-3 rounded-[24px] bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-7 py-5 text-lg font-black text-white shadow-[0_20px_60px_rgba(99,102,241,0.35)] transition hover:-translate-y-1 disabled:opacity-50"
             >
               {isCheckingOut
