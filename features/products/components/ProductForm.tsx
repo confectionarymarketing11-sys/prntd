@@ -151,11 +151,11 @@ export default function ProductForm({ product, action, submitLabel }: ProductFor
           <CardContent className="grid gap-4">
             <label className="grid gap-2 text-sm font-semibold">
               Base price
-              <Input name="price" type="number" min="0" step="0.01" defaultValue={defaults.price} required />
+              <Input name="price" type="text" inputMode="decimal" defaultValue={defaults.price} placeholder="23.86" required />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
               Compare-at price
-              <Input name="compare_at_price" type="number" min="0" step="0.01" defaultValue={defaults.compareAtPrice} />
+              <Input name="compare_at_price" type="text" inputMode="decimal" defaultValue={defaults.compareAtPrice} placeholder="Optional" />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
               Currency

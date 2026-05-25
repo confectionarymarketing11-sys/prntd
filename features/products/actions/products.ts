@@ -8,6 +8,12 @@ import { createProduct, setProductStatus, updateProduct } from "@/features/produ
 import { inventoryPolicies, productStatuses, productVisibilities } from "@/features/products/types/product";
 import type { ProductFormImage, ProductFormVariant, ProductStatus } from "@/features/products/types/product";
 
+function cleanMoneyInput(value: unknown) {
+  if (typeof value !== "string") return value;
+
+  return value.replace(/[^0-9.]/g, "");
+}
+
 const variantSchema = z.object({
   id: z.string().optional(),
   title: z.string().trim().min(1).default("Default Title"),
@@ -42,8 +48,10 @@ const productFormSchema = z.object({
   vendor: z.string().trim().optional(),
   tags: z.string().trim().optional(),
   featured_image_url: z.string().trim().optional(),
-  price: z.coerce.number().min(0),
-  compare_at_price: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
+  price: z.preprocess(cleanMoneyInput, z.coerce.number().min(0)),
+  compare_at_price: z
+    .union([z.preprocess(cleanMoneyInput, z.coerce.number().min(0)), z.literal("")])
+    .optional(),
   currency: z.string().trim().min(3).max(3).default("CAD"),
   seo_title: z.string().trim().optional(),
   seo_description: z.string().trim().optional(),

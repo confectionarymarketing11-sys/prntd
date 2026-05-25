@@ -28,7 +28,8 @@ function centsToInput(value: number) {
 }
 
 function inputToCents(value: string) {
-  return Math.round(Number(value || 0) * 100);
+  const cleaned = value.replace(/[^0-9.]/g, "");
+  return Math.round(Number(cleaned || 0) * 100);
 }
 
 function findPrintSideVariant(variants: ProductFormVariant[], value: "1 Side" | "2 Side") {
@@ -94,6 +95,9 @@ export default function VariantEditor({
       ? initialVariants
       : [newVariant()];
   const [variants, setVariants] = useState<ProductFormVariant[]>(initialEditorVariants);
+  const [priceInputs, setPriceInputs] = useState<string[]>(
+    initialEditorVariants.map((variant) => centsToInput(variant.price_cents)),
+  );
   const serialized = useMemo(() => JSON.stringify(variants), [variants]);
 
   function updateVariant(index: number, patch: Partial<ProductFormVariant>) {
@@ -105,6 +109,17 @@ export default function VariantEditor({
       const next = current.filter((_, variantIndex) => variantIndex !== index);
       return next.length ? next : [newVariant()];
     });
+    setPriceInputs((current) => {
+      const next = current.filter((_, variantIndex) => variantIndex !== index);
+      return next.length ? next : [centsToInput(0)];
+    });
+  }
+
+  function updateVariantPrice(index: number, value: string) {
+    setPriceInputs((current) =>
+      current.map((priceInput, priceIndex) => (priceIndex === index ? value : priceInput)),
+    );
+    updateVariant(index, { price_cents: inputToCents(value) });
   }
 
   return (
@@ -155,11 +170,11 @@ export default function VariantEditor({
               <label className="grid gap-1 text-sm font-semibold">
                 Price
                 <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={centsToInput(variant.price_cents)}
-                  onChange={(event) => updateVariant(index, { price_cents: inputToCents(event.target.value) })}
+                  type="text"
+                  inputMode="decimal"
+                  value={priceInputs[index] ?? centsToInput(variant.price_cents)}
+                  onChange={(event) => updateVariantPrice(index, event.target.value)}
+                  placeholder="23.86"
                 />
               </label>
               <label className="grid gap-1 text-sm font-semibold">
@@ -213,7 +228,14 @@ export default function VariantEditor({
         ))}
       </div>
       {!isClassicTee ? (
-        <Button type="button" variant="outline" onClick={() => setVariants((current) => [...current, newVariant()])}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setVariants((current) => [...current, newVariant()]);
+            setPriceInputs((current) => [...current, centsToInput(0)]);
+          }}
+        >
           <Plus className="h-4 w-4" />
           Add Variant
         </Button>
