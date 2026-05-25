@@ -1,1158 +1,1110 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowRight,
-  Sparkles,
-  Wand2,
-  Mic,
-  Download,
-  RefreshCw,
-  Layers3,
-} from "lucide-react";
-
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Group, Layer, Stage } from "react-konva";
 import ShopHeader from "@/components/ShopHeader";
-import { usePrntdAccount } from "@/hooks/usePrntdAccount";
+import URLImage from "@/components/customizer/URLImage";
+import URLText from "@/components/customizer/URLText";
+import { trackStorefrontEvent } from "@/lib/storefront-analytics";
+import {
+  CartItem,
+  DesignLayer,
+  ProductPricing,
+  findPricingVariant,
+  formatMoney,
+  getProduct,
+  roundMoney,
+} from "@/data/shop";
+import { addCartItem } from "@/lib/cart-storage";
+import { updateLayerList } from "@/store/customizerStore";
 
-type ProductChoice = {
-  label: string;
-  value: string;
+type ShirtSide = "front" | "back";
+
+type ShirtColor = {
+  key: string;
+  name: string;
+  swatch: string;
+  images: Record<ShirtSide, string>;
 };
 
-type GenerationResult = {
-  imageUrl?: string;
-  image?: string;
-  url?: string;
-  designId?: string | null;
-  designPath?: string;
-  error?: string;
+type DesignerSnapshot = {
+  frontLayers: DesignLayer[];
+  backLayers: DesignLayer[];
 };
 
-type SpeechRecognitionConstructor = new () => {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start: () => void;
-  onresult:
-    | ((
-        event: {
-          results: ArrayLike<
-            ArrayLike<{
-              transcript: string;
-            }>
-          >;
-        },
-      ) => void)
-    | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-};
-
-const apiBase = "/api/prntd";
-
-const products: ProductChoice[] = [
+const shirtColors: ShirtColor[] = [
   {
-    label: "Business Card",
-    value: "business card design,",
+    key: "white",
+    name: "White",
+    swatch: "#ffffff",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_White_flat_front.webp?v=1778969128",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_White_flat_back_V2.webp?v=1778969128",
+    },
   },
   {
-    label: "Sticker",
-    value: "sticker design,",
+    key: "black",
+    name: "Black",
+    swatch: "#111111",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Black_flat_front.webp?v=1778968991",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Black_flat_back.webp?v=1778968991",
+    },
   },
   {
-    label: "Shirt",
-    value: "apparel graphic design,",
+    key: "sportgrey",
+    name: "Sport Grey",
+    swatch: "#9ca3af",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sport_Grey_flat_front.webp?v=1778969128",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sport_Grey_flat_back.webp?v=1778969128",
+    },
   },
   {
-    label: "Label",
-    value: "product label design,",
+    key: "navy",
+    name: "Navy",
+    swatch: "#1e3a8a",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Navy_flat_front.webp?v=1778970017",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Navy_flat_back.webp?v=1778970017",
+    },
   },
   {
-    label: "Logo",
-    value: "logo design,",
+    key: "red",
+    name: "Red",
+    swatch: "#dc2626",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Red_flat_front.webp?v=1778970097",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Red_flat_back.webp?v=1778970097",
+    },
+  },
+  {
+    key: "forestgreen",
+    name: "Forest Green",
+    swatch: "#14532d",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Forest_Green_flat_front.webp?v=1778970200",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Forest_Green_flat_back.webp?v=1778970200",
+    },
+  },
+  {
+    key: "militarygreen",
+    name: "Military Green",
+    swatch: "#4b5320",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Military_Green_flat_front.webp?v=1778970281",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Military_Green_flat_back.webp?v=1778970281",
+    },
+  },
+  {
+    key: "sand",
+    name: "Sand",
+    swatch: "#d6c7a1",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sand_flat_front.webp?v=1778969128",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sand_flat_back.webp?v=1778969127",
+    },
+  },
+  {
+    key: "carolinablue",
+    name: "Carolina Blue",
+    swatch: "#7dd3fc",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Carolina_Blue_flat_front.webp?v=1778968991",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Carolina_Blue_flat_back.webp?v=1778968991",
+    },
+  },
+  {
+    key: "sapphire",
+    name: "Sapphire",
+    swatch: "#0284c7",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sapphire_flat_front.webp?v=1778969128",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Sapphire_flat_back.webp?v=1778969128",
+    },
+  },
+  {
+    key: "purple",
+    name: "Purple",
+    swatch: "#7e22ce",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Purple_flat_front.webp?v=1778970507",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Purple_flat_back.webp?v=1778970506",
+    },
+  },
+  {
+    key: "HeatherRadiantOrchid",
+    name: "Heather Radiant Orchid",
+    swatch: "#a15a95",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Heather_Radiant_Orchid_flat_front.webp?v=1779113578",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Heather_Radiant_Orchid_flat_back.webp?v=1779113578",
+    },
+  },
+  {
+    key: "heliconia",
+    name: "Heliconia",
+    swatch: "#ec4899",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Heliconia_flat_front.webp?v=1778970569",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Heliconia_flat_back.webp?v=1778970569",
+    },
+  },
+  {
+    key: "orange",
+    name: "Orange",
+    swatch: "#ea580c",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Orange_flat_front.webp?v=1778970629",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Orange_flat_back.webp?v=1778970629",
+    },
+  },
+  {
+    key: "safetyorange",
+    name: "Safety Orange",
+    swatch: "#f97316",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Safety_Orange_flat_front.webp?v=1778969127",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Safety_Orange_flat_back.webp?v=1778969127",
+    },
+  },
+  {
+    key: "maroon",
+    name: "Maroon",
+    swatch: "#7f1d1d",
+    images: {
+      front: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Maroon_flat_front.webp?v=1778970744",
+      back: "https://cdn.shopify.com/s/files/1/0785/9313/0728/files/5000_Maroon_flat_back.webp?v=1778970744",
+    },
   },
 ];
 
-const styleTemplates: Record<
-  string,
-  string[]
-> = {
-  luxury: ["luxurious style"],
-  minimal: ["minimalist style"],
-  watercolor: ["watercolor style"],
-  streetwear: ["streetwear style"],
-  text: ["text"],
-  cartoon: ["cartoon style"],
-  cyberpunk: ["cyberpunk style"],
-  bold: ["bold style"],
-  vintage: ["retro vintage style"],
-  modern: ["modern style"],
-  photorealistic: [
-    "photorealistic style",
-  ],
-  anime: ["anime style"],
-  professional: [
-    "professional style",
-  ],
-  urban: ["urban style"],
-  futuristic: [
-    "high-tech futuristic style",
-  ],
-  pencil: ["pencil style"],
-};
-
-const styleOptions = [
-  "luxury",
-  "minimal",
-  "bold",
-  "modern",
-  "professional",
-  "vintage",
-  "retro",
-  "urban",
-  "streetwear",
-  "anime",
-  "cartoon",
-  "futuristic",
-  "cyberpunk",
-  "pencil",
-  "watercolor",
-  "photorealistic",
-  "text",
+const fontFamilies = [
+  "Arial",
+  "Impact",
+  "Helvetica",
+  "Verdana",
+  "Tahoma",
+  "Trebuchet MS",
+  "Georgia",
+  "Times New Roman",
+  "Garamond",
+  "Courier New",
+  "Brush Script MT",
+  "Comic Sans MS",
+  "Lucida Handwriting",
+  "Palatino Linotype",
+  "Copperplate",
 ];
 
-function getSpeechRecognitionConstructor() {
-  if (typeof window === "undefined")
-    return undefined;
+const shirtSizes = ["Small", "Medium", "Large"];
+const oneSidePrice = 35;
 
-  return (
-    (
-      window as unknown as {
-        SpeechRecognition?: SpeechRecognitionConstructor;
-        webkitSpeechRecognition?: SpeechRecognitionConstructor;
-      }
-    ).SpeechRecognition ??
-    (
-      window as unknown as {
-        SpeechRecognition?: SpeechRecognitionConstructor;
-        webkitSpeechRecognition?: SpeechRecognitionConstructor;
-      }
-    ).webkitSpeechRecognition
-  );
+function getPrintArea(width: number, height: number) {
+  const areaWidth = width * 0.3;
+  const areaHeight = height * 0.39;
+
+  return {
+    x: width * 0.505 - areaWidth / 2,
+    y: height * 0.51 - areaHeight / 2,
+    width: areaWidth,
+    height: areaHeight,
+  };
 }
 
-function pickStyleText(style: string) {
-  const source =
-    styleTemplates[style] ?? [
-      `${style} style`,
-    ];
-
-  return source[
-    Math.floor(Math.random() * source.length)
-  ];
+function layerHasArt(layers: DesignLayer[]) {
+  return layers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
 }
 
-function downloadImage(url: string) {
-  fetch(url)
-    .then((response) =>
-      response.blob(),
-    )
-    .then((blob) => {
-      const localUrl =
-        URL.createObjectURL(blob);
-
-      const anchor =
-        document.createElement("a");
-
-      anchor.href = localUrl;
-      anchor.download = `design-${Date.now()}.png`;
-
-      document.body.appendChild(anchor);
-
-      anchor.click();
-
-      anchor.remove();
-
-      URL.revokeObjectURL(localUrl);
-    });
+function readImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new window.Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
 }
 
-export default function DesignGeneratorPage() {
-  const {
-    email,
-    token: accountToken,
-    status: accountStatus,
-    loadAccount,
-  } = usePrntdAccount();
+async function urlToDataUrl(url: string) {
+  const response = await fetch(url);
+  const blob = await response.blob();
 
-  const [authToken, setAuthToken] =
-    useState("");
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
-  const [credits, setCredits] =
-    useState("Credits: --");
+function trimTransparentPixels(img: HTMLImageElement) {
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
 
-  const [
-    selectedProduct,
-    setSelectedProduct,
-  ] = useState("");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return img.src;
 
-  const [
-    selectedStyles,
-    setSelectedStyles,
-  ] = useState<string[]>([]);
+  ctx.drawImage(img, 0, 0);
 
-  const [styleTexts, setStyleTexts] =
-    useState<Record<string, string>>({});
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  let top: number | null = null;
+  let left: number | null = null;
+  let right: number | null = null;
+  let bottom: number | null = null;
 
-  const [brandDetails, setBrandDetails] =
-    useState("");
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const alpha = data[(y * canvas.width + x) * 4 + 3];
 
-  const [
-    businessCardDetails,
-    setBusinessCardDetails,
-  ] = useState("");
-
-  const [industry, setIndustry] =
-    useState("");
-
-  const [quality, setQuality] =
-    useState("standard");
-
-  const [
-    transparentBackground,
-    setTransparentBackground,
-  ] = useState("true");
-
-  const [
-    advancedOpen,
-    setAdvancedOpen,
-  ] = useState(false);
-
-  const [isGenerating, setIsGenerating] =
-    useState(false);
-
-  const [isEditing, setIsEditing] =
-    useState(false);
-
-  const [progress, setProgress] =
-    useState(0);
-
-  const [progressText, setProgressText] =
-    useState(
-      "Preparing your design...",
-    );
-
-  const [result, setResult] =
-    useState<GenerationResult | null>(
-      null,
-    );
-
-  const [resultImage, setResultImage] =
-    useState("");
-
-  const [editRequest, setEditRequest] =
-    useState("");
-
-  const [
-    voiceSupported,
-    setVoiceSupported,
-  ] = useState(() =>
-    Boolean(
-      getSpeechRecognitionConstructor(),
-    ),
-  );
-
-  const [
-    voiceListening,
-    setVoiceListening,
-  ] = useState(false);
-
-  const generationInterval =
-    useRef<number | null>(null);
-
-  const editInterval =
-    useRef<number | null>(null);
-
-  const prompt = useMemo(() => {
-    const parts: string[] = [];
-
-    if (selectedProduct)
-      parts.push(selectedProduct);
-
-    const chosenStyles =
-      selectedStyles
-        .map((style) => styleTexts[style])
-        .filter(Boolean);
-
-    if (chosenStyles.length > 0) {
-      parts.push(
-        `with ${chosenStyles.join(", ")}`,
-      );
-    }
-
-    if (industry.trim()) {
-      parts.push(
-        `for a ${industry.trim()}`,
-      );
-    }
-
-    if (brandDetails.trim()) {
-      parts.push(
-        `details: ${brandDetails.trim()}`,
-      );
-    }
-
-    if (
-      businessCardDetails.trim()
-    ) {
-      parts.push(
-        `business card details include: ${businessCardDetails.trim()}`,
-      );
-    }
-
-    return parts.join(" ");
-  }, [
-    selectedProduct,
-    selectedStyles,
-    styleTexts,
-    industry,
-    brandDetails,
-    businessCardDetails,
-  ]);
-
-  const showBusinessCard =
-    selectedProduct
-      .toLowerCase()
-      .includes("business card");
-
-  const hasProgress =
-    isGenerating ||
-    isEditing ||
-    progress > 0;
-
-  const generateButtonText =
-    useMemo(() => {
-      if (!selectedProduct) {
-        return "Choose Product";
+      if (alpha > 10) {
+        top = top === null ? y : top;
+        left = left === null || x < left ? x : left;
+        right = right === null || x > right ? x : right;
+        bottom = bottom === null || y > bottom ? y : bottom;
       }
+    }
+  }
 
-      return "Generate Design";
-    }, [selectedProduct]);
+  if (top === null || left === null || right === null || bottom === null) {
+    return img.src;
+  }
 
-  const loadDesignCredits =
-    useCallback(
-      async (
-        nextToken = authToken,
-      ) => {
-        if (!nextToken) {
-          setCredits(
-            "Credits: --",
-          );
+  const trimmedWidth = Math.max(1, right - left + 1);
+  const trimmedHeight = Math.max(1, bottom - top + 1);
+  const trimmedCanvas = document.createElement("canvas");
+  trimmedCanvas.width = trimmedWidth;
+  trimmedCanvas.height = trimmedHeight;
 
-          return;
-        }
+  const trimmedCtx = trimmedCanvas.getContext("2d");
+  if (!trimmedCtx) return img.src;
 
-        try {
-          const response =
-            await fetch(
-              `${apiBase}/credits`,
-              {
-                headers: {
-                  Authorization: `Bearer ${nextToken}`,
-                },
-              },
-            );
+  trimmedCtx.drawImage(canvas, left, top, trimmedWidth, trimmedHeight, 0, 0, trimmedWidth, trimmedHeight);
 
-          const data =
-            (await response.json()) as {
-              total_credits?: number;
-              credits?: number;
-              subscription_credits?: number;
-            };
+  return trimmedCanvas.toDataURL("image/png");
+}
 
-          const total =
-            data.total_credits ??
-            Number(
-              data.credits ?? 0,
-            ) +
-              Number(
-                data.subscription_credits ??
-                  0,
-              );
+export default function DesignerPage() {
+  const [productId, setProductId] = useState("classic-tee");
+  const [currentView, setCurrentView] = useState<ShirtSide>("front");
+  const [currentColorKey, setCurrentColorKey] = useState("white");
+  const [frontLayers, setFrontLayers] = useState<DesignLayer[]>([]);
+  const [backLayers, setBackLayers] = useState<DesignLayer[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [size, setSize] = useState("Medium");
+  const [fontFamily, setFontFamily] = useState("Arial");
+  const [textColor, setTextColor] = useState("#111111");
+  const [qrValue, setQrValue] = useState("");
+  const [stageWidth, setStageWidth] = useState(720);
+  const [notice, setNotice] = useState("Keep everything inside the blue-lined card.");
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
+  const [undoStack, setUndoStack] = useState<DesignerSnapshot[]>([]);
+  const [redoStack, setRedoStack] = useState<DesignerSnapshot[]>([]);
+  const [adminBasePrice, setAdminBasePrice] = useState(oneSidePrice);
+  const [adminPricing, setAdminPricing] = useState<Record<string, ProductPricing>>({});
+  const stageWrapRef = useRef<HTMLDivElement | null>(null);
+  const generatedImageLoadedRef = useRef(false);
 
-          setCredits(
-            `Credits: ${total}`,
-          );
-        } catch {
-          setCredits(
-            "Credits: --",
-          );
-        }
-      },
-      [authToken],
-    );
+  const stageHeight = stageWidth * 1.2;
+  const printArea = useMemo(() => getPrintArea(stageWidth, stageHeight), [stageWidth, stageHeight]);
+  const color = shirtColors.find((item) => item.key === currentColorKey) ?? shirtColors[0];
+  const selectedProduct = getProduct(productId);
+  const layers = currentView === "front" ? frontLayers : backLayers;
+  const selectedLayer = layers.find((layer) => layer.id === selectedId);
+  const selectedTextLayer = selectedLayer?.type === "text" ? selectedLayer : null;
+  const price = useMemo(() => {
+    const isDoubleSided = layerHasArt(frontLayers) && layerHasArt(backLayers);
+    const printType = isDoubleSided ? "2 Side" : "1 Side";
+    const shirtPricing = adminPricing["classic-tee"];
+    const printVariant = findPricingVariant(shirtPricing, "Print Sides", printType);
+    const basePrice = printVariant?.price ?? (isDoubleSided ? adminBasePrice + 10 : adminBasePrice);
+    const discount = quantity >= 6 ? 20 : quantity >= 2 ? 11 : 0;
+    const unitPrice = Math.max(basePrice - discount, 0);
+
+    return {
+      printType,
+      variantTitle: printVariant?.title ?? printType,
+      perShirtDiscount: discount,
+      unitPrice,
+      lineTotal: roundMoney(unitPrice * quantity),
+    };
+  }, [adminBasePrice, adminPricing, quantity, frontLayers, backLayers]);
 
   useEffect(() => {
-    if (!accountToken) return;
-
     const timer = window.setTimeout(() => {
-      void loadDesignCredits(
-        accountToken,
-      );
+      const params = new URLSearchParams(window.location.search);
+      setProductId(params.get("product") ?? "classic-tee");
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [
-    accountToken,
-    loadDesignCredits,
-  ]);
+  }, []);
 
-  async function ensureAuthToken() {
-    if (
-      authToken ||
-      accountToken
-    ) {
-      return (
-        authToken ||
-        accountToken
-      );
-    }
+  useEffect(() => {
+    let active = true;
 
-    const session =
-      accountToken
-        ? {
-            token:
-              accountToken,
-          }
-        : await loadAccount();
-
-    if (!session?.token)
-      return "";
-
-    setAuthToken(
-      session.token,
-    );
-
-    await loadDesignCredits(
-      session.token,
-    );
-
-    return session.token;
-  }
-
-  function selectProduct(
-    product: ProductChoice,
-  ) {
-    setSelectedProduct(
-      product.value,
-    );
-
-    setSelectedStyles([]);
-
-    setStyleTexts({});
-
-    setIndustry("");
-
-    setResult(null);
-
-    setResultImage("");
-  }
-
-  function toggleStyle(
-    style: string,
-  ) {
-    if (
-      selectedStyles.includes(
-        style,
-      )
-    ) {
-      setSelectedStyles(
-        (current) =>
-          current.filter(
-            (item) =>
-              item !== style,
-          ),
-      );
-
-      setStyleTexts(
-        (current) => {
-          const next = {
-            ...current,
-          };
-
-          delete next[style];
-
-          return next;
-        },
-      );
-
-      return;
-    }
-
-    setSelectedStyles(
-      (current) => [
-        ...current,
-        style,
-      ],
-    );
-
-    setStyleTexts(
-      (current) => ({
-        ...current,
-        [style]:
-          pickStyleText(style),
-      }),
-    );
-  }
-
-  function startFakeLoading() {
-    let nextProgress = 0;
-
-    if (
-      generationInterval.current
-    ) {
-      window.clearInterval(
-        generationInterval.current,
-      );
-    }
-
-    setProgress(0);
-
-    generationInterval.current =
-      window.setInterval(() => {
-        if (nextProgress < 90) {
-          nextProgress += 2;
-
-          setProgress(
-            nextProgress,
-          );
+    fetch("/api/products/pricing")
+      .then((response) => response.json())
+      .then((pricing: Record<string, ProductPricing>) => {
+        if (active) setAdminPricing(pricing);
+        const nextPrice = pricing["classic-tee"]?.price;
+        if (active && typeof nextPrice === "number" && nextPrice > 0) {
+          setAdminBasePrice(nextPrice);
         }
-      }, 250);
-  }
+      })
+      .catch(() => undefined);
 
-  function finishFakeLoading() {
-    if (
-      generationInterval.current
-    ) {
-      window.clearInterval(
-        generationInterval.current,
-      );
-    }
+    return () => {
+      active = false;
+    };
+  }, []);
 
-    setProgress(100);
+  useEffect(() => {
+    const element = stageWrapRef.current;
 
-    window.setTimeout(() => {
-      setProgress(0);
-    }, 800);
-  }
+    if (!element) return;
 
-  async function runGeneration() {
-    if (!selectedProduct)
-      return;
+    const observer = new ResizeObserver(([entry]) => {
+      setStageWidth(Math.min(820, Math.max(300, entry.contentRect.width)));
+    });
 
-    const token =
-      await ensureAuthToken();
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
-    if (!token) return;
+  useEffect(() => {
+    if (generatedImageLoadedRef.current) return;
 
-    setIsGenerating(true);
+    const generatedImage = localStorage.getItem("prntd_generated_image");
 
-    setResult(null);
+    if (!generatedImage) return;
 
-    setResultImage("");
+    generatedImageLoadedRef.current = true;
 
-    startFakeLoading();
+    const startSize = window.innerWidth < 768 ? 160 : 300;
 
-    try {
-      const response =
-        await fetch(
-          `${apiBase}/generate-design`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              prompt,
-              productType:
-                selectedProduct,
-              quality,
-              transparentBackground:
-                transparentBackground ===
-                "true",
-            }),
-          },
-        );
+    readImage(generatedImage)
+      .then((image) => {
+        const aspect = image.width / image.height;
+        const width = aspect >= 1 ? startSize : startSize * aspect;
+        const height = aspect >= 1 ? startSize / aspect : startSize;
+        const generatedLayer: DesignLayer = {
+          id: crypto.randomUUID(),
+          type: "image",
+          preview: generatedImage,
+          x: (stageWidth - width) / 2,
+          y: (stageHeight - height) / 2,
+          width,
+          height,
+          rotation: 0,
+        };
 
-      const data =
-        (await response.json()) as GenerationResult;
-
-      if (!response.ok) {
-        throw new Error(
-          data.error ??
-            "Generation failed",
-        );
-      }
-
-      const image =
-        data.imageUrl ??
-        data.image ??
-        data.url ??
-        "";
-
-      setResult(data);
-
-      setResultImage(image);
-
-      finishFakeLoading();
-
-      downloadImage(image);
-
-      await loadDesignCredits(
-        token,
-      );
-    } catch (error) {
-      setResult({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Generation failed",
+        setCurrentView("front");
+        setFrontLayers((current) => [...current, generatedLayer]);
+        setSelectedId(generatedLayer.id);
+        setNotice("Generated design loaded. Position it inside the blue-lined card.");
+        localStorage.removeItem("prntd_generated_image");
+      })
+      .catch(() => {
+        setNotice("Generated design could not be loaded.");
       });
-    } finally {
-      setIsGenerating(false);
+  }, [stageHeight, stageWidth]);
+
+  useEffect(() => {
+    function handleDelete(event: KeyboardEvent) {
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      if (!selectedId) return;
+
+      event.preventDefault();
+      deleteSelectedLayer();
+    }
+
+    window.addEventListener("keydown", handleDelete);
+    return () => window.removeEventListener("keydown", handleDelete);
+  });
+
+  function currentSnapshot(): DesignerSnapshot {
+    return {
+      frontLayers,
+      backLayers,
+    };
+  }
+
+  function rememberSnapshot() {
+    const snapshot = currentSnapshot();
+    setUndoStack((current) => [...current.slice(-24), snapshot]);
+    setRedoStack([]);
+  }
+
+  function applySnapshot(snapshot: DesignerSnapshot) {
+    setFrontLayers(snapshot.frontLayers);
+    setBackLayers(snapshot.backLayers);
+    setSelectedId(null);
+  }
+
+  function undo() {
+    const previous = undoStack.at(-1);
+    if (!previous) return;
+
+    setUndoStack((current) => current.slice(0, -1));
+    setRedoStack((current) => [...current.slice(-24), currentSnapshot()]);
+    applySnapshot(previous);
+    setNotice("Last customizer action undone.");
+  }
+
+  function redo() {
+    const next = redoStack.at(-1);
+    if (!next) return;
+
+    setRedoStack((current) => current.slice(0, -1));
+    setUndoStack((current) => [...current.slice(-24), currentSnapshot()]);
+    applySnapshot(next);
+    setNotice("Customizer action redone.");
+  }
+
+  function updateLayers(nextLayers: DesignLayer[], recordHistory = true) {
+    if (recordHistory) rememberSnapshot();
+
+    if (currentView === "front") {
+      setFrontLayers(nextLayers);
+    } else {
+      setBackLayers(nextLayers);
     }
   }
 
-  async function runEdit() {
-    if (
-      !resultImage ||
-      !editRequest.trim()
-    ) {
-      return;
-    }
-
-    setIsEditing(true);
-
-    try {
-      const response =
-        await fetch(resultImage);
-
-      const imageBlob =
-        await response.blob();
-
-      const formData =
-        new FormData();
-
-      formData.append(
-        "image",
-        imageBlob,
-        "design.png",
-      );
-
-      formData.append(
-        "editRequest",
-        editRequest,
-      );
-
-      const token =
-        await ensureAuthToken();
-
-      const editResponse =
-        await fetch(
-          `${apiBase}/edit-image`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            body: formData,
-          },
-        );
-
-      const data =
-        (await editResponse.json()) as GenerationResult;
-
-      const image =
-        data.imageUrl ??
-        data.image ??
-        data.url ??
-        "";
-
-      setResult(data);
-
-      setResultImage(image);
-
-      setEditRequest("");
-
-      downloadImage(image);
-    } finally {
-      setIsEditing(false);
+  function updateLayer(id: string, updates: Partial<DesignLayer>) {
+    if (currentView === "front") {
+      setFrontLayers((current) => updateLayerList(current, id, updates));
+    } else {
+      setBackLayers((current) => updateLayerList(current, id, updates));
     }
   }
 
-  function startVoice() {
-    const Recognition =
-      getSpeechRecognitionConstructor();
+  function addLayers(nextLayers: DesignLayer[]) {
+    const updatedLayers = [...layers, ...nextLayers];
+    updateLayers(updatedLayers);
+    setSelectedId(nextLayers.at(-1)?.id ?? null);
+  }
 
-    if (!Recognition) {
-      setVoiceSupported(false);
+  function setSide(nextView: ShirtSide) {
+    setCurrentView(nextView);
+    setSelectedId(null);
+    setNotice(`${nextView === "front" ? "Front" : "Back"} side selected.`);
+  }
 
+  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    const imageLayerCount = layers.filter((layer) => layer.type === "image").length;
+
+    if (!files.length) return;
+
+    if (imageLayerCount + files.length > 3) {
+      setNotice("Maximum 3 images allowed per side.");
+      event.target.value = "";
       return;
     }
 
-    const recognition =
-      new Recognition();
+    const startSize = window.innerWidth < 768 ? 160 : 300;
+    const builtLayers = await Promise.all(
+      files.map(
+        (file) =>
+          new Promise<DesignLayer>((resolve, reject) => {
+            const reader = new FileReader();
 
-    recognition.lang = "en-US";
+            reader.onload = async (readerEvent) => {
+              try {
+                const image = await readImage(String(readerEvent.target?.result));
+                const aspect = image.width / image.height;
+                const width = aspect >= 1 ? startSize : startSize * aspect;
+                const height = aspect >= 1 ? startSize / aspect : startSize;
 
-    recognition.continuous = false;
+                resolve({
+                  id: crypto.randomUUID(),
+                  type: "image",
+                  preview: trimTransparentPixels(image),
+                  originalPreview: String(readerEvent.target?.result ?? ""),
+                  x: (stageWidth - width) / 2,
+                  y: (stageHeight - height) / 2,
+                  width,
+                  height,
+                  rotation: 0,
+                });
+              } catch (error) {
+                reject(error);
+              }
+            };
 
-    recognition.interimResults = true;
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          })
+      )
+    );
 
-    recognition.maxAlternatives = 1;
+    addLayers(builtLayers);
+    setNotice(`${builtLayers.length} design${builtLayers.length === 1 ? "" : "s"} added to the ${currentView}.`);
+    event.target.value = "";
+  }
 
-    recognition.onresult = (
-      event,
-    ) => {
-      let transcript = "";
-
-      for (
-        let index = 0;
-        index <
-        event.results.length;
-        index += 1
-      ) {
-        transcript += `${event.results[index][0].transcript} `;
-      }
-
-      setBrandDetails(
-        transcript.trim(),
-      );
+  function addText() {
+    const newLayer: DesignLayer = {
+      id: crypto.randomUUID(),
+      type: "text",
+      text: "Double click to edit",
+      x: stageWidth / 2 - 120,
+      y: stageHeight / 2 - 20,
+      fontSize: 42,
+      fontFamily,
+      fill: textColor,
+      rotation: 0,
     };
 
-    recognition.onerror = () =>
-      setVoiceListening(false);
-
-    recognition.onend = () =>
-      setVoiceListening(false);
-
-    setVoiceListening(true);
-
-    recognition.start();
+    addLayers([newLayer]);
+    setNotice("Text added. Edit it in the selected text field or double click the text.");
   }
 
-  function applyToProduct() {
-    if (!resultImage) return;
+  async function addFreeQrCode() {
+    const value = qrValue.trim();
 
-    localStorage.setItem(
-      "prntd_generated_image",
-      resultImage,
-    );
+    if (!value) {
+      setNotice("Enter a URL or text value before adding a free QR code.");
+      return;
+    }
 
-    window.location.href =
-      "/products";
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=900x900&format=png&data=${encodeURIComponent(value)}`;
+      const preview = await urlToDataUrl(qrUrl);
+      const qrSize = window.innerWidth < 768 ? 120 : 180;
+      const qrLayer: DesignLayer = {
+        id: crypto.randomUUID(),
+        type: "image",
+        preview,
+        originalPreview: preview,
+        x: stageWidth / 2 - qrSize / 2,
+        y: stageHeight / 2 - qrSize / 2,
+        width: qrSize,
+        height: qrSize,
+        rotation: 0,
+      };
+
+      addLayers([qrLayer]);
+      setQrValue("");
+      setNotice("Free static QR code added. It does not track scans or use dynamic redirects.");
+    } catch {
+      setNotice("Could not generate the free QR code. Please try again.");
+    }
+  }
+
+  function editTextLayer(layer: DesignLayer) {
+    const nextText = window.prompt("Edit text", layer.text ?? "");
+
+    if (nextText === null) return;
+
+    updateLayer(layer.id, { text: nextText });
+  }
+
+  function deleteSelectedLayer() {
+    if (!selectedId) return;
+
+    updateLayers(layers.filter((layer) => layer.id !== selectedId));
+    setSelectedId(null);
+    setNotice("Selected design deleted.");
+  }
+
+  function moveSelectedLayer(direction: "forward" | "backward") {
+    if (!selectedId) return;
+
+    const index = layers.findIndex((layer) => layer.id === selectedId);
+    const nextIndex = direction === "forward" ? index + 1 : index - 1;
+
+    if (index < 0 || nextIndex < 0 || nextIndex >= layers.length) return;
+
+    const updatedLayers = [...layers];
+    [updatedLayers[index], updatedLayers[nextIndex]] = [updatedLayers[nextIndex], updatedLayers[index]];
+    updateLayers(updatedLayers);
+  }
+
+  function resetImageSize(layer: DesignLayer, image: HTMLImageElement) {
+    const startSize = window.innerWidth < 768 ? 160 : 300;
+    const aspect = image.width / image.height;
+    const width = aspect >= 1 ? startSize : startSize * aspect;
+    const height = aspect >= 1 ? startSize / aspect : startSize;
+
+    updateLayer(layer.id, { width, height, rotation: 0 });
+  }
+
+  async function removeBackground() {
+    if (!selectedLayer || selectedLayer.type !== "image" || !selectedLayer.preview) {
+      setNotice("Select an image first.");
+      return;
+    }
+
+    setIsRemovingBg(true);
+    setNotice("Removing background...");
+
+    try {
+      const image = await readImage(selectedLayer.preview);
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas unavailable.");
+
+      ctx.drawImage(image, 0, 0);
+
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((nextBlob) => (nextBlob ? resolve(nextBlob) : reject(new Error("Image export failed."))), "image/png");
+      });
+      const formData = new FormData();
+      formData.append("image", blob, "image.png");
+
+      const response = await fetch("https://prntd-bg-remover.onrender.com/api/remove-bg", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("prntd_jwt") ?? ""}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Background removal failed.");
+      }
+
+      const resultBlob = await response.blob();
+      updateLayer(selectedLayer.id, { preview: URL.createObjectURL(resultBlob) });
+      setNotice("Background removed.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Something went wrong.");
+    } finally {
+      setIsRemovingBg(false);
+    }
+  }
+
+  async function flattenSide(side: ShirtSide) {
+    const sideLayers = side === "front" ? frontLayers : backLayers;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(printArea.width);
+    canvas.height = Math.round(printArea.height);
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.translate(-printArea.x, -printArea.y);
+
+    for (const layer of sideLayers) {
+      if (layer.type === "image" && layer.preview && layer.width && layer.height) {
+        const image = await readImage(layer.preview);
+
+        ctx.save();
+        ctx.translate(layer.x + layer.width / 2, layer.y + layer.height / 2);
+        ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
+        ctx.drawImage(image, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+        ctx.restore();
+      }
+
+      if (layer.type === "text" && layer.text) {
+        ctx.save();
+        ctx.translate(layer.x, layer.y);
+        ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
+        ctx.font = `${layer.fontSize ?? 42}px ${layer.fontFamily ?? "Arial"}`;
+        ctx.fillStyle = layer.fill ?? "#111111";
+        ctx.textBaseline = "top";
+        ctx.fillText(layer.text, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    return canvas.toDataURL("image/png");
+  }
+
+  async function addToCart() {
+    setNotice("Preparing design for cart...");
+
+    const [frontFlattened, backFlattened] = await Promise.all([
+      layerHasArt(frontLayers) ? flattenSide("front") : Promise.resolve(null),
+      layerHasArt(backLayers) ? flattenSide("back") : Promise.resolve(null),
+    ]);
+
+    try {
+      const item: CartItem = {
+        id: crypto.randomUUID(),
+        productId: selectedProduct.id,
+        productName: `Custom ${selectedProduct.name} (${price.printType})`,
+        size,
+        color: {
+          name: color.name,
+          value: color.swatch,
+        },
+        quantity,
+        frontLayers,
+        backLayers,
+        mockupPreview: frontFlattened ?? backFlattened,
+        frontPreview: frontFlattened,
+        backPreview: backFlattened,
+        unitPrice: price.unitPrice,
+        lineTotal: price.lineTotal,
+        createdAt: new Date().toISOString(),
+      };
+
+      await addCartItem(item);
+      trackStorefrontEvent("added_to_cart", {
+        product_id: selectedProduct.id,
+        product_name: selectedProduct.name,
+        quantity,
+        print_type: price.printType,
+        line_total: price.lineTotal,
+      });
+      window.location.href = "/cart";
+    } catch {
+      setNotice("Could not add this artwork to cart. Try a smaller image or remove one layer.");
+    }
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#020617] text-white">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-[-10%] top-[-10%] h-[520px] w-[520px] rounded-full bg-[#4f46e5]/20 blur-[140px]" />
+    <main className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-[#111827]">
+      <ShopHeader />
 
-        <div className="absolute bottom-[-15%] right-[-10%] h-[520px] w-[520px] rounded-full bg-[#2563eb]/20 blur-[160px]" />
-      </div>
-
-      <div className="relative z-10">
-        <ShopHeader />
-
-        <section className="mx-auto w-full max-w-[1700px] px-5 py-10 pb-24">
-          {/* HERO */}
-          <div className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[linear-gradient(135deg,#0f172a_0%,#111827_40%,#312e81_100%)] p-8 shadow-[0_35px_120px_rgba(0,0,0,0.45)] sm:p-12">
-            <div className="absolute right-[-10%] top-[-10%] h-[420px] w-[420px] rounded-full bg-[#8b5cf6]/20 blur-[140px]" />
-
-            <div className="relative grid gap-10 xl:grid-cols-[1fr_380px]">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#c7d2fe] backdrop-blur">
-                  <Sparkles className="h-4 w-4" />
-                  PRNTD Studio
-                </div>
-
-                <h1 className="mt-7 text-[clamp(56px,8vw,110px)] font-black leading-[0.9] tracking-[-0.06em]">
-                  Generate
-                  <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
-                    Premium Designs
-                  </span>
-                </h1>
-
-                <p className="mt-8 max-w-3xl text-lg leading-9 text-[#cbd5e1]">
-                  Create custom shirts,
-                  logos, labels, stickers,
-                  and business cards with
-                  modern design tools.
-                </p>
-
-                <div className="mt-8 flex flex-wrap gap-4">
-                  <Link
-                    href="/subscriptions"
-                    className="inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-7 py-4 text-sm font-black text-white no-underline shadow-[0_15px_50px_rgba(99,102,241,0.35)] transition hover:-translate-y-1"
-                  >
-                    Buy Credits
-                  </Link>
-
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-7 py-4 text-sm font-black text-white no-underline transition hover:bg-white/[0.08]"
-                  >
-                    Open Dashboard
-                  </Link>
-                </div>
-              </div>
-
-              {/* ACCOUNT */}
-              <div className="rounded-[32px] border border-white/10 bg-white/[0.05] p-7 backdrop-blur-2xl">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#94a3b8]">
-                  Creator Account
-                </p>
-
-                <p className="mt-4 break-all text-2xl font-black">
-                  {email ||
-                    "Loading..."}
-                </p>
-
-                <p className="mt-2 text-sm text-[#94a3b8]">
-                  {accountStatus}
-                </p>
-
-                <div className="mt-8 rounded-[26px] border border-white/10 bg-[#0f172a]/80 p-6">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#94a3b8]">
-                    Credits
-                  </p>
-
-                  <p className="mt-4 text-[52px] font-black leading-none">
-                    {credits.replace(
-                      "Credits: ",
-                      "",
-                    )}
-                  </p>
-
-                  <p className="mt-3 text-sm leading-7 text-[#cbd5e1]">
-                    Each generation
-                    uses 1 credit.
-                  </p>
-                </div>
-              </div>
+      <section className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-[22px] sm:py-10">
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] max-[1100px]:gap-7 max-[860px]:grid-cols-1">
+          <div className="relative rounded-[32px] bg-[#f5f7fb] p-7 max-[860px]:rounded-3xl max-[860px]:p-[18px]">
+            <div className="mb-[18px] flex gap-2.5 overflow-auto max-[860px]:w-full">
+              {(["front", "back"] as ShirtSide[]).map((side) => (
+                <button
+                  key={side}
+                  type="button"
+                  onClick={() => setSide(side)}
+                  className={`rounded-full px-[18px] py-3 text-sm font-bold capitalize max-[860px]:min-w-30 max-[860px]:flex-1 ${
+                    currentView === side ? "bg-[#111827] text-white" : "bg-[#e5e7eb] text-[#111827]"
+                  }`}
+                >
+                  {side}
+                </button>
+              ))}
             </div>
-          </div>
 
-          {/* MAIN */}
-          <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_460px]">
-            {/* LEFT */}
-            <div className="rounded-[36px] border border-white/10 bg-white/[0.04] p-7 backdrop-blur-2xl shadow-[0_25px_90px_rgba(0,0,0,0.35)]">
-              {/* PRODUCTS */}
-              <section>
-                <div className="flex items-center gap-3">
-                  <Layers3 className="h-6 w-6 text-[#818cf8]" />
+            <div className="absolute right-7 top-5 z-50 flex max-w-[calc(100%-210px)] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-red-500/10 bg-white/90 px-[18px] py-2.5 text-sm font-semibold text-[#111827] shadow-[0_8px_24px_rgba(0,0,0,0.08)] backdrop-blur max-[860px]:static max-[860px]:mb-4 max-[860px]:w-full max-[860px]:max-w-none max-[860px]:justify-start max-[860px]:whitespace-normal max-[860px]:rounded-[18px]">
+              <span className="font-extrabold text-red-500">Important:</span>
+              Keep everything inside the blue-lined card. Prints exactly as shown.
+            </div>
 
-                  <h2 className="text-3xl font-black tracking-[-0.04em]">
-                    Product Type
-                  </h2>
-                </div>
+            <div ref={stageWrapRef} className="relative mx-auto aspect-[1/1.2] w-full overflow-hidden rounded-[28px] bg-[#eef2f7] max-[860px]:rounded-[20px]">
+              <Image
+                src={color.images[currentView]}
+                alt={`${color.name} shirt ${currentView}`}
+                fill
+                priority
+                sizes="(max-width: 860px) calc(100vw - 80px), 760px"
+                className="pointer-events-none select-none object-contain"
+              />
 
-                <div className="mt-7 grid grid-cols-5 gap-4 max-[1000px]:grid-cols-3 max-[700px]:grid-cols-2">
-                  {products.map(
-                    (product) => (
-                      <button
-                        key={
-                          product.value
-                        }
-                        type="button"
-                        onClick={() =>
-                          selectProduct(
-                            product,
-                          )
-                        }
-                        className={`rounded-[28px] border p-5 text-left transition duration-300 hover:-translate-y-1 ${
-                          selectedProduct ===
-                          product.value
-                            ? "border-[#6366f1]/40 bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_20px_60px_rgba(99,102,241,0.35)]"
-                            : "border-white/10 bg-white/[0.04] text-white hover:border-[#6366f1]/20 hover:bg-white/[0.06]"
-                        }`}
-                      >
-                        <p className="text-lg font-black">
-                          {
-                            product.label
-                          }
-                        </p>
-
-                        <p className="mt-3 text-xs leading-6 opacity-80">
-                          
-                          premium
-                          graphics.
-                        </p>
-                      </button>
-                    ),
-                  )}
-                </div>
-              </section>
-
-              {/* DESCRIPTION */}
-              <section className="mt-10">
-                <h2 className="text-3xl font-black tracking-[-0.04em]">
-                  Describe Your
-                  Design
-                </h2>
-
-                <div className="relative mt-6">
-                  <textarea
-                    value={
-                      showBusinessCard
-                        ? businessCardDetails
-                        : brandDetails
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      showBusinessCard
-                        ? setBusinessCardDetails(
-                            event
-                              .target
-                              .value,
-                          )
-                        : setBrandDetails(
-                            event
-                              .target
-                              .value,
-                          )
-                    }
-                    className="min-h-[240px] w-full resize-y rounded-[30px] border border-white/10 bg-[#0f172a]/90 p-7 pr-24 text-[16px] leading-8 text-white outline-none transition focus:border-[#6366f1]/40"
-                    placeholder="Describe your vision, typography, colors, style, mood..."
-                  />
-
-                  {voiceSupported && (
-                    <button
-                      type="button"
-                      onClick={
-                        startVoice
-                      }
-                      className={`absolute bottom-5 right-5 flex h-14 w-14 items-center justify-center rounded-2xl text-sm font-black text-white shadow-[0_15px_50px_rgba(99,102,241,0.35)] ${
-                        voiceListening
-                          ? "bg-[linear-gradient(135deg,#ef4444,#dc2626)]"
-                          : "bg-[linear-gradient(135deg,#3b82f6,#8b5cf6)]"
-                      }`}
-                    >
-                      <Mic className="h-5 w-5" />
-                    </button>
-                  )}
-                </div>
-              </section>
-
-              {/* STYLES */}
-              <section className="mt-10">
-                <h2 className="text-3xl font-black tracking-[-0.04em]">
-                  Style Presets
-                </h2>
-
-                <div className="mt-7 flex flex-wrap gap-3">
-                  {styleOptions.map(
-                    (style) => (
-                      <button
-                        key={style}
-                        type="button"
-                        onClick={() =>
-                          toggleStyle(
-                            style,
-                          )
-                        }
-                        className={`rounded-full px-5 py-3 text-sm font-black capitalize transition ${
-                          selectedStyles.includes(
-                            style,
-                          )
-                            ? "bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_10px_30px_rgba(99,102,241,0.28)]"
-                            : "border border-white/10 bg-white/[0.04] text-[#cbd5e1] hover:bg-white/[0.08]"
-                        }`}
-                      >
-                        {style}
-                      </button>
-                    ),
-                  )}
-                </div>
-              </section>
-
-              {/* FINAL */}
-              <section className="mt-10">
-                <h2 className="text-3xl font-black tracking-[-0.04em]">
-                  Final Prompt
-                </h2>
-
-                <textarea
-                  value={prompt}
-                  readOnly
-                  className="mt-5 min-h-[160px] w-full rounded-[28px] border border-white/10 bg-[#0f172a]/80 p-6 text-[15px] leading-8 text-[#cbd5e1]"
-                />
-              </section>
-
-              {/* CTA */}
-              <button
-                type="button"
-                onClick={
-                  runGeneration
-                }
-                disabled={
-                  isGenerating
-                }
-                className="mt-10 flex w-full items-center justify-center gap-3 rounded-[28px] bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-8 py-6 text-xl font-black text-white shadow-[0_20px_60px_rgba(99,102,241,0.35)] transition hover:-translate-y-1 disabled:opacity-50"
+              <Stage
+                width={stageWidth}
+                height={stageHeight}
+                className="!absolute inset-0 z-20"
+                onMouseDown={(event) => {
+                  if (event.target === event.target.getStage()) {
+                    setSelectedId(null);
+                  }
+                }}
+                onTouchStart={(event) => {
+                  if (event.target === event.target.getStage()) {
+                    setSelectedId(null);
+                  }
+                }}
               >
-                <Wand2 className="h-6 w-6" />
+                <Layer clipX={printArea.x} clipY={printArea.y} clipWidth={printArea.width} clipHeight={printArea.height}>
+                  <Group>
+                    {layers.map((layer) =>
+                      layer.type === "image" ? (
+                        <URLImage
+                          key={layer.id}
+                          layer={layer}
+                          isSelected={selectedId === layer.id}
+                          onSelect={() => setSelectedId(layer.id)}
+                          updateLayer={updateLayer}
+                          onResetSize={resetImageSize}
+                        />
+                      ) : (
+                        <URLText
+                          key={layer.id}
+                          layer={layer}
+                          isSelected={selectedId === layer.id}
+                          onSelect={() => setSelectedId(layer.id)}
+                          updateLayer={updateLayer}
+                          onEdit={editTextLayer}
+                        />
+                      )
+                    )}
+                  </Group>
+                </Layer>
+              </Stage>
 
-                {isGenerating
-                  ? "Generating..."
-                  : generateButtonText}
-              </button>
-
-              {hasProgress && (
-                <div className="mt-7">
-                  <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full rounded-full bg-[linear-gradient(135deg,#3b82f6,#6366f1,#8b5cf6)] transition-all"
-                      style={{
-                        width: `${progress}%`,
-                      }}
-                    />
-                  </div>
-
-                  <p className="mt-4 text-center text-sm text-[#cbd5e1]">
-                    {
-                      progressText
-                    }
-                  </p>
-                </div>
-              )}
+              <div
+                className="pointer-events-none absolute z-30 box-border rounded-[18px] border-2 border-dashed border-blue-500/75"
+                style={{
+                  left: "50.5%",
+                  top: "51%",
+                  width: "30%",
+                  height: "39%",
+                  transform: "translate(-50%, -50%)",
+                }}
+              />
             </div>
 
-            {/* PREVIEW */}
-            <aside className="sticky top-5 h-fit overflow-hidden rounded-[36px] border border-white/10 bg-[linear-gradient(135deg,#111827_0%,#1e1b4b_100%)] p-7 shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#c7d2fe]">
-                Image Render Preview
-              </p>
-
-              <h2 className="mt-4 text-[46px] font-black leading-[0.95] tracking-[-0.04em]">
-                Live
-                <span className="block text-[#a5b4fc]">
-                  Preview
-                </span>
-              </h2>
-
-              <div className="mt-7 overflow-hidden rounded-[32px] border border-white/10 bg-[#0f172a]/90 p-5">
-                {!resultImage &&
-                  !result?.error && (
-                    <div className="grid min-h-[520px] place-items-center text-center">
-                      <div>
-                        <h3 className="text-2xl font-black">
-                          Waiting For
-                          Design
-                        </h3>
-
-                        <p className="mt-4 text-sm leading-7 text-[#94a3b8]">
-                          Your generated
-                          artwork preview
-                          will appear
-                          here.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                {result?.error && (
-                  <div className="rounded-[24px] border border-red-500/20 bg-red-500/10 p-6 text-center text-red-300">
-                    {
-                      result.error
-                    }
-                  </div>
-                )}
-
-                {resultImage && (
-                  <div>
-                    <img
-                      src={
-                        resultImage
-                      }
-                      alt="Generated design"
-                      className="w-full rounded-[24px] shadow-[0_20px_80px_rgba(0,0,0,0.35)]"
-                    />
-
-                    <div className="mt-7 border-t border-white/10 pt-7">
-                      <textarea
-                        value={
-                          editRequest
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          setEditRequest(
-                            event
-                              .target
-                              .value,
-                          )
-                        }
-                        className="min-h-[140px] w-full rounded-[24px] border border-white/10 bg-white/[0.04] p-5 text-white"
-                        placeholder="Describe changes..."
-                      />
-
-                      <button
-                        type="button"
-                        onClick={
-                          runEdit
-                        }
-                        disabled={
-                          isEditing
-                        }
-                        className="mt-5 flex w-full items-center justify-center gap-3 rounded-[22px] border border-white/10 bg-white/[0.06] px-6 py-5 text-sm font-black text-white transition hover:bg-white/[0.1]"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-
-                        {isEditing
-                          ? "Updating..."
-                          : "Update Design"}
-                      </button>
-                    </div>
-
-                    <div className="mt-5 grid gap-3">
-                      <button
-                        type="button"
-                        onClick={
-                          applyToProduct
-                        }
-                        className="flex items-center justify-center gap-3 rounded-[22px] bg-white px-6 py-5 text-sm font-black text-[#111827] transition hover:scale-[1.01]"
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                        Apply To
-                        Product
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          downloadImage(
-                            resultImage,
-                          )
-                        }
-                        className="flex items-center justify-center gap-3 rounded-[22px] border border-white/10 bg-white/[0.04] px-6 py-5 text-sm font-black text-white transition hover:bg-white/[0.08]"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download
-                        Design
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </aside>
+            <p className="mt-4 rounded-[18px] bg-white/80 px-4 py-3 text-sm font-semibold text-[#4b5563] shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
+              {notice}
+            </p>
           </div>
-        </section>
-      </div>
+
+          <aside className="flex flex-col gap-[18px] rounded-[28px] bg-white p-7 shadow-[0_10px_28px_rgba(0,0,0,0.05)] max-[860px]:rounded-3xl max-[860px]:p-[22px] max-[480px]:p-[18px]">
+            <h1 className="mb-2 text-[52px] font-black leading-[0.92] tracking-[-0.05em] max-[1100px]:text-[42px] max-[860px]:text-[34px] max-[480px]:text-3xl">
+              Customize T-Shirts
+            </h1>
+            <div className="h-px bg-black/5" />
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Upload Design(s)</label>
+            <input
+              className="w-full rounded-[20px] border-2 border-dashed border-indigo-500/20 bg-[#fafbff] p-[18px] text-base"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              onChange={handleUpload}
+            />
+
+            <button type="button" onClick={addText} className="prntd-gradient-btn">
+              Add Text
+            </button>
+
+            <div className="rounded-[22px] border border-[#e7eaf3] bg-[#f8faff] p-4">
+              <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Free Static QR Code</label>
+              <div className="mt-3 grid gap-2">
+                <input
+                  value={qrValue}
+                  onChange={(event) => setQrValue(event.target.value)}
+                  className="h-[52px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-sm"
+                  placeholder="https://example.com or plain text"
+                />
+                <button type="button" onClick={addFreeQrCode} className="portal-action">
+                  Add Free QR Code
+                </button>
+              </div>
+            </div>
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Font and Text Color</label>
+            <select
+              value={fontFamily}
+              onChange={(event) => {
+                setFontFamily(event.target.value);
+
+                if (selectedTextLayer) {
+                  updateLayer(selectedTextLayer.id, { fontFamily: event.target.value });
+                }
+              }}
+              className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base"
+            >
+              {fontFamilies.map((font) => (
+                <option key={font} value={font}>
+                  {font === "Brush Script MT" ? "Brush Script" : font === "Comic Sans MS" ? "Comic Sans" : font}
+                </option>
+              ))}
+            </select>
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Text Color</label>
+            <input
+              type="color"
+              value={textColor}
+              onChange={(event) => {
+                setTextColor(event.target.value);
+
+                if (selectedTextLayer) {
+                  updateLayer(selectedTextLayer.id, { fill: event.target.value });
+                }
+              }}
+              className="h-[52px] w-full rounded-2xl border border-slate-950/10 bg-white p-1.5"
+            />
+
+            {selectedTextLayer && (
+              <>
+                <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Selected Text</label>
+                <input
+                  value={selectedTextLayer.text ?? ""}
+                  onChange={(event) => updateLayer(selectedTextLayer.id, { text: event.target.value })}
+                  className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base"
+                />
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 max-[860px]:grid-cols-1">
+              <button type="button" onClick={undo} disabled={!undoStack.length} className="portal-action disabled:cursor-not-allowed disabled:opacity-50">
+                Undo
+              </button>
+              <button type="button" onClick={redo} disabled={!redoStack.length} className="portal-action disabled:cursor-not-allowed disabled:opacity-50">
+                Redo
+              </button>
+            </div>
+
+            <button type="button" onClick={deleteSelectedLayer} className="min-h-[54px] rounded-[18px] border border-red-500/15 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              Delete Selected Design
+            </button>
+
+            <Link
+              href="/designer"
+              className="relative flex min-h-14 w-full items-center justify-center overflow-hidden rounded-[20px] bg-[linear-gradient(135deg,#8b5cf6_0%,#6366f1_45%,#3b82f6_100%)] px-4 py-3 text-center text-[15px] font-extrabold tracking-[0.02em] text-white no-underline shadow-[0_14px_34px_rgba(99,102,241,0.24)] transition hover:-translate-y-0.5"
+            >
+              Create New Design
+            </Link>
+
+            <button type="button" disabled={isRemovingBg} onClick={removeBackground} className="prntd-gradient-btn disabled:cursor-not-allowed disabled:opacity-70">
+              {isRemovingBg ? (
+                <>
+                  <span className="inline-block h-[18px] w-[18px] animate-spin rounded-full border-2 border-white/25 border-t-white" />
+                  Removing Background...
+                </>
+              ) : (
+                "Remove Image Background - 2 Credits"
+              )}
+            </button>
+
+            <div className="grid grid-cols-2 gap-3 max-[860px]:grid-cols-1">
+              <button type="button" onClick={() => moveSelectedLayer("backward")} className="prntd-gradient-btn">
+                Send Backward
+              </button>
+              <button type="button" onClick={() => moveSelectedLayer("forward")} className="prntd-gradient-btn">
+                Bring Forward
+              </button>
+            </div>
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">
+  Quantity
+</label>
+
+{selectedProduct.id === "business-cards" ? (
+  <select
+    value={quantity}
+    onChange={(event) =>
+      setQuantity(
+        Number(
+          event.target.value,
+        ),
+      )
+    }
+    className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-[18px] text-base"
+  >
+    {[50, 100, 250, 500, 1000].map(
+      (qty) => (
+        <option
+          key={qty}
+          value={qty}
+        >
+          {qty} Cards
+        </option>
+      ),
+    )}
+  </select>
+) : (
+  <input
+    className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-[18px] text-base"
+    type="number"
+    min={1}
+    value={quantity}
+    onChange={(event) =>
+      setQuantity(
+        Math.max(
+          1,
+          Number(
+            event.target.value,
+          ),
+        ),
+      )
+    }
+  />
+)}
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Size</label>
+            <select
+              value={size}
+              onChange={(event) => setSize(event.target.value)}
+              className="h-[58px] w-full rounded-[18px] border border-slate-950/10 bg-white px-4 text-base"
+            >
+              {shirtSizes.map((shirtSize) => (
+                <option key={shirtSize} value={shirtSize}>
+                  {shirtSize}
+                </option>
+              ))}
+            </select>
+
+            <label className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#6b7280]">Shirt Color</label>
+            <div className="flex flex-wrap gap-3">
+              {shirtColors.map((shirtColor) => (
+                <button
+                  key={shirtColor.key}
+                  type="button"
+                  aria-label={`${shirtColor.name} Shirt`}
+                  title={shirtColor.name}
+                  onClick={() => setCurrentColorKey(shirtColor.key)}
+                  className={`h-11 w-11 rounded-full border-[3px] ${
+                    currentColorKey === shirtColor.key ? "border-[#7c3aed]" : "border-transparent"
+                  }`}
+                  style={{ background: shirtColor.swatch }}
+                />
+              ))}
+            </div>
+
+            <div className="mt-2 flex flex-col gap-[18px] rounded-3xl bg-[#f5f7fb] p-[22px]">
+              <div className="flex items-start justify-between gap-5 max-[640px]:flex-col">
+                <div>
+                  <p className="text-[15px] font-bold text-[#111827]">Estimated Total</p>
+                  <p className="mt-1 text-[13px] text-[#6b7280]">Pricing updates automatically</p>
+                </div>
+                <strong className="text-right text-[34px] font-extrabold leading-none text-[#111827] max-[640px]:text-left max-[640px]:text-[30px]">
+                  {formatMoney(price.lineTotal)}
+                  {price.perShirtDiscount > 0 && (
+                    <span className="block pt-2 text-sm font-bold text-[#7c3aed]">
+                      -{formatMoney(price.perShirtDiscount)}/shirt
+                    </span>
+                  )}
+                </strong>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
+                <div className="rounded-[18px] border border-violet-600/10 bg-white p-3.5 shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
+                  <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#7c3aed]">2+ Shirts</p>
+                  <p className="mt-1.5 text-base font-extrabold text-[#111827]">Save $11/shirt</p>
+                </div>
+                <div className="rounded-[18px] border border-violet-600/10 bg-white p-3.5 shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
+                  <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#7c3aed]">6+ Shirts</p>
+                  <p className="mt-1.5 text-base font-extrabold text-[#111827]">Save $20/shirt</p>
+                </div>
+              </div>
+
+              <p className="rounded-[14px] bg-[#eef2ff] px-3.5 py-3 text-[13px] font-semibold text-[#4b5563]">
+                Double-sided printing costs extra. Current print type: {price.printType}.
+              </p>
+            </div>
+
+            <button type="button" onClick={addToCart} className="prntd-gradient-btn">
+              Add To Cart
+            </button>
+
+            <div className="rounded-[18px] border border-orange-600/10 bg-[#fff7ed] px-[18px] py-4 text-[13px] leading-[1.55] text-[#7c2d12]">
+              <p>By uploading or creating a design, you confirm that:</p>
+              <ul className="ml-[18px] mt-2.5 list-disc space-y-1.5">
+                <li>You own the rights to the artwork, logo, image, text, or content uploaded.</li>
+                <li>Or you have obtained proper permission or licensing to use it.</li>
+                <li>Your design does not infringe any copyright, trademark, intellectual property, or third-party rights.</li>
+                <li>Your content does not contain illegal, hateful, explicit, or prohibited material.</li>
+              </ul>
+              <p className="mt-2.5">
+                PRNTD reserves the right to refuse, cancel, or remove any order(s) containing content believed to violate
+                intellectual property rights or applicable laws.
+              </p>
+            </div>
+          </aside>
+        </div>
+      </section>
     </main>
   );
 }
