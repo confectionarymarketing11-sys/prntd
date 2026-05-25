@@ -16,6 +16,7 @@ import PortalSidebar from "@/components/PortalSidebar";
 import ShopHeader from "@/components/ShopHeader";
 
 import { usePrntdAccount } from "@/hooks/usePrntdAccount";
+import type { CreditTopUpPackId } from "@/lib/stripe-products";
 
 type SubscriptionPlan = {
   id: "starter" | "pro" | "business";
@@ -72,18 +73,25 @@ const plans: SubscriptionPlan[] = [
 
 const creditPacks = [
   {
+    id: "credits_25",
     label: "25 Credits",
     price: "$7 CAD",
   },
   {
+    id: "credits_50",
     label: "50 Credits",
     price: "$11 CAD",
   },
   {
+    id: "credits_100",
     label: "100 Credits",
     price: "$19 CAD",
   },
-];
+] satisfies Array<{
+  id: CreditTopUpPackId;
+  label: string;
+  price: string;
+}>;
 
 export default function SubscriptionsPage() {
   const {
@@ -99,6 +107,11 @@ export default function SubscriptionsPage() {
   const [status, setStatus] =
     useState(
       "Loading your subscription...",
+    );
+
+  const [checkoutPack, setCheckoutPack] =
+    useState<CreditTopUpPackId | null>(
+      null,
     );
 
   const checkPlan =
@@ -168,6 +181,94 @@ export default function SubscriptionsPage() {
       token,
       loadAccount,
     ]);
+
+  const buyCreditPack =
+    useCallback(
+      async (
+        packId: CreditTopUpPackId,
+      ) => {
+        const session =
+          email && token
+            ? { email, token }
+            : await loadAccount();
+
+        if (!session?.email) {
+          setStatus(
+            "Sign in before buying top-up credits.",
+          );
+          return;
+        }
+
+        setCheckoutPack(
+          packId,
+        );
+        setStatus(
+          "Opening secure checkout...",
+        );
+
+        try {
+          const response =
+            await fetch(
+              "/api/prntd/create-checkout",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+                body: JSON.stringify(
+                  {
+                    productType:
+                      "credits",
+                    creditPack:
+                      packId,
+                    quantity: 1,
+                    customerEmail:
+                      session.email,
+                    successPath:
+                      "/subscriptions",
+                    cancelPath:
+                      "/subscriptions",
+                  },
+                ),
+              },
+            );
+
+          const data =
+            (await response.json()) as {
+              url?: string;
+              error?: string;
+            };
+
+          if (
+            !response.ok ||
+            !data.url
+          ) {
+            throw new Error(
+              data.error ??
+                "Could not open checkout.",
+            );
+          }
+
+          window.location.href =
+            data.url;
+        } catch (error) {
+          setStatus(
+            error instanceof Error
+              ? error.message
+              : "Checkout failed.",
+          );
+          setCheckoutPack(
+            null,
+          );
+        }
+      },
+      [
+        email,
+        token,
+        loadAccount,
+      ],
+    );
 
   useEffect(() => {
     if (!email) return;
@@ -414,9 +515,21 @@ export default function SubscriptionsPage() {
 
                       <button
                         type="button"
+                        disabled={
+                          checkoutPack ===
+                          pack.id
+                        }
+                        onClick={() =>
+                          void buyCreditPack(
+                            pack.id,
+                          )
+                        }
                         className="mt-7 w-full rounded-2xl bg-[linear-gradient(135deg,#3b82f6,#6366f1,#8b5cf6)] px-5 py-4 text-sm font-black text-white shadow-[0_15px_40px_rgba(99,102,241,0.28)]"
                       >
-                        Coming Soon
+                        {checkoutPack ===
+                        pack.id
+                          ? "Opening..."
+                          : "Buy Credits"}
                       </button>
                     </article>
                   ),

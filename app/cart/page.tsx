@@ -545,7 +545,7 @@ export default function CartPage() {
                     className="group overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl transition duration-300 hover:border-[#6366f1]/30 hover:shadow-[0_25px_70px_rgba(99,102,241,0.12)] sm:rounded-[30px] sm:p-5"
                   >
                     <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-                      <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white">
+                      <div className="prntd-transparent-grid overflow-hidden rounded-[24px] border border-white/10">
                         {item.mockupPreview ? (
                           <img
                             src={

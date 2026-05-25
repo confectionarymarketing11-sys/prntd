@@ -5,11 +5,20 @@ import { orderConfirmationTemplate, sendTransactionalEmail } from "@/lib/email";
 import { recordDiscountRedemption } from "@/features/discounts/data/discounts";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 import {
+  creditTopUpPacks,
   getStripeCheckoutProductByPrice,
   inferSubscriptionTier,
   subscriptionCreditGrants,
+  subscriptionQrLimits,
+  trialCreditGrant,
 } from "@/lib/stripe-products";
 import { createSupabaseAdminClient } from "@/lib/supabase/service";
+import {
+  activeTrialCredits,
+  selectBgCredits,
+  toCreditSnapshot,
+  updateBgCredits,
+} from "@/lib/bg-credits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -93,6 +102,18 @@ function invoiceSubscriptionId(invoice: Stripe.Invoice) {
   };
 
   return stripeSubscriptionId(compatibleInvoice.subscription) || compatibleInvoice.parent?.subscription_details?.subscription || "";
+}
+
+function subscriptionTrialEnd(subscription: Stripe.Subscription) {
+  const trialEnd = subscription.trial_end;
+  return trialEnd ? new Date(trialEnd * 1000).toISOString() : null;
+}
+
+function subscriptionIsCurrentlyTrialing(subscription: Stripe.Subscription) {
+  const trialEnd = subscriptionTrialEnd(subscription);
+  if (!trialEnd) return false;
+
+  return subscription.status === "trialing" && new Date(trialEnd).getTime() > Date.now();
 }
 
 async function registerStripeEvent(event: Stripe.Event) {
@@ -198,6 +219,252 @@ async function updateCustomerSubscription(subscription: Stripe.Subscription, eve
   if (subscription.status === "active" || subscription.status === "trialing") {
     console.log(`Subscription ${subscription.id} synced for customer ${customer.id} from event ${eventId}.`);
   }
+
+  if (customer.email) {
+    if (subscriptionIsCurrentlyTrialing(subscription)) {
+      await grantTrialCredits({
+        customer,
+        subscription,
+        eventId,
+      });
+    } else if (subscription.status === "canceled" || subscription.status === "incomplete_expired") {
+      await clearTrialCredits(customer.email);
+    } else {
+      await clearExpiredTrialCreditsForEmail(customer.email);
+    }
+  }
+}
+
+async function loadBgCreditState(email: string) {
+  const supabase = createSupabaseAdminClient();
+  const selected = await selectBgCredits(supabase, email);
+
+  return {
+    supabase,
+    selected,
+    row: selected.data,
+    snapshot: toCreditSnapshot(selected.data),
+  };
+}
+
+async function grantTrialCredits({
+  customer,
+  subscription,
+  eventId,
+}: {
+  customer: PlatformCustomer;
+  subscription: Stripe.Subscription;
+  eventId: string;
+}) {
+  if (!customer.email) return;
+
+  const email = customer.email.toLowerCase().trim();
+  const trialExpiresAt = subscriptionTrialEnd(subscription) ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { supabase, selected, row, snapshot } = await loadBgCreditState(email);
+
+  if (!selected.hasTrialColumns) {
+    console.warn("Trial credits require bg_users trial credit columns. Apply the latest Supabase migration.");
+    return;
+  }
+
+  if (row?.trial_used) {
+    return;
+  }
+
+  const { error: bgError } = await supabase.from("bg_users").upsert(
+    {
+      email,
+      credits: snapshot.credits,
+      subscription_credits: snapshot.subscriptionCredits,
+      trial_credits: trialCreditGrant,
+      trial_credits_expires_at: trialExpiresAt,
+      trial_credits_granted_at: new Date().toISOString(),
+      trial_stripe_subscription_id: subscription.id,
+      trial_used: true,
+      subscription_active: true,
+      plan_type: inferPlanFromSubscription(subscription),
+      payment_status: "trialing",
+      max_qr_limit: subscriptionQrLimits[inferPlanFromSubscription(subscription)] ?? 0,
+      ...(selected.hasTotalColumn ? { total_credits: snapshot.credits + snapshot.subscriptionCredits + trialCreditGrant } : {}),
+    },
+    {
+      onConflict: "email",
+    },
+  );
+
+  if (bgError) {
+    throw bgError;
+  }
+
+  await recordCreditTransaction({
+    customerId: customer.id,
+    authUserId: customer.auth_user_id,
+    amount: trialCreditGrant,
+    reason: "subscription_grant",
+    source: "stripe_trial",
+    stripeEventId: eventId,
+    metadata: {
+      subscription_id: subscription.id,
+      trial_credits: trialCreditGrant,
+      trial_credits_expires_at: trialExpiresAt,
+      trial_only: true,
+    },
+  });
+}
+
+async function clearTrialCredits(email: string) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const { supabase, selected, row, snapshot } = await loadBgCreditState(normalizedEmail);
+
+  if (!row || !selected.hasTrialColumns) return;
+
+  await updateBgCredits({
+    supabase,
+    email: normalizedEmail,
+    next: {
+      credits: snapshot.credits,
+      subscriptionCredits: snapshot.subscriptionCredits,
+      trialCredits: 0,
+      trialCreditsExpiresAt: null,
+    },
+    columns: {
+      hasTotalColumn: selected.hasTotalColumn,
+      hasTrialColumns: selected.hasTrialColumns,
+    },
+  });
+}
+
+async function clearExpiredTrialCreditsForEmail(email: string) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const { supabase, selected, row, snapshot } = await loadBgCreditState(normalizedEmail);
+
+  if (!row || !selected.hasTrialColumns || !Number(row.trial_credits ?? 0) || activeTrialCredits(row)) {
+    return;
+  }
+
+  await updateBgCredits({
+    supabase,
+    email: normalizedEmail,
+    next: {
+      credits: snapshot.credits,
+      subscriptionCredits: snapshot.subscriptionCredits,
+      trialCredits: 0,
+      trialCreditsExpiresAt: null,
+    },
+    columns: {
+      hasTotalColumn: selected.hasTotalColumn,
+      hasTrialColumns: selected.hasTrialColumns,
+    },
+  });
+}
+
+async function refreshBgSubscriptionCredits({
+  email,
+  planTier,
+  subscription,
+}: {
+  email: string;
+  planTier: string;
+  subscription: Stripe.Subscription;
+}) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const grant = subscriptionCreditGrants[planTier] ?? 0;
+  const { supabase, selected, row, snapshot } = await loadBgCreditState(normalizedEmail);
+  const trialCredits = selected.hasTrialColumns ? activeTrialCredits(row) : 0;
+
+  const { error: bgError } = await supabase.from("bg_users").upsert(
+    {
+      email: normalizedEmail,
+      credits: snapshot.credits,
+      subscription_credits: grant,
+      ...(selected.hasTrialColumns
+        ? {
+            trial_credits: trialCredits,
+            trial_credits_expires_at: trialCredits ? row?.trial_credits_expires_at ?? null : null,
+          }
+        : {}),
+      subscription_active: true,
+      plan_type: planTier,
+      payment_status: "paid",
+      last_payment_date: new Date().toISOString(),
+      renewal_date: subscriptionPeriodEnd(subscription),
+      max_qr_limit: subscriptionQrLimits[planTier] ?? 0,
+      ...(selected.hasTotalColumn ? { total_credits: snapshot.credits + grant + trialCredits } : {}),
+    },
+    {
+      onConflict: "email",
+    },
+  );
+
+  if (bgError) {
+    throw bgError;
+  }
+}
+
+async function handleCreditTopUpCheckout(session: Stripe.Checkout.Session, eventId: string) {
+  const customerEmail = session.customer_details?.email || session.customer_email || "";
+
+  if (!customerEmail) {
+    throw new Error(`Credit checkout session ${session.id} is missing customer email.`);
+  }
+
+  const email = customerEmail.toLowerCase().trim();
+  const packId = session.metadata?.credit_pack ?? "";
+  const pack = Object.values(creditTopUpPacks).find((candidate) => candidate.id === packId);
+  const creditsToAdd = Number(session.metadata?.credit_amount ?? pack?.credits ?? 0);
+
+  if (!creditsToAdd || creditsToAdd < 1) {
+    throw new Error(`Credit checkout session ${session.id} has an invalid credit amount.`);
+  }
+
+  const stripeId = stripeCustomerId(session.customer) || session.metadata?.stripe_customer_id || null;
+  const customer = await getOrCreateCustomerForEmail({
+    email,
+    authUserId: session.metadata?.auth_user_id || null,
+    name: session.customer_details?.name ?? null,
+    stripeCustomerId: stripeId,
+  });
+
+  const { supabase, selected, row, snapshot } = await loadBgCreditState(email);
+  const trialCredits = selected.hasTrialColumns ? activeTrialCredits(row) : 0;
+  const nextPurchasedCredits = snapshot.credits + creditsToAdd;
+
+  const { error: bgError } = await supabase.from("bg_users").upsert(
+    {
+      email,
+      credits: nextPurchasedCredits,
+      subscription_credits: snapshot.subscriptionCredits,
+      ...(selected.hasTrialColumns
+        ? {
+            trial_credits: trialCredits,
+            trial_credits_expires_at: trialCredits ? row?.trial_credits_expires_at ?? null : null,
+          }
+        : {}),
+      ...(selected.hasTotalColumn ? { total_credits: nextPurchasedCredits + snapshot.subscriptionCredits + trialCredits } : {}),
+    },
+    {
+      onConflict: "email",
+    },
+  );
+
+  if (bgError) {
+    throw bgError;
+  }
+
+  await recordCreditTransaction({
+    customerId: customer.id,
+    authUserId: customer.auth_user_id,
+    amount: creditsToAdd,
+    reason: "top_up",
+    source: "stripe_checkout",
+    stripeEventId: eventId,
+    metadata: {
+      checkout_session_id: session.id,
+      credit_pack: packId,
+      amount_total: session.amount_total,
+      currency: session.currency,
+    },
+  });
 }
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice, eventId: string) {
@@ -213,6 +480,15 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice, eventId: s
   const subscription = await getStripe({ testMode: !invoice.livemode }).subscriptions.retrieve(subscriptionId);
   const planTier = inferPlanFromSubscription(subscription);
   const grant = subscriptionCreditGrants[planTier] ?? 0;
+
+  if (subscriptionIsCurrentlyTrialing(subscription)) {
+    await grantTrialCredits({
+      customer,
+      subscription,
+      eventId,
+    });
+    return;
+  }
 
   if (!grant) return;
 
@@ -235,6 +511,12 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice, eventId: s
   }
 
   if (!error) {
+    await refreshBgSubscriptionCredits({
+      email: customer.email,
+      planTier,
+      subscription,
+    });
+
     await recordCreditTransaction({
       customerId: customer.id,
       authUserId: customer.auth_user_id,
@@ -269,7 +551,7 @@ async function attachUploadsToOrder(orderId: string, uploadIds: string[], design
   }
 }
 
-async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, eventId: string) {
   if (session.mode !== "payment") return;
   if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
     console.warn(`Checkout session ${session.id} completed without paid status: ${session.payment_status}`);
@@ -278,6 +560,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   const stripe = getStripe({ testMode: !session.livemode });
   const supabase = createSupabaseAdminClient();
+
+  if (session.metadata?.product_type === "credits") {
+    await handleCreditTopUpCheckout(session, eventId);
+    return;
+  }
+
   const orderNumber = `STRIPE-${session.id}`;
 
   const { data: existingOrder, error: existingError } = await supabase
@@ -537,7 +825,7 @@ export async function POST(request: Request) {
 
     switch (event.type) {
       case "checkout.session.completed":
-        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session, event.id);
         break;
       case "customer.subscription.created":
       case "customer.subscription.updated":

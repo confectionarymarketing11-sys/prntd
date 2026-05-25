@@ -608,7 +608,7 @@ export default function BackgroundRemoverPage() {
                       </p>
                     </div>
 
-                    <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white p-4">
+                    <div className="prntd-transparent-grid overflow-hidden rounded-[28px] border border-white/10 p-4">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={

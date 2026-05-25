@@ -2,6 +2,8 @@ export type CreditsResponse = {
   success?: boolean;
   credits?: number;
   subscription_credits?: number;
+  trial_credits?: number;
+  trial_credits_expires_at?: string | null;
   total_credits?: number;
   error?: string;
 };

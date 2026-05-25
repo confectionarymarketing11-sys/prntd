@@ -35,13 +35,17 @@ type SpeechRecognitionConstructor = new () => {
   interimResults: boolean;
   maxAlternatives: number;
   start: () => void;
+  stop: () => void;
+  abort?: () => void;
   onresult:
     | ((
         event: {
           results: ArrayLike<
             ArrayLike<{
               transcript: string;
-            }>
+            }> & {
+              isFinal?: boolean;
+            }
           >;
         },
       ) => void)
@@ -274,6 +278,12 @@ export default function DesignGeneratorPage() {
 
   const editInterval =
     useRef<number | null>(null);
+
+  const recognitionRef =
+    useRef<InstanceType<SpeechRecognitionConstructor> | null>(null);
+
+  const voiceBaseTextRef =
+    useRef("");
 
   const prompt = useMemo(() => {
     const parts: string[] = [];
@@ -695,6 +705,13 @@ export default function DesignGeneratorPage() {
   }
 
   function startVoice() {
+    if (voiceListening) {
+      recognitionRef.current?.stop();
+      setVoiceListening(false);
+
+      return;
+    }
+
     const Recognition =
       getSpeechRecognitionConstructor();
 
@@ -707,6 +724,9 @@ export default function DesignGeneratorPage() {
     const recognition =
       new Recognition();
 
+    recognitionRef.current =
+      recognition;
+
     recognition.lang = "en-US";
 
     recognition.continuous = false;
@@ -714,6 +734,10 @@ export default function DesignGeneratorPage() {
     recognition.interimResults = true;
 
     recognition.maxAlternatives = 1;
+
+    voiceBaseTextRef.current = showBusinessCard
+      ? businessCardDetails.trim()
+      : brandDetails.trim();
 
     recognition.onresult = (
       event,
@@ -729,32 +753,104 @@ export default function DesignGeneratorPage() {
         transcript += `${event.results[index][0].transcript} `;
       }
 
-      setBrandDetails(
+      const nextText = [
+        voiceBaseTextRef.current,
         transcript.trim(),
-      );
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      if (showBusinessCard) {
+        setBusinessCardDetails(
+          nextText,
+        );
+      } else {
+        setBrandDetails(
+          nextText,
+        );
+      }
     };
 
-    recognition.onerror = () =>
+    recognition.onerror = () => {
       setVoiceListening(false);
+      recognitionRef.current = null;
+    };
 
-    recognition.onend = () =>
+    recognition.onend = () => {
       setVoiceListening(false);
+      recognitionRef.current = null;
+    };
 
     setVoiceListening(true);
 
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      setVoiceListening(false);
+      recognitionRef.current = null;
+    }
   }
 
   function applyToProduct() {
     if (!resultImage) return;
+
+    const storedDesign = {
+      image: resultImage,
+      designId:
+        result?.designId ?? null,
+      designPath:
+        result?.designPath ?? "",
+      type: selectedProduct,
+    };
+
+    localStorage.setItem(
+      "prntd_design",
+      JSON.stringify(storedDesign),
+    );
 
     localStorage.setItem(
       "prntd_generated_image",
       resultImage,
     );
 
-    window.location.href =
-      "/products";
+    const normalizedProduct =
+      selectedProduct.toLowerCase();
+
+    if (
+      normalizedProduct.includes(
+        "sticker",
+      )
+    ) {
+      window.location.href =
+        "/products/die-cut-stickers";
+      return;
+    }
+
+    if (
+      normalizedProduct.includes(
+        "business card",
+      )
+    ) {
+      window.location.href =
+        "/products/business-cards";
+      return;
+    }
+
+    if (
+      normalizedProduct.includes(
+        "apparel",
+      ) ||
+      normalizedProduct.includes(
+        "shirt",
+      )
+    ) {
+      window.location.href =
+        "/products/classic-tee";
+      return;
+    }
+
+    window.location.href = "/products";
   }
 
   return (
@@ -979,6 +1075,118 @@ export default function DesignGeneratorPage() {
                     ),
                   )}
                 </div>
+              </section>
+
+              {/* SETTINGS */}
+              <section className="mt-10 rounded-[30px] border border-white/10 bg-[#0f172a]/70 p-6">
+                <div className="grid gap-5 md:grid-cols-2">
+                  <label className="grid gap-3">
+                    <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                      Design Quality
+                    </span>
+
+                    <select
+                      value={quality}
+                      onChange={(
+                        event,
+                      ) =>
+                        setQuality(
+                          event.target
+                            .value,
+                        )
+                      }
+                      className="h-[58px] rounded-2xl border border-white/10 bg-[#020617] px-5 text-white outline-none transition focus:border-[#6366f1]/40"
+                    >
+                      <option value="basic">
+                        Fastest Speed - Basic Quality - 25 sec
+                      </option>
+
+                      <option value="standard">
+                        Medium Speed - High Quality - 40 sec
+                      </option>
+
+                      <option value="premium">
+                        Medium Speed - Best Quality - 1 min
+                      </option>
+
+                      <option value="ultra">
+                        Slowest Speed - Ultra Quality - 3 min
+                      </option>
+                    </select>
+                  </label>
+
+                  <div className="grid gap-3">
+                    <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                      Transparent Background
+                    </span>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        ["true", "On"],
+                        ["false", "Off"],
+                      ].map(
+                        ([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() =>
+                              setTransparentBackground(
+                                value,
+                              )
+                            }
+                            className={`h-[58px] rounded-2xl border px-5 text-sm font-black transition ${
+                              transparentBackground ===
+                              value
+                                ? "border-[#6366f1]/40 bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] text-white shadow-[0_12px_34px_rgba(99,102,241,0.28)]"
+                                : "border-white/10 bg-white/[0.04] text-[#cbd5e1] hover:bg-white/[0.08]"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAdvancedOpen(
+                      (open) =>
+                        !open,
+                    )
+                  }
+                  className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-[#c7d2fe] transition hover:bg-white/[0.08]"
+                >
+                  {advancedOpen
+                    ? "Hide Options"
+                    : "+ More Options"}
+                </button>
+
+                {advancedOpen && (
+                  <div className="mt-5 grid gap-3">
+                    <label className="grid gap-3">
+                      <span className="text-xs font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                        Industry
+                      </span>
+
+                      <input
+                        value={industry}
+                        onChange={(
+                          event,
+                        ) =>
+                          setIndustry(
+                            event.target
+                              .value,
+                          )
+                        }
+                        placeholder="Example: Barber Shop, Clothing Brand"
+                        className="h-[58px] rounded-2xl border border-white/10 bg-[#020617] px-5 text-white outline-none transition placeholder:text-[#64748b] focus:border-[#6366f1]/40"
+                      />
+                    </label>
+                  </div>
+                )}
               </section>
 
               {/* FINAL */}

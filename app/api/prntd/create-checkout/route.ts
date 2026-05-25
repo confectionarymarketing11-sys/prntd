@@ -5,7 +5,12 @@ import { getCurrentCustomer, getOrCreateCustomerForEmail } from "@/lib/auth/cust
 import { corsPreflight } from "@/lib/cors";
 import { getStripe } from "@/lib/stripe";
 import { getSiteSettings } from "@/features/site-settings/data/site-settings";
-import { getStripeCheckoutProduct, stripeProductTypes } from "@/lib/stripe-products";
+import {
+  checkoutProductTypes,
+  creditTopUpPackIds,
+  getCreditTopUpPack,
+  getStripeCheckoutProduct,
+} from "@/lib/stripe-products";
 import { checkRequestRateLimit } from "@/lib/rate-limit";
 import { assertJsonContentType, assertTrustedOrigin } from "@/lib/security";
 
@@ -13,8 +18,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const checkoutSchema = z.object({
-  productType: z.enum(stripeProductTypes),
-  quantity: z.coerce.number().int().positive().max(1000),
+  productType: z.enum(checkoutProductTypes),
+  quantity: z.coerce.number().int().positive().max(1000).default(1),
+  creditPack: z.enum(creditTopUpPackIds).optional(),
   customerEmail: z.string().trim().email().optional(),
   productId: z.string().trim().max(120).optional(),
   uploadIds: z.array(z.string().trim().max(120)).max(20).optional(),
@@ -78,7 +84,6 @@ export async function POST(request: Request) {
     checkRequestRateLimit(request, "prntd-create-checkout:ip", { limit: 12, windowMs: 60_000 });
 
     const input = checkoutSchema.parse(await request.json());
-    const product = getStripeCheckoutProduct(input.productType);
     const origin = getOrigin(request);
     const settings = await getSiteSettings();
 
@@ -116,6 +121,58 @@ export async function POST(request: Request) {
       stripeCustomerId,
     });
 
+    if (input.productType === "credits") {
+      if (!input.creditPack) {
+        throw new ApiError("Credit pack is required.", 400, "credit_pack_required");
+      }
+
+      const pack = getCreditTopUpPack(input.creditPack);
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: pack.currency,
+              unit_amount: pack.amountCents,
+              product_data: {
+                name: pack.label,
+                description: "PRNTD top-up credits for design tools and background removal.",
+                metadata: {
+                  product_type: "credits",
+                  credit_pack: pack.id,
+                  credit_amount: String(pack.credits),
+                },
+              },
+            },
+          },
+        ],
+        customer: stripeCustomerId,
+        billing_address_collection: "auto",
+        metadata: {
+          customer_id: customer.id,
+          auth_user_id: authenticated?.user.id ?? customer.auth_user_id ?? "",
+          stripe_customer_id: stripeCustomerId,
+          test_mode: settings.test_mode_enabled ? "true" : "false",
+          product_type: "credits",
+          product_id: pack.productId,
+          product_name: pack.label,
+          credit_pack: pack.id,
+          credit_amount: String(pack.credits),
+          amount_cents: String(pack.amountCents),
+          quantity: "1",
+        },
+        success_url: `${origin}${input.successPath ?? "/subscriptions"}?credits=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}${input.cancelPath ?? "/subscriptions"}?credits=cancelled`,
+      });
+
+      return apiJson(request, {
+        url: session.url,
+        sessionId: session.id,
+      });
+    }
+
+    const product = getStripeCheckoutProduct(input.productType);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
