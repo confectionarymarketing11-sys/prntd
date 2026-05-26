@@ -894,6 +894,16 @@ setLiveTranscript("");
 
 setVoiceListening(true);
 
+  } catch (error) {
+    console.error(
+      "Voice session failed:",
+      error,
+    );
+
+    stopVoiceSession();
+  }
+}
+
   function applyToProduct() {
     if (!resultImage) return;
 
