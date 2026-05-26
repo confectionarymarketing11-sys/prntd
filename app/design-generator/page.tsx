@@ -819,7 +819,16 @@ const editInterval =
 
     mediaRecorder.start();
 
-    setVoiceListening(true);
+setVoiceListening(true);
+
+window.setTimeout(() => {
+  if (
+    mediaRecorder.state ===
+    "recording"
+  ) {
+    mediaRecorder.stop();
+  }
+}, 3000);
   } catch (error) {
     console.error(
       "Microphone failed:",
