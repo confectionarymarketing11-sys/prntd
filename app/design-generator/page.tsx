@@ -740,7 +740,7 @@ const stream =
     },
   );
 
-mediaStreamRef.current =
+mediaStregpt-realamRef.current =
   stream;
 
 for (const track of stream.getTracks()) {
@@ -759,7 +759,7 @@ await pc.setLocalDescription(
 
 const sdpResponse =
   await fetch(
-    "https://api.openai.com/v1/realtime?model=gpt-realtime",
+    "https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview",
     {
       method: "POST",
       headers: {
