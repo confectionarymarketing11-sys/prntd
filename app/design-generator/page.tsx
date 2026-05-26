@@ -29,30 +29,7 @@ type GenerationResult = {
   error?: string;
 };
 
-type SpeechRecognitionConstructor = new () => {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start: () => void;
-  stop: () => void;
-  abort?: () => void;
-  onresult:
-    | ((
-        event: {
-          results: ArrayLike<
-            ArrayLike<{
-              transcript: string;
-            }> & {
-              isFinal?: boolean;
-            }
-          >;
-        },
-      ) => void)
-    | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-};
+
 
 const apiBase = "/api/prntd";
 
@@ -127,25 +104,7 @@ const styleOptions = [
   "text",
 ];
 
-function getSpeechRecognitionConstructor() {
-  if (typeof window === "undefined")
-    return undefined;
 
-  return (
-    (
-      window as unknown as {
-        SpeechRecognition?: SpeechRecognitionConstructor;
-        webkitSpeechRecognition?: SpeechRecognitionConstructor;
-      }
-    ).SpeechRecognition ??
-    (
-      window as unknown as {
-        SpeechRecognition?: SpeechRecognitionConstructor;
-        webkitSpeechRecognition?: SpeechRecognitionConstructor;
-      }
-    ).webkitSpeechRecognition
-  );
-}
 
 function pickStyleText(style: string) {
   const source =
@@ -260,30 +219,25 @@ export default function DesignGeneratorPage() {
     useState("");
 
   const [
-    voiceSupported,
-    setVoiceSupported,
-  ] = useState(() =>
-    Boolean(
-      getSpeechRecognitionConstructor(),
-    ),
-  );
+  voiceSupported,
+] = useState(
+  typeof window !== "undefined" &&
+    !!navigator.mediaDevices,
+);
 
-  const [
-    voiceListening,
-    setVoiceListening,
-  ] = useState(false);
+const [
+  voiceListening,
+  setVoiceListening,
+] = useState(false);
 
-  const generationInterval =
-    useRef<number | null>(null);
+const mediaRecorderRef =
+  useRef<MediaRecorder | null>(null);
 
-  const editInterval =
-    useRef<number | null>(null);
+const mediaStreamRef =
+  useRef<MediaStream | null>(null);
 
-  const recognitionRef =
-    useRef<InstanceType<SpeechRecognitionConstructor> | null>(null);
-
-  const voiceBaseTextRef =
-    useRef("");
+const audioChunksRef =
+  useRef<Blob[]>([]);
 
   const prompt = useMemo(() => {
     const parts: string[] = [];
@@ -704,93 +658,171 @@ export default function DesignGeneratorPage() {
     }
   }
 
-  function startVoice() {
-    if (voiceListening) {
-      recognitionRef.current?.stop();
-      setVoiceListening(false);
+  async function startVoice() {
+  if (voiceListening) {
+    mediaRecorderRef.current?.stop();
 
-      return;
-    }
+    mediaStreamRef.current
+      ?.getTracks()
+      .forEach((track) =>
+        track.stop(),
+      );
 
-    const Recognition =
-      getSpeechRecognitionConstructor();
+    setVoiceListening(false);
 
-    if (!Recognition) {
-      setVoiceSupported(false);
+    return;
+  }
 
-      return;
-    }
+  try {
+    const token =
+      await ensureAuthToken();
 
-    const recognition =
-      new Recognition();
+    if (!token) return;
 
-    recognitionRef.current =
-      recognition;
+    const stream =
+      await navigator.mediaDevices.getUserMedia(
+        {
+          audio: true,
+        },
+      );
 
-    recognition.lang = "en-US";
+    mediaStreamRef.current =
+      stream;
 
-    recognition.continuous = true;
+    const mediaRecorder =
+      new MediaRecorder(stream);
 
-    recognition.interimResults = false;
+    mediaRecorderRef.current =
+      mediaRecorder;
 
-    recognition.maxAlternatives = 1;
+    audioChunksRef.current = [];
 
-    voiceBaseTextRef.current = showBusinessCard
-      ? businessCardDetails.trim()
-      : brandDetails.trim();
+    mediaRecorder.ondataavailable =
+      (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(
+            event.data,
+          );
+        }
+      };
 
-    recognition.onresult = (
-      event,
-    ) => {
-      let transcript = "";
+    mediaRecorder.onstop =
+      async () => {
+        try {
+          const audioBlob =
+            new Blob(
+              audioChunksRef.current,
+              {
+                type: "audio/webm",
+              },
+            );
 
-      for (
-        let index = 0;
-        index <
-        event.results.length;
-        index += 1
-      ) {
-        transcript += `${event.results[index][0].transcript} `;
-      }
+          const formData =
+            new FormData();
 
-      const nextText = [
-        voiceBaseTextRef.current,
-        transcript.trim(),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
+          formData.append(
+            "audio",
+            audioBlob,
+            "voice.webm",
+          );
 
-      if (showBusinessCard) {
-        setBusinessCardDetails(
-          nextText,
-        );
-      } else {
-        setBrandDetails(
-          nextText,
-        );
-      }
-    };
+          const response =
+            await fetch(
+              `${apiBase}/transcribe`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+              },
+            );
 
-    recognition.onerror = () => {
-      setVoiceListening(false);
-      recognitionRef.current = null;
-    };
+          const data =
+            await response.json();
 
-    recognition.onend = () => {
-      setVoiceListening(false);
-      recognitionRef.current = null;
-    };
+          if (!response.ok) {
+            throw new Error(
+              data.error ??
+                "Voice transcription failed",
+            );
+          }
+
+          const transcript =
+            data.text?.trim() ??
+            "";
+
+          if (!transcript)
+            return;
+
+          if (
+            showBusinessCard
+          ) {
+            setBusinessCardDetails(
+              (
+                previous,
+              ) =>
+                [
+                  previous,
+                  transcript,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+                  .trim(),
+            );
+          } else {
+            setBrandDetails(
+              (
+                previous,
+              ) =>
+                [
+                  previous,
+                  transcript,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+                  .trim(),
+            );
+          }
+        } catch (error) {
+          console.error(
+            "Voice transcription failed:",
+            error,
+          );
+        } finally {
+          mediaStreamRef.current
+            ?.getTracks()
+            .forEach((track) =>
+              track.stop(),
+            );
+
+          mediaStreamRef.current =
+            null;
+
+          mediaRecorderRef.current =
+            null;
+
+          audioChunksRef.current =
+            [];
+
+          setVoiceListening(
+            false,
+          );
+        }
+      };
+
+    mediaRecorder.start();
 
     setVoiceListening(true);
+  } catch (error) {
+    console.error(
+      "Microphone failed:",
+      error,
+    );
 
-    try {
-      recognition.start();
-    } catch {
-      setVoiceListening(false);
-      recognitionRef.current = null;
-    }
+    setVoiceListening(false);
   }
+}
 
   function applyToProduct() {
     if (!resultImage) return;
