@@ -87,7 +87,7 @@ export async function POST(
           {
             file: audio,
             model:
-              "whisper-1",
+              "gpt-4o-mini-transcribe",
             language: "en",
             response_format:
               "json",
