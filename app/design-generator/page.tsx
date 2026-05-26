@@ -763,11 +763,13 @@ const sdpResponse =
     {
       method: "POST",
       headers: {
-        Authorization:
-          `Bearer ${clientSecret}`,
-        "Content-Type":
-          "application/sdp",
-      },
+  Authorization:
+    `Bearer ${clientSecret}`,
+  "Content-Type":
+    "application/sdp",
+  Accept:
+    "application/sdp",
+},
       body: offer.sdp,
     },
   );
