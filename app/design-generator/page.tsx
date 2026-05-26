@@ -239,6 +239,12 @@ const mediaStreamRef =
 const audioChunksRef =
   useRef<Blob[]>([]);
 
+const generationInterval =
+  useRef<number | null>(null);
+
+const editInterval =
+  useRef<number | null>(null);
+
   const prompt = useMemo(() => {
     const parts: string[] = [];
 
