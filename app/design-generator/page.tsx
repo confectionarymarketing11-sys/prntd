@@ -821,14 +821,87 @@ const editInterval =
 
 setVoiceListening(true);
 
-window.setTimeout(() => {
+const audioContext =
+  new AudioContext();
+
+const source =
+  audioContext.createMediaStreamSource(
+    stream,
+  );
+
+const analyser =
+  audioContext.createAnalyser();
+
+source.connect(analyser);
+
+const dataArray =
+  new Uint8Array(
+    analyser.fftSize,
+  );
+
+let silenceStart =
+  Date.now();
+
+const silenceThreshold = 8;
+
+const silenceDelay = 1400;
+
+function checkSilence() {
   if (
-    mediaRecorder.state ===
+    mediaRecorder.state !==
     "recording"
   ) {
-    mediaRecorder.stop();
+    audioContext.close();
+
+    return;
   }
-}, 3000);
+
+  analyser.getByteTimeDomainData(
+    dataArray,
+  );
+
+  let volume = 0;
+
+  for (
+    let i = 0;
+    i < dataArray.length;
+    i++
+  ) {
+    volume += Math.abs(
+      dataArray[i] - 128,
+    );
+  }
+
+  volume =
+    volume /
+    dataArray.length;
+
+  if (
+    volume >
+    silenceThreshold
+  ) {
+    silenceStart =
+      Date.now();
+  }
+
+  if (
+    Date.now() -
+      silenceStart >
+    silenceDelay
+  ) {
+    mediaRecorder.stop();
+
+    audioContext.close();
+
+    return;
+  }
+
+  requestAnimationFrame(
+    checkSilence,
+  );
+}
+
+checkSilence();
   } catch (error) {
     console.error(
       "Microphone failed:",
