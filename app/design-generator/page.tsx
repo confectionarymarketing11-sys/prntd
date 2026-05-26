@@ -690,8 +690,10 @@ const editInterval =
         {
           audio: {
   echoCancellation: true,
-  noiseSuppression: true,
-  autoGainControl: true,
+  noiseSuppression: false,
+  autoGainControl: false,
+  channelCount: 1,
+  sampleRate: 48000,
 }
         },
       );
@@ -699,8 +701,12 @@ const editInterval =
     mediaStreamRef.current =
       stream;
 
-    const mediaRecorder =
-      new MediaRecorder(stream);
+   const mediaRecorder =
+  new MediaRecorder(stream, {
+    mimeType:
+      "audio/webm;codecs=opus",
+    audioBitsPerSecond: 256000,
+  });
 
     mediaRecorderRef.current =
       mediaRecorder;
@@ -719,6 +725,11 @@ const editInterval =
     mediaRecorder.onstop =
       async () => {
         try {
+
+await new Promise(
+  (resolve) =>
+    setTimeout(resolve, 150),
+);
           const audioBlob =
             new Blob(
               audioChunksRef.current,
@@ -846,9 +857,9 @@ const dataArray =
 let silenceStart =
   Date.now();
 
-const silenceThreshold = 8;
+const silenceThreshold = 12;
 
-const silenceDelay = 1300;
+const silenceDelay = 1200;
 
 function checkSilence() {
   if (
