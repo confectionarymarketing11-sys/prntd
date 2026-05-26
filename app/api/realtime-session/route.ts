@@ -23,5 +23,17 @@ export async function POST() {
   const data =
     await response.json();
 
+  console.log(data);
+
+  if (!response.ok) {
+    return Response.json(
+      data,
+      {
+        status:
+          response.status,
+      },
+    );
+  }
+
   return Response.json(data);
 }
