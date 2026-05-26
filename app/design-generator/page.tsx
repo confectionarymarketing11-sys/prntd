@@ -783,7 +783,12 @@ if (!sdpResponse.ok) {
   throw new Error(errorText);
 }
 
-const answer = {
+const answer: RTCSessionDescriptionInit =
+  {
+    type: "answer",
+    sdp:
+      await sdpResponse.text(),
+  };
 
 await pc.setRemoteDescription(
   answer,
