@@ -672,12 +672,8 @@ const editInterval =
   async function startVoice() {
   if (voiceListening) {
     mediaStreamRef.current
-  ?.getTracks()
-  .forEach((track) =>
-    track.stop(),
-  );
-
-    
+      ?.getTracks()
+      .forEach((track) => track.stop());
 
     setVoiceListening(false);
 
@@ -690,286 +686,124 @@ const editInterval =
 
     if (!token) return;
 
-const sdpResponse =
-  await fetch(
-    "/api/realtime-session",
-    {
-      method: "POST",
+    const sessionResponse =
+      await fetch(
+        "/api/realtime-session",
+        {
+          method: "POST",
+        },
+      );
 
-      headers: {
-        "Content-Type":
-          "application/sdp",
-      },
+    const sessionData =
+      await sessionResponse.json();
 
-      body: offer.sdp!,
-    },
-  );
+    const clientSecret =
+      sessionData?.value;
 
-const answer = {
-  type: "answer" as const,
+    if (!clientSecret) {
+      throw new Error(
+        "No realtime token",
+      );
+    }
 
-  sdp:
-    await sdpResponse.text(),
-};
+    const pc =
+      new RTCPeerConnection();
 
-await pc.setRemoteDescription(
-  answer,
-);if (!clientSecret) {
-  throw new Error(
-    "No realtime token",
-  );
-}
+    const dc =
+      pc.createDataChannel(
+        "oai-events",
+      );
 
-const pc =
-  new RTCPeerConnection();
+    dc.onmessage = (
+      event,
+    ) => {
+      console.log(
+        "Realtime event:",
+        event.data,
+      );
+    };
 
-const dc =
-  pc.createDataChannel("oai-events");
+    const stream =
+      await navigator.mediaDevices.getUserMedia(
+        {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+          },
+        },
+      );
 
-dc.onmessage = (event) => {
-  console.log(
-    "Realtime event:",
-    event.data,
-  );
-};
+    mediaStreamRef.current =
+      stream;
 
-const stream =
-  await navigator.mediaDevices.getUserMedia(
-    {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: 1,
-      },
-    },
-  );
+    for (const track of stream.getTracks()) {
+      pc.addTrack(
+        track,
+        stream,
+      );
+    }
 
-mediaStreamRef.current = stream;
+    const offer =
+      await pc.createOffer();
 
-for (const track of stream.getTracks()) {
-  pc.addTrack(
-    track,
-    stream,
-  );
-}
-
-const offer =
-  await pc.createOffer();
-
-await pc.setLocalDescription(
-  offer,
-);
-
-
-    {
-      method: "POST",
-      body: offer.sdp,
-      headers: {
-        Authorization:
-          `Bearer ${clientSecret}`,
-        "Content-Type":
-          "application/sdp",
-      },
-    },
-  );
-
-if (!sdpResponse.ok) {
-  const errorText =
-    await sdpResponse.text();
-
-  console.error(
-    "Realtime SDP error:",
-    errorText,
-  );
-
-  throw new Error(errorText);
-}
-
-const answer: RTCSessionDescriptionInit =
-  {
-    type: "answer",
-    sdp:
-      await sdpResponse.text(),
-  };
-
-await pc.setRemoteDescription(
-  answer,
-);
-
-  
-
-setVoiceListening(true);
-
-setLiveTranscript("");
-
-const audioContext =
-  new AudioContext();
-
-const source =
-  audioContext.createMediaStreamSource(
-    stream,
-  );
-
-const analyser =
-  audioContext.createAnalyser();
-
-analyser.fftSize = 2048;
-analyser.smoothingTimeConstant = 0.8;
-
-source.connect(analyser);
-
-const dataArray =
-  new Uint8Array(
-    analyser.fftSize,
-  );
-
-let silenceStart =
-  Date.now();
-
-const silenceDelay = 800;
-
-let dynamicThreshold = 0;
-
-let calibrationTotal = 0;
-let calibrationFrames = 0;
-
-const calibrationDuration = 1000;
-
-const calibrationStart =
-  Date.now();
-
-function calibrateNoise() {
-  analyser.getByteTimeDomainData(
-    dataArray,
-  );
-
-  let volume = 0;
-
-  for (
-    let i = 0;
-    i < dataArray.length;
-    i++
-  ) {
-    volume += Math.abs(
-      dataArray[i] - 128,
-    );
-  }
-
-  volume =
-    volume /
-    dataArray.length;
-
-  calibrationTotal += volume;
-
-  calibrationFrames++;
-
-  if (
-    Date.now() -
-      calibrationStart <
-    calibrationDuration
-  ) {
-    requestAnimationFrame(
-      calibrateNoise,
+    await pc.setLocalDescription(
+      offer,
     );
 
-    return;
-  }
+    const sdpResponse =
+      await fetch(
+        "https://api.openai.com/v1/realtime?model=gpt-realtime-2",
+        {
+          method: "POST",
 
-  const ambientNoise =
-    calibrationTotal /
-    calibrationFrames;
+          body: offer.sdp!,
 
-  dynamicThreshold =
-    Math.max(
-      ambientNoise + 4,
-      4,
+          headers: {
+            Authorization: `Bearer ${clientSecret}`,
+            "Content-Type":
+              "application/sdp",
+          },
+        },
+      );
+
+    if (!sdpResponse.ok) {
+      const errorText =
+        await sdpResponse.text();
+
+      console.error(
+        "Realtime SDP error:",
+        errorText,
+      );
+
+      throw new Error(
+        errorText,
+      );
+    }
+
+    const answer: RTCSessionDescriptionInit =
+      {
+        type: "answer",
+        sdp:
+          await sdpResponse.text(),
+      };
+
+    await pc.setRemoteDescription(
+      answer,
     );
 
-  console.log(
-    "Ambient:",
-    ambientNoise,
-  );
+    setVoiceListening(true);
 
-  console.log(
-    "Threshold:",
-    dynamicThreshold,
-  );
+    setLiveTranscript("");
 
-  checkSilence();
-}
-
-function checkSilence() {
-
-if (!voiceListening){
-    audioContext.close();
-
-    return;
-  }
-
-  analyser.getByteTimeDomainData(
-    dataArray,
-  );
-
-  let volume = 0;
-
-  for (
-    let i = 0;
-    i < dataArray.length;
-    i++
-  ) {
-    volume += Math.abs(
-      dataArray[i] - 128,
+    console.log(
+      "Realtime connected",
     );
-  }
-
-  volume =
-    volume /
-    dataArray.length;
-console.log(volume);
-
-
-  if (
-    volume >
-    dynamicThreshold
-  ) {
-    silenceStart =
-      Date.now();
-  }
-
-  
-if (
-  Date.now() -
-    silenceStart >
-  silenceDelay
-) {
-  mediaStreamRef.current
-  ?.getTracks()
-  .forEach((track) =>
-    track.stop(),
-  );
-
-setVoiceListening(false);
-
-  audioContext.close();
-
-  return;
-}
-
-
-  requestAnimationFrame(
-    checkSilence,
-  );
-}
-
-
-
-calibrateNoise();
   } catch (error) {
     console.error(
       "Microphone failed:",
       error,
-
     );
 
     setVoiceListening(false);
