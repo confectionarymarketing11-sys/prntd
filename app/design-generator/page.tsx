@@ -844,7 +844,7 @@ let silenceStart =
 
 const silenceThreshold = 8;
 
-const silenceDelay = 1400;
+const silenceDelay = 900;
 
 function checkSilence() {
   if (
