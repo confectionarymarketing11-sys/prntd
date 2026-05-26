@@ -230,6 +230,11 @@ const [
   setVoiceListening,
 ] = useState(false);
 
+const [
+  liveTranscript,
+  setLiveTranscript,
+] = useState("");
+
 const mediaRecorderRef =
   useRef<MediaRecorder | null>(null);
 
@@ -772,6 +777,9 @@ await new Promise(
           const transcript =
             data.text?.trim() ??
             "";
+setLiveTranscript(
+  transcript,
+);
 
           if (!transcript)
             return;
@@ -1211,10 +1219,12 @@ calibrateNoise();
                 <div className="relative mt-6">
                   <textarea
                     value={
-                      showBusinessCard
-                        ? businessCardDetails
-                        : brandDetails
-                    }
+  voiceListening
+    ? liveTranscript
+    : showBusinessCard
+      ? businessCardDetails
+      : brandDetails
+}
                     onChange={(
                       event,
                     ) =>
