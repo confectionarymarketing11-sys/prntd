@@ -148,34 +148,39 @@ export default function AuthForm({
       }
 
       if (mode === "signup") {
-        const { error } =
-          await supabase.auth.signUp(
-            {
+        const response =
+          await fetch("/api/auth/signup", {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
               email: email
                 .trim()
                 .toLowerCase(),
-
               password,
+              fullName:
+                fullName.trim(),
+              nextPath:
+                nextPath ||
+                "/dashboard",
+            }),
+          });
 
-              options: {
-                emailRedirectTo: authConfirmUrl(
-                  nextPath ||
-                    "/dashboard",
-                ),
+        const data =
+          await response.json();
 
-                data: {
-                  full_name:
-                    fullName.trim(),
-                },
-              },
-            },
+        if (!response.ok) {
+          throw new Error(
+            data.error ||
+              "Signup failed.",
           );
-
-        if (error)
-          throw error;
+        }
 
         setMessage(
-          "Check your email to verify your PRNTD account.",
+          data.message ||
+            "Check your email to verify your PRNTD account.",
         );
 
         return;

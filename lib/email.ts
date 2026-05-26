@@ -77,6 +77,29 @@ export function shippingConfirmationTemplate(input: {
   };
 }
 
+export function authVerificationTemplate(input: {
+  verificationUrl: string;
+  customerName?: string | null;
+}) {
+  const greeting = input.customerName ? `Hi ${input.customerName},` : "Hi,";
+
+  return {
+    subject: "Verify your PRNTD account",
+    text: `${greeting}\n\nVerify your PRNTD account with this secure link:\n${input.verificationUrl}\n\nIf you did not request this, you can ignore this email.`,
+    html: `
+      <div style="margin:0;background:#f5f7fb;padding:32px 16px;font-family:Arial,sans-serif;color:#111827;">
+        <div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:24px;padding:32px;border:1px solid #e7eaf3;">
+          <div style="font-size:12px;font-weight:800;letter-spacing:0.18em;color:#4f46e5;text-transform:uppercase;">PRNTD</div>
+          <h1 style="margin:12px 0 8px;font-size:30px;line-height:1.1;">Verify your account</h1>
+          <p style="margin:0 0 20px;color:#4b5563;line-height:1.6;">${greeting} finish creating your PRNTD account so you can access saved designs, orders, and creator tools.</p>
+          <a href="${input.verificationUrl}" style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#6366f1,#7c3aed);color:#ffffff;text-decoration:none;border-radius:999px;padding:14px 20px;font-weight:800;">Verify account</a>
+          <p style="margin:24px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">This secure link can only be used for this signup request. If you did not request it, you can ignore this email.</p>
+        </div>
+      </div>
+    `,
+  };
+}
+
 export async function sendTransactionalEmail(payload: EmailPayload) {
   const supabase = createSupabaseAdminClient();
   const apiKey = getOptionalEnv("RESEND_API_KEY");
