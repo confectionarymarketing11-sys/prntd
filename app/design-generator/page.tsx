@@ -723,11 +723,12 @@ if (!clientSecret) {
 
    const ws =
   new WebSocket(
-    "wss://api.openai.com/v1/realtime",
-    [
-      "openai-insecure-api-key." +
-        clientSecret,
-    ],
+    `wss://api.openai.com/v1/realtime?model=gpt-realtime`,
+    {
+      headers: {
+        Authorization: `Bearer ${clientSecret}`,
+      },
+    },
   );
   
 
