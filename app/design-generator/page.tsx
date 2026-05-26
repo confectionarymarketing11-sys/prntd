@@ -718,7 +718,7 @@ if (!clientSecret) {
 
 const ws =
   new WebSocket(
-    "wss://api.openai.com/v1/realtime?model=gpt-realtime-whisper",
+    "wss://api.openai.com/v1/realtime",
     [
       "realtime",
       `openai-insecure-api-key.${clientSecret}`,
@@ -779,6 +779,26 @@ ws.onmessage = (
 );
 
 console.log(data);
+};
+
+ws.onopen = () => {
+  console.log(
+    "Realtime connected",
+  );
+};
+
+ws.onerror = (error) => {
+  console.error(
+    "Realtime websocket error:",
+    error,
+  );
+};
+
+ws.onclose = (event) => {
+  console.log(
+    "Realtime closed:",
+    event,
+  );
 };
 
     
