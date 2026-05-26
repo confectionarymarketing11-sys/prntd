@@ -706,6 +706,11 @@ const sessionResponse =
 const sessionData =
   await sessionResponse.json();
 
+console.log(
+  "Realtime session:",
+  sessionData,
+);
+
 const clientSecret =
   sessionData.client_secret
     ?.value;
