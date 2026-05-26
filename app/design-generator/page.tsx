@@ -777,32 +777,48 @@ const editInterval =
       );
 
     dc.onmessage = (
-  event,
-) => {
-  try {
-    const data = JSON.parse(
-      event.data,
-    ) as {
-      type?: string;
-      transcript?: string;
-    };
+      event,
+    ) => {
+      try {
+        const data = JSON.parse(
+          event.data,
+        ) as {
+          type?: string;
+          delta?: string;
+          transcript?: string;
+          text?: string;
+        };
 
-    if (
-      data.type ===
-        "input_audio_transcription.completed" &&
-      data.transcript
-    ) {
-      appendVoicePromptText(
-        data.transcript,
-      );
-    }
-  } catch (error) {
-    console.error(
-      "Realtime event parse failed:",
-      error,
-    );
-  }
-};;
+        if (
+          data.type ===
+            "input_audio_transcription.completed" &&
+          data.delta
+        ) {
+          appendVoicePromptText(
+            data.delta,
+          );
+
+          return;
+        }
+
+        if (
+          data.type?.includes(
+            "input_audio_transcription.completed",
+          ) &&
+          data.transcript &&
+          !voiceDraftRef.current
+        ) {
+          appendVoicePromptText(
+            data.transcript,
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Realtime event parse failed:",
+          error,
+        );
+      }
+    };
 
     const stream =
       await navigator.mediaDevices.getUserMedia(
