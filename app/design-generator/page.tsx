@@ -784,10 +784,6 @@ if (!sdpResponse.ok) {
 }
 
 const answer = {
-  type: "answer",
-  sdp:
-    await sdpResponse.text(),
-};
 
 await pc.setRemoteDescription(
   answer,
