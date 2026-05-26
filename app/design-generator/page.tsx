@@ -890,6 +890,8 @@ function checkSilence() {
   volume =
     volume /
     dataArray.length;
+console.log(volume);
+
 
   if (
     volume >
@@ -923,7 +925,7 @@ checkSilence();
     console.error(
       "Microphone failed:",
       error,
-console.log(volume);
+
     );
 
     setVoiceListening(false);
