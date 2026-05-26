@@ -12,12 +12,18 @@ type PrntdAccountSession = {
   user: User;
 };
 
-export function usePrntdAccount() {
+type UsePrntdAccountOptions = {
+  required?: boolean;
+};
+
+function usePrntdAccountBase({
+  required = true,
+}: UsePrntdAccountOptions = {}) {
   const pathname = usePathname();
   const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
-  const [status, setStatus] = useState("Loading your account...");
+  const [status, setStatus] = useState(required ? "Loading your account..." : "Checking account status...");
   const [isLoading, setIsLoading] = useState(true);
 
   const redirectToLogin = useCallback(() => {
@@ -36,8 +42,15 @@ export function usePrntdAccount() {
       } = await supabase.auth.getUser();
 
       if (error || !authUser?.email) {
-        setStatus("Sign in to continue.");
-        redirectToLogin();
+        setEmail("");
+        setToken("");
+        setUser(null);
+        setStatus(required ? "Sign in to continue." : "Guest checkout available.");
+
+        if (required) {
+          redirectToLogin();
+        }
+
         return null;
       }
 
@@ -60,7 +73,7 @@ export function usePrntdAccount() {
     } finally {
       setIsLoading(false);
     }
-  }, [redirectToLogin]);
+  }, [redirectToLogin, required]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -78,4 +91,20 @@ export function usePrntdAccount() {
     isLoading,
     loadAccount,
   };
+}
+
+export function useOptionalPrntdAccount() {
+  return usePrntdAccountBase({
+    required: false,
+  });
+}
+
+export function useRequiredPrntdAccount() {
+  return usePrntdAccountBase({
+    required: true,
+  });
+}
+
+export function usePrntdAccount() {
+  return useRequiredPrntdAccount();
 }

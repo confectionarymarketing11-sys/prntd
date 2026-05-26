@@ -10,7 +10,7 @@ import {
 
 import ProductMockup from "@/components/ProductMockup";
 import ShopHeader from "@/components/ShopHeader";
-import { usePrntdAccount } from "@/hooks/usePrntdAccount";
+import { useOptionalPrntdAccount } from "@/hooks/usePrntdAccount";
 import {
   loadCartItems,
   saveCartItems,
@@ -48,7 +48,7 @@ const emptyCustomer: Customer = {
 
 export default function CartPage() {
   const { email, status: accountStatus } =
-    usePrntdAccount();
+    useOptionalPrntdAccount();
 
   const [items, setItems] = useState<
     CartItem[]
@@ -718,7 +718,7 @@ export default function CartPage() {
               <p className="mt-3 break-all text-base font-semibold leading-7 text-[#cbd5e1]">
                 {email
                   ? `Signed in as ${email}. Stripe will confirm shipping and contact details.`
-                  : `Guest checkout (${accountStatus}). Stripe will collect email, phone, and shipping details securely.`}
+                  : `${accountStatus} No login required. Stripe will collect email, phone, and shipping details securely.`}
               </p>
             </div>
 

@@ -15,7 +15,7 @@ import { calculateDiscount } from "@/features/discounts/data/discounts";
 import { getCurrentAdmin } from "@/features/admin/data/auth";
 import { getSiteSettings } from "@/features/site-settings/data/site-settings";
 import { getAvailableAdminShippingMethods } from "@/features/shipping/data/shipping";
-import { getOrCreateCustomerForEmail } from "@/lib/auth/customer";
+import { getCurrentCustomer, getOrCreateCustomerForEmail } from "@/lib/auth/customer";
 import { ApiError } from "@/lib/api-response";
 import { checkRequestRateLimit } from "@/lib/rate-limit";
 import { assertJsonContentType, assertTrustedOrigin } from "@/lib/security";
@@ -568,7 +568,22 @@ export async function POST(req: NextRequest) {
     checkRequestRateLimit(req, "checkout:ip", { limit: 12, windowMs: 60_000 });
 
     const parsedOrder = checkoutOrderSchema.parse(await req.json()) as Order;
-    const order = await repriceOrder(parsedOrder);
+    const currentCustomer = await getCurrentCustomer();
+    let order = await repriceOrder(parsedOrder);
+
+    if (currentCustomer?.customer.email && !order.customer.email) {
+      order = {
+        ...order,
+        customer: {
+          ...order.customer,
+          email: currentCustomer.customer.email,
+          name: order.customer.name || currentCustomer.customer.name || "",
+          phone: order.customer.phone || currentCustomer.customer.phone || "",
+          company: order.customer.company || currentCustomer.customer.company || "",
+        },
+      };
+    }
+
     checkRequestRateLimit(req, "checkout:email", {
       identifier: order.customer.email || requestIdentifier(req),
       limit: 8,
@@ -661,6 +676,10 @@ export async function POST(req: NextRequest) {
       "metadata[estimated_total_before_tax_cents]": String(estimatedTotalCents),
       "metadata[shipping_method]": selectedShipping?.code ?? "tracked",
       "metadata[shipping_cents]": String(finalShippingCents),
+      "metadata[customer_id]": currentCustomer?.customer.id ?? "",
+      "metadata[auth_user_id]": currentCustomer?.user.id ?? "",
+      "metadata[stripe_customer_id]": currentCustomer?.customer.stripe_customer_id ?? "",
+      "metadata[customer_email]": currentCustomer?.customer.email ?? order.customer.email ?? "",
       "metadata[upload_ids]": compactMetadataValue(uploadIds),
       "metadata[design_references]": compactMetadataValue(designReferences),
       "metadata[order_notes]": compactMetadataValue(order.customer.notes),
@@ -676,12 +695,16 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    if (order.customer.email) {
+    if (currentCustomer?.customer.stripe_customer_id) {
+      params.append("customer", currentCustomer.customer.stripe_customer_id);
+    } else if (order.customer.email) {
       params.append("customer_email", order.customer.email);
+      params.append("customer_creation", "always");
+    } else {
+      params.append("customer_creation", "always");
     }
 
     params.append("billing_address_collection", "auto");
-    params.append("customer_creation", "always");
     params.append("phone_number_collection[enabled]", "true");
     params.append("shipping_address_collection[allowed_countries][0]", "CA");
     params.append("shipping_address_collection[allowed_countries][1]", "US");
