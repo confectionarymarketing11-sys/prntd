@@ -758,7 +758,7 @@ await pc.setLocalDescription(
 
 const sdpResponse =
   await fetch(
-    "https://api.openai.com/v1/realtime/calls",
+    "https://api.openai.com/v1/realtime/calls?model=gpt-realtime",
     {
       method: "POST",
       body: offer.sdp,
