@@ -729,7 +729,7 @@ export default function DesignGeneratorPage() {
 
     recognition.lang = "en-US";
 
-    recognition.continuous = false;
+    recognition.continuous = true;
 
     recognition.interimResults = true;
 
