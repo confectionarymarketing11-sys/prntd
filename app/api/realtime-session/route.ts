@@ -68,7 +68,7 @@ export async function POST(
 
     const model = getOptionalEnv(
       "OPENAI_REALTIME_MODEL",
-      "gpt-realtime-2",
+      "gpt-realtime-whisper",
     );
 
     const voice = getOptionalEnv(
@@ -84,7 +84,7 @@ export async function POST(
     formData.append(
       "session",
       JSON.stringify({
-        type: "realtime",
+        type: "transcription",
         model,
           instructions:
   "You are PRNTD's realtime voice prompt assistant. Preserve the user's original wording and intent. Lightly clean grammar and structure while keeping prompts concise and print-ready. Do not creatively rewrite or expand prompts unless explicitly asked.",
