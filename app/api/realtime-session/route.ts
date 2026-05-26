@@ -1,14 +1,20 @@
 import { createHash } from "crypto";
 
-import { getEnv, getOptionalEnv } from "@/lib/env";
-import { checkRequestRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getEnv } from "@/lib/env";
+import {
+  checkRequestRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 import { assertTrustedOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function buildSafetyIdentifier(request: Request) {
-  const ip = getClientIp(request);
+function buildSafetyIdentifier(
+  request: Request,
+) {
+  const ip =
+    getClientIp(request);
 
   return createHash("sha256")
     .update(`prntd-realtime:${ip}`)
@@ -19,7 +25,9 @@ export async function POST(
   request: Request,
 ) {
   try {
-    assertTrustedOrigin(request);
+    assertTrustedOrigin(
+      request,
+    );
 
     checkRequestRateLimit(
       request,
@@ -66,16 +74,6 @@ export async function POST(
     const formData =
       new FormData();
 
-    const model = getOptionalEnv(
-      "OPENAI_REALTIME_MODEL",
-      "gpt-realtime-whisper",
-    );
-
-    const voice = getOptionalEnv(
-      "OPENAI_REALTIME_VOICE",
-      "marin",
-    );
-
     formData.append(
       "sdp",
       sdp,
@@ -85,21 +83,21 @@ export async function POST(
       "session",
       JSON.stringify({
         type: "transcription",
-        model,
-          instructions:
-  "You are PRNTD's realtime voice prompt assistant. Preserve the user's original wording and intent. Lightly clean grammar and structure while keeping prompts concise and print-ready. Do not creatively rewrite or expand prompts unless explicitly asked.",
-        output_modalities: ["text"],
-        reasoning: {
-          effort: "minimal",
-        },
+
         audio: {
-          output: {
-            voice,
-          },
           input: {
+            format: {
+              type: "audio/pcm",
+              rate: 24000,
+            },
+
             transcription: {
               model:
-                "gpt-4o-mini-transcribe",
+                "gpt-realtime-whisper",
+
+              language: "en",
+
+              delay: "medium",
             },
           },
         },
@@ -111,14 +109,17 @@ export async function POST(
         "https://api.openai.com/v1/realtime/calls",
         {
           method: "POST",
+
           headers: {
             Authorization:
               `Bearer ${getEnv("OPENAI_API_KEY")}`,
+
             "OpenAI-Safety-Identifier":
               buildSafetyIdentifier(
                 request,
               ),
           },
+
           body: formData,
         },
       );
@@ -147,6 +148,7 @@ export async function POST(
         headers: {
           "Content-Type":
             "application/sdp",
+
           "Cache-Control":
             "no-store",
         },
