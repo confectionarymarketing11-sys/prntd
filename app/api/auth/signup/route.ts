@@ -18,7 +18,7 @@ const signupSchema = z.object({
 
 function safeNextPath(value: string) {
   if (!value.startsWith("/") || value.startsWith("//")) {
-    return "/dashboard";
+    return "/login";
   }
 
   return value;
