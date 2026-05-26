@@ -731,7 +731,7 @@ export default function DesignGeneratorPage() {
 
     recognition.continuous = true;
 
-    recognition.interimResults = true;
+    recognition.interimResults = false;
 
     recognition.maxAlternatives = 1;
 
