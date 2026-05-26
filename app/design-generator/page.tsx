@@ -899,17 +899,19 @@ function checkSilence() {
       Date.now();
   }
 
-  /*if (
-    Date.now() -
-      silenceStart >
-    silenceDelay
-  ) {
-    mediaRecorder.stop();
+  /*
+if (
+  Date.now() -
+    silenceStart >
+  silenceDelay
+) {
+  mediaRecorder.stop();
 
-    audioContext.close();
+  audioContext.close();
 
-    return;
-  }*\
+  return;
+}
+*/
 
   requestAnimationFrame(
     checkSilence,
