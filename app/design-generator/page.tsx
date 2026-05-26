@@ -712,8 +712,7 @@ console.log(
 );
 
 const clientSecret =
-  sessionData.client_secret
-    ?.value;
+  sessionData.value;
 
 if (!clientSecret) {
   throw new Error(
