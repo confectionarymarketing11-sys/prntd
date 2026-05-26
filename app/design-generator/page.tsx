@@ -859,7 +859,7 @@ let silenceStart =
 
 const silenceThreshold = 6;
 
-const silenceDelay = 1200;
+const silenceDelay = 1800;
 
 function checkSilence() {
   if (
@@ -899,7 +899,7 @@ function checkSilence() {
       Date.now();
   }
 
-  ///*if (
+  /*if (
     Date.now() -
       silenceStart >
     silenceDelay
@@ -909,7 +909,7 @@ function checkSilence() {
     audioContext.close();
 
     return;
-  }*\\\
+  }*\
 
   requestAnimationFrame(
     checkSilence,
@@ -921,6 +921,7 @@ checkSilence();
     console.error(
       "Microphone failed:",
       error,
+console.log(volume);
     );
 
     setVoiceListening(false);
