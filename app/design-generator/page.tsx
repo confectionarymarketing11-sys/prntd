@@ -701,35 +701,43 @@ const editInterval =
   }
 
   function appendVoicePromptText(
-    text: string,
-  ) {
-    if (!text) return;
+  text: string,
+) {
+  if (!text) return;
 
-    voiceDraftRef.current += text;
+  const cleaned = text
+    .replace(/\s+/g, " ")
+    .trim();
 
-    setLiveTranscript(
-      voiceDraftRef.current.trim(),
+  if (!cleaned) return;
+
+  voiceDraftRef.current =
+    `${voiceDraftRef.current} ${cleaned}`
+      .replace(/\s+/g, " ")
+      .trim();
+
+  setLiveTranscript(
+    voiceDraftRef.current,
+  );
+
+  const updatePrompt = (
+    current: string,
+  ) => {
+    return `${current} ${cleaned}`
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  if (showBusinessCard) {
+    setBusinessCardDetails(
+      updatePrompt,
     );
-
-    const updatePrompt = (
-      current: string,
-    ) => {
-      const prefix =
-        current.trim().length > 0
-          ? `${current.trim()} `
-          : "";
-
-      return `${prefix}${text}`;
-    };
-
-    if (showBusinessCard) {
-      setBusinessCardDetails(
-        updatePrompt,
-      );
-    } else {
-      setBrandDetails(updatePrompt);
-    }
+  } else {
+    setBrandDetails(
+      updatePrompt,
+    );
   }
+}
 
   async function startVoice() {
   if (voiceListening) {
