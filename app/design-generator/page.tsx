@@ -976,7 +976,7 @@ console.log(volume);
       Date.now();
   }
 
-  /*
+  
 if (
   Date.now() -
     silenceStart >
@@ -988,7 +988,7 @@ if (
 
   return;
 }
-*/
+
 
   requestAnimationFrame(
     checkSilence,
