@@ -1,0 +1,17 @@
+export const customizerFonts = [
+  "Arial",
+  "Impact",
+  "Helvetica",
+  "Verdana",
+  "Tahoma",
+  "Trebuchet MS",
+  "Georgia",
+  "Times New Roman",
+  "Garamond",
+  "Courier New",
+  "Brush Script MT",
+  "Comic Sans MS",
+  "Lucida Handwriting",
+  "Palatino Linotype",
+  "Copperplate",
+];

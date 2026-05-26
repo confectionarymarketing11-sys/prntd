@@ -109,6 +109,22 @@ export default function AuthForm({
       const origin =
         window.location.origin;
 
+      const authConfirmUrl = (
+        destination: string,
+      ) => {
+        const url = new URL(
+          "/auth/confirm",
+          origin,
+        );
+
+        url.searchParams.set(
+          "next",
+          destination,
+        );
+
+        return url.toString();
+      };
+
       if (mode === "login") {
         const { error } =
           await supabase.auth.signInWithPassword(
@@ -142,10 +158,10 @@ export default function AuthForm({
               password,
 
               options: {
-                emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(
+                emailRedirectTo: authConfirmUrl(
                   nextPath ||
                     "/dashboard",
-                )}`,
+                ),
 
                 data: {
                   full_name:
@@ -171,7 +187,9 @@ export default function AuthForm({
             .trim()
             .toLowerCase(),
           {
-            redirectTo: `${origin}/account/settings?mode=reset-password`,
+            redirectTo: authConfirmUrl(
+              "/account/settings?mode=reset-password",
+            ),
           },
         );
 

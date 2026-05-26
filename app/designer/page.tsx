@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Group, Layer, Stage } from "react-konva";
 import ShopHeader from "@/components/ShopHeader";
+import { customizerFonts as fontFamilies } from "@/components/customizer/fonts";
 import URLImage from "@/components/customizer/URLImage";
 import URLText from "@/components/customizer/URLText";
 import { trackStorefrontEvent } from "@/lib/storefront-analytics";
@@ -181,24 +182,6 @@ const shirtColors: ShirtColor[] = [
   },
 ];
 
-const fontFamilies = [
-  "Arial",
-  "Impact",
-  "Helvetica",
-  "Verdana",
-  "Tahoma",
-  "Trebuchet MS",
-  "Georgia",
-  "Times New Roman",
-  "Garamond",
-  "Courier New",
-  "Brush Script MT",
-  "Comic Sans MS",
-  "Lucida Handwriting",
-  "Palatino Linotype",
-  "Copperplate",
-];
-
 const shirtSizes = ["Small", "Medium", "Large"];
 const oneSidePrice = 35;
 
@@ -336,6 +319,7 @@ export default function DesignerPage() {
   const layers = currentView === "front" ? frontLayers : backLayers;
   const selectedLayer = layers.find((layer) => layer.id === selectedId);
   const selectedTextLayer = selectedLayer?.type === "text" ? selectedLayer : null;
+
   const price = useMemo(() => {
     const isDoubleSided = layerHasArt(frontLayers) && layerHasArt(backLayers);
     const printType = isDoubleSided ? "2 Side" : "1 Side";

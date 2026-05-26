@@ -108,7 +108,7 @@ export default function PrntdToolsLanding() {
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-5xl text-center">
             <div className="mb-8 inline-flex items-center rounded-full border border-[#6366f1]/30 bg-white/5 px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#a5b4fc] backdrop-blur">
-              "Online Design & Print Studio”
+              Online Design &amp; Print Studio
             </div>
 
             <h1 className="text-[clamp(42px,15vw,110px)] font-black leading-[0.95] tracking-[-0.035em] text-white sm:leading-[0.92] sm:tracking-[-0.04em]">

@@ -15,6 +15,7 @@ import {
 } from "react-konva";
 
 import ShopHeader from "@/components/ShopHeader";
+import { customizerFonts as fonts } from "@/components/customizer/fonts";
 import URLImage from "@/components/customizer/URLImage";
 import URLText from "@/components/customizer/URLText";
 
@@ -36,16 +37,6 @@ import {
 import {
   addCartItem,
 } from "@/lib/cart-storage";
-
-const fonts = [
-  "Arial",
-  "Impact",
-  "Helvetica",
-  "Verdana",
-  "Georgia",
-  "Times New Roman",
-  "Courier New",
-];
 
 const sides = [
   "front",
@@ -1544,13 +1535,28 @@ export default function BusinessCardDesignerPage() {
                   }
                   onChange={(
                     event,
-                  ) =>
-                    setFontFamily(
+                  ) => {
+                    const nextFont =
                       event
                         .target
-                        .value,
-                    )
-                  }
+                        .value;
+
+                    setFontFamily(
+                      nextFont,
+                    );
+
+                    if (
+                      selectedTextLayer
+                    ) {
+                      updateLayer(
+                        selectedTextLayer.id,
+                        {
+                          fontFamily:
+                            nextFont,
+                        },
+                      );
+                    }
+                  }}
                   className="mt-3 h-[56px] w-full rounded-[18px] border border-white/10 bg-[#020617] px-4 text-sm text-white"
                 >
                   {fonts.map(
@@ -1582,13 +1588,27 @@ export default function BusinessCardDesignerPage() {
                   }
                   onChange={(
                     event,
-                  ) =>
-                    setTextColor(
+                  ) => {
+                    const nextColor =
                       event
                         .target
-                        .value,
-                    )
-                  }
+                        .value;
+
+                    setTextColor(
+                      nextColor,
+                    );
+
+                    if (
+                      selectedTextLayer
+                    ) {
+                      updateLayer(
+                        selectedTextLayer.id,
+                        {
+                          fill: nextColor,
+                        },
+                      );
+                    }
+                  }}
                   className="mt-3 h-[54px] w-full rounded-[18px] border border-white/10 bg-[#020617] p-2"
                 />
               </div>
