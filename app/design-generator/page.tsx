@@ -782,8 +782,7 @@ console.log(data);
 };
 
     
-        }
-      };
+        
 
     mediaRecorder.start(250);
 
