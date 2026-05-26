@@ -12,10 +12,16 @@ export async function POST() {
       },
       body: JSON.stringify({
         session: {
-          type: "transcription",
-          model:
-            "gpt-realtime-whisper",
-        },
+  type: "realtime",
+  audio: {
+    input: {
+      transcription: {
+        model:
+          "gpt-realtime-whisper",
+      },
+    },
+  },
+},
       }),
     },
   );
