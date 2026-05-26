@@ -697,6 +697,9 @@ export async function POST(req: NextRequest) {
 
     if (currentCustomer?.customer.stripe_customer_id) {
       params.append("customer", currentCustomer.customer.stripe_customer_id);
+      params.append("customer_update[shipping]", "auto");
+      params.append("customer_update[address]", "auto");
+      params.append("customer_update[name]", "auto");
     } else if (order.customer.email) {
       params.append("customer_email", order.customer.email);
       params.append("customer_creation", "always");
