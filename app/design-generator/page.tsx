@@ -758,7 +758,7 @@ await pc.setLocalDescription(
 
 const sdpResponse =
   await fetch(
-    "https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview",
+    "https://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview",
     {
       method: "POST",
       headers: {
@@ -772,6 +772,18 @@ const sdpResponse =
       body: offer.sdp,
     },
   );
+
+if (!sdpResponse.ok) {
+  const errorText =
+    await sdpResponse.text();
+
+  console.error(
+    "Realtime SDP error:",
+    errorText,
+  );
+
+  throw new Error(errorText);
+}
 
 const answer =
   await sdpResponse.text();
