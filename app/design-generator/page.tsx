@@ -758,18 +758,16 @@ await pc.setLocalDescription(
 
 const sdpResponse =
   await fetch(
-    "https://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview",
+    "https://api.openai.com/v1/realtime/calls",
     {
       method: "POST",
-      headers: {
-  Authorization:
-    `Bearer ${clientSecret}`,
-  "Content-Type":
-    "application/sdp",
-  Accept:
-    "application/sdp",
-},
       body: offer.sdp,
+      headers: {
+        Authorization:
+          `Bearer ${clientSecret}`,
+        "Content-Type":
+          "application/sdp",
+      },
     },
   );
 
@@ -785,18 +783,14 @@ if (!sdpResponse.ok) {
   throw new Error(errorText);
 }
 
-const answer =
-  await sdpResponse.text();
+const answer = {
+  type: "answer",
+  sdp:
+    await sdpResponse.text(),
+};
 
 await pc.setRemoteDescription(
-  {
-    type: "answer",
-    sdp: answer,
-  },
-);
-
-console.log(
-  "Realtime connected",
+  answer,
 );
 
   
