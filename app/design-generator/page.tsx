@@ -821,7 +821,7 @@ const editInterval =
         }
       };
 
-    mediaRecorder.start();
+    mediaRecorder.start(250);
 
 setVoiceListening(true);
 
