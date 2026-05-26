@@ -777,138 +777,122 @@ const editInterval =
       );
 
     dc.onmessage = (
-      event,
-    ) => {
-      try {
-        const data = JSON.parse(
-          event.data,
-        ) as {
-          type?: string;
-          delta?: string;
-          transcript?: string;
-          text?: string;
-        };
-
-        if (
-          data.type ===
-            "input_audio_transcription.completed" &&
-          data.delta
-        ) {
-          appendVoicePromptText(
-            data.delta,
-          );
-
-          return;
-        }
-
-        if (
-          data.type?.includes(
-            "input_audio_transcription.completed",
-          ) &&
-          data.transcript &&
-          !voiceDraftRef.current
-        ) {
-          appendVoicePromptText(
-            data.transcript,
-          );
-        }
-      } catch (error) {
-        console.error(
-          "Realtime event parse failed:",
-          error,
-        );
-      }
+  event,
+) => {
+  try {
+    const data = JSON.parse(
+      event.data,
+    ) as {
+      type?: string;
+      delta?: string;
+      transcript?: string;
     };
 
-    const stream =
-      await navigator.mediaDevices.getUserMedia(
-        {
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
-          },
-        },
-      );
-
-    mediaStreamRef.current =
-      stream;
-
-    for (const track of stream.getTracks()) {
-      pc.addTrack(
-        track,
-        stream,
-      );
-    }
-
-    const offer =
-      await pc.createOffer();
-
-    await pc.setLocalDescription(
-      offer,
-    );
-
-    const sdpResponse =
-      await fetch(
-        "/api/realtime-session",
-        {
-          method: "POST",
-
-          body: offer.sdp!,
-
-          headers: {
-            "Content-Type":
-              "application/sdp",
-          },
-        },
-      );
-
-    if (!sdpResponse.ok) {
-      const errorText =
-        await sdpResponse.text();
-
-      console.error(
-        "Realtime SDP error:",
-        errorText,
-      );
-
-      throw new Error(
-        errorText,
-      );
-    }
-
-    const answer: RTCSessionDescriptionInit =
-      {
-        type: "answer",
-        sdp:
-          await sdpResponse.text(),
-      };
-
-    await pc.setRemoteDescription(
-      answer,
-    );
-
-    setVoiceListening(true);
-
-    setLiveTranscript("");
-
-    voiceDraftRef.current = "";
-
     console.log(
-      "Realtime connected",
+      "Realtime event:",
+      data,
     );
+
+    if (
+      data.type ===
+      "conversation.item.input_audio_transcription.delta"
+    ) {
+      setLiveTranscript(
+        data.delta ?? "",
+      );
+
+      return;
+    }
+
+    if (
+      data.type ===
+        "conversation.item.input_audio_transcription.completed" &&
+      data.transcript
+    ) {
+      const cleaned =
+        data.transcript
+          .replace(/\s+/g, " ")
+          .trim();
+
+      voiceDraftRef.current =
+        cleaned;
+
+      setLiveTranscript(
+        cleaned,
+      );
+
+      if (showBusinessCard) {
+        setBusinessCardDetails(
+          cleaned,
+        );
+      } else {
+        setBrandDetails(
+          cleaned,
+        );
+      }
+    }
   } catch (error) {
     console.error(
-      "Microphone failed:",
+      "Realtime event parse failed:",
       error,
     );
-
-    setVoiceListening(false);
-
-    stopVoiceSession();
   }
-}
+};
+
+const stream =
+  await navigator.mediaDevices.getUserMedia({
+    audio: true,
+  });
+
+mediaStreamRef.current =
+  stream;
+
+stream
+  .getTracks()
+  .forEach((track) => {
+    pc.addTrack(
+      track,
+      stream,
+    );
+  });
+
+const offer =
+  await pc.createOffer();
+
+await pc.setLocalDescription(
+  offer,
+);
+
+const response =
+  await fetch(
+    "/api/realtime-session",
+    {
+      method: "POST",
+
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type":
+          "application/sdp",
+      },
+
+      body:
+        offer.sdp ?? "",
+    },
+  );
+
+const answer =
+  await response.text();
+
+await pc.setRemoteDescription({
+  type: "answer",
+  sdp: answer,
+});
+
+voiceDraftRef.current = "";
+
+setLiveTranscript("");
+
+setVoiceListening(true);
 
   function applyToProduct() {
     if (!resultImage) return;
