@@ -924,7 +924,7 @@ export default function DesignGeneratorPage() {
 
                 <div className="mt-8 rounded-[26px] border border-white/10 bg-[#0f172a]/80 p-6">
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-[#94a3b8]">
-                    AI Credits
+                    Credits
                   </p>
 
                   <p className="mt-4 text-[52px] font-black leading-none">
@@ -936,7 +936,7 @@ export default function DesignGeneratorPage() {
 
                   <p className="mt-3 text-sm leading-7 text-[#cbd5e1]">
                     Each generation
-                    uses 1 AI credit.
+                    uses 1 credit.
                   </p>
                 </div>
               </div>
@@ -984,7 +984,7 @@ export default function DesignGeneratorPage() {
                         </p>
 
                         <p className="mt-3 text-xs leading-6 opacity-80">
-                          AI-powered
+                          Print-ready
                           premium
                           graphics.
                         </p>
