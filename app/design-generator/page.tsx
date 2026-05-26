@@ -720,9 +720,7 @@ if (!clientSecret) {
   );
 }
 
-const ws =
-  new WebSocket(
-    "wss://api.openai.com/v1/realtime",
+
    const ws =
   new WebSocket(
     "wss://api.openai.com/v1/realtime",
