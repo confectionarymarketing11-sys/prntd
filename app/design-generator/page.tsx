@@ -899,7 +899,7 @@ function checkSilence() {
       Date.now();
   }
 
-  if (
+  ///*if (
     Date.now() -
       silenceStart >
     silenceDelay
@@ -909,7 +909,7 @@ function checkSilence() {
     audioContext.close();
 
     return;
-  }
+  }*\\\
 
   requestAnimationFrame(
     checkSilence,
