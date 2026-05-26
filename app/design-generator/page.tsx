@@ -693,7 +693,7 @@ const editInterval =
   noiseSuppression: false,
   autoGainControl: false,
   channelCount: 1,
-  sampleRate: 48000,
+  
 }
         },
       );
@@ -857,12 +857,79 @@ const dataArray =
 let silenceStart =
   Date.now();
 
-const silenceThreshold = 6;
-
 const silenceDelay = 1800;
 
-function checkSilence() {
+let dynamicThreshold = 0;
+
+let calibrationTotal = 0;
+let calibrationFrames = 0;
+
+const calibrationDuration = 1000;
+
+const calibrationStart =
+  Date.now();
+
+function calibrateNoise() {
+  analyser.getByteTimeDomainData(
+    dataArray,
+  );
+
+  let volume = 0;
+
+  for (
+    let i = 0;
+    i < dataArray.length;
+    i++
+  ) {
+    volume += Math.abs(
+      dataArray[i] - 128,
+    );
+  }
+
+  volume =
+    volume /
+    dataArray.length;
+
+  calibrationTotal += volume;
+
+  calibrationFrames++;
+
   if (
+    Date.now() -
+      calibrationStart <
+    calibrationDuration
+  ) {
+    requestAnimationFrame(
+      calibrateNoise,
+    );
+
+    return;
+  }
+
+  const ambientNoise =
+    calibrationTotal /
+    calibrationFrames;
+
+  dynamicThreshold =
+    Math.max(
+      ambientNoise + 4,
+      4,
+    );
+
+  console.log(
+    "Ambient:",
+    ambientNoise,
+  );
+
+  console.log(
+    "Threshold:",
+    dynamicThreshold,
+  );
+
+  checkSilence();
+}
+
+function checkSilence() {  if (
     mediaRecorder.state !==
     "recording"
   ) {
@@ -895,7 +962,7 @@ console.log(volume);
 
   if (
     volume >
-    silenceThreshold
+    dynamicThreshold
   ) {
     silenceStart =
       Date.now();
@@ -920,7 +987,7 @@ if (
   );
 }
 
-checkSilence();
+calibrateNoise();
   } catch (error) {
     console.error(
       "Microphone failed:",
