@@ -10,18 +10,20 @@ export async function POST() {
         "Content-Type":
           "application/json",
       },
+
       body: JSON.stringify({
-        session: {
-  type: "realtime",
-  audio: {
-    input: {
-      transcription: {
-        model:
-          "gpt-realtime-whisper",
-      },
-    },
-  },
-},
+        model: "gpt-realtime",
+
+        voice: "verse",
+
+        audio: {
+          input: {
+            transcription: {
+              model:
+                "gpt-4o-mini-transcribe",
+            },
+          },
+        },
       }),
     },
   );
