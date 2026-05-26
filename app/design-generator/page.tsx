@@ -777,9 +777,7 @@ await new Promise(
           const transcript =
             data.text?.trim() ??
             "";
-setLiveTranscript(
-  transcript,
-);
+
 
           if (!transcript)
             return;
@@ -801,17 +799,8 @@ setLiveTranscript(
             );
           } else {
             setBrandDetails(
-              (
-                previous,
-              ) =>
-                [
-                  previous,
-                  transcript,
-                ]
-                  .filter(Boolean)
-                  .join(" ")
-                  .trim(),
-            );
+  transcript,
+);
           }
         } catch (error) {
           console.error(
@@ -843,6 +832,8 @@ setLiveTranscript(
     mediaRecorder.start(250);
 
 setVoiceListening(true);
+
+setLiveTranscript("");
 
 const audioContext =
   new AudioContext();
@@ -1219,11 +1210,9 @@ calibrateNoise();
                 <div className="relative mt-6">
                   <textarea
                     value={
-  voiceListening
-    ? liveTranscript
-    : showBusinessCard
-      ? businessCardDetails
-      : brandDetails
+  showBusinessCard
+    ? businessCardDetails
+    : brandDetails
 }
                     onChange={(
                       event,
