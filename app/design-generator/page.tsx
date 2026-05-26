@@ -235,6 +235,11 @@ const [
   setLiveTranscript,
 ] = useState("");
 
+const websocketRef =
+  useRef<WebSocket | null>(
+    null,
+  );
+
 const mediaRecorderRef =
   useRef<MediaRecorder | null>(null);
 
@@ -690,6 +695,40 @@ const editInterval =
 
     if (!token) return;
 
+const sessionResponse =
+  await fetch(
+    "/api/realtime-session",
+    {
+      method: "POST",
+    },
+  );
+
+const sessionData =
+  await sessionResponse.json();
+
+const clientSecret =
+  sessionData.client_secret
+    ?.value;
+
+if (!clientSecret) {
+  throw new Error(
+    "No realtime token",
+  );
+}
+
+const ws =
+  new WebSocket(
+    "wss://api.openai.com/v1/realtime?model=gpt-realtime-whisper",
+    [
+      "realtime",
+      `openai-insecure-api-key.${clientSecret}`,
+      "openai-beta.realtime-v1",
+    ],
+  );
+
+websocketRef.current =
+  ws;
+
     const stream =
       await navigator.mediaDevices.getUserMedia(
         {
@@ -719,113 +758,30 @@ const editInterval =
     audioChunksRef.current = [];
 
     mediaRecorder.ondataavailable =
-      (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(
-            event.data,
-          );
-        }
-      };
+  async (event) => {
+    if (
+      event.data.size > 0 &&
+      ws.readyState ===
+        WebSocket.OPEN
+    ) {
+      const arrayBuffer =
+        await event.data.arrayBuffer();
 
-    mediaRecorder.onstop =
-      async () => {
-        try {
+      ws.send(arrayBuffer);
+    }
+  };
 
-await new Promise(
-  (resolve) =>
-    setTimeout(resolve, 150),
+ws.onmessage = (
+  message,
+) => {
+  const data = JSON.parse(
+  message.data,
 );
-          const audioBlob =
-            new Blob(
-              audioChunksRef.current,
-              {
-                type: "audio/webm",
-              },
-            );
 
-          const formData =
-            new FormData();
+console.log(data);
+};
 
-          formData.append(
-            "audio",
-            audioBlob,
-            "voice.webm",
-          );
-
-          const response =
-            await fetch(
-              `${apiBase}/transcribe`,
-              {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-                body: formData,
-              },
-            );
-
-          const data =
-            await response.json();
-
-          if (!response.ok) {
-            throw new Error(
-              data.error ??
-                "Voice transcription failed",
-            );
-          }
-
-          const transcript =
-            data.text?.trim() ??
-            "";
-
-
-          if (!transcript)
-            return;
-
-          if (
-            showBusinessCard
-          ) {
-            setBusinessCardDetails(
-              (
-                previous,
-              ) =>
-                [
-                  previous,
-                  transcript,
-                ]
-                  .filter(Boolean)
-                  .join(" ")
-                  .trim(),
-            );
-          } else {
-            setBrandDetails(
-  transcript,
-);
-          }
-        } catch (error) {
-          console.error(
-            "Voice transcription failed:",
-            error,
-          );
-        } finally {
-          mediaStreamRef.current
-            ?.getTracks()
-            .forEach((track) =>
-              track.stop(),
-            );
-
-          mediaStreamRef.current =
-            null;
-
-          mediaRecorderRef.current =
-            null;
-
-          audioChunksRef.current =
-            [];
-
-          setVoiceListening(
-            false,
-          );
+    
         }
       };
 
