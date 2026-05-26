@@ -694,9 +694,9 @@ const editInterval =
       await navigator.mediaDevices.getUserMedia(
         {
           audio: {
-  echoCancellation: false,
-  noiseSuppression: false,
-  autoGainControl: false,
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
   channelCount: 1,
   
 }
@@ -845,6 +845,9 @@ const source =
 
 const analyser =
   audioContext.createAnalyser();
+
+analyser.fftSize = 2048;
+analyser.smoothingTimeConstant = 0.8;
 
 source.connect(analyser);
 
