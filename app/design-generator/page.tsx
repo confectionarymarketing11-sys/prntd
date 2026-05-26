@@ -741,7 +741,6 @@ const stream =
   );
 
 mediaStregpt-realamRef.current =
-  stream;
 
 for (const track of stream.getTracks()) {
   pc.addTrack(
