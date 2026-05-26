@@ -242,6 +242,13 @@ const [
 const mediaStreamRef =
   useRef<MediaStream | null>(null);
 
+const peerConnectionRef =
+  useRef<RTCPeerConnection | null>(
+    null,
+  );
+
+const voiceDraftRef = useRef("");
+
 
 
 const generationInterval =
@@ -383,6 +390,16 @@ const editInterval =
     accountToken,
     loadDesignCredits,
   ]);
+
+  useEffect(() => {
+    return () => {
+      mediaStreamRef.current
+        ?.getTracks()
+        .forEach((track) => track.stop());
+
+      peerConnectionRef.current?.close();
+    };
+  }, []);
 
   async function ensureAuthToken() {
     if (
@@ -669,13 +686,54 @@ const editInterval =
     }
   }
 
-  async function startVoice() {
-  if (voiceListening) {
+  function stopVoiceSession() {
     mediaStreamRef.current
       ?.getTracks()
       .forEach((track) => track.stop());
 
+    mediaStreamRef.current = null;
+
+    peerConnectionRef.current?.close();
+
+    peerConnectionRef.current = null;
+
     setVoiceListening(false);
+  }
+
+  function appendVoicePromptText(
+    text: string,
+  ) {
+    if (!text) return;
+
+    voiceDraftRef.current += text;
+
+    setLiveTranscript(
+      voiceDraftRef.current.trim(),
+    );
+
+    const updatePrompt = (
+      current: string,
+    ) => {
+      const prefix =
+        current.trim().length > 0
+          ? `${current.trim()} `
+          : "";
+
+      return `${prefix}${text}`;
+    };
+
+    if (showBusinessCard) {
+      setBusinessCardDetails(
+        updatePrompt,
+      );
+    } else {
+      setBrandDetails(updatePrompt);
+    }
+  }
+
+  async function startVoice() {
+  if (voiceListening) {
+    stopVoiceSession();
 
     return;
   }
@@ -686,28 +744,24 @@ const editInterval =
 
     if (!token) return;
 
-    const sessionResponse =
-      await fetch(
-        "/api/realtime-session",
-        {
-          method: "POST",
-        },
-      );
-
-    const sessionData =
-      await sessionResponse.json();
-
-    const clientSecret =
-  sessionData?.client_secret?.value;
-
-    if (!clientSecret) {
-      throw new Error(
-        "No realtime token",
-      );
-    }
-
     const pc =
       new RTCPeerConnection();
+
+    peerConnectionRef.current = pc;
+
+    pc.onconnectionstatechange =
+      () => {
+        if (
+          pc.connectionState ===
+            "failed" ||
+          pc.connectionState ===
+            "disconnected" ||
+          pc.connectionState ===
+            "closed"
+        ) {
+          stopVoiceSession();
+        }
+      };
 
     const dc =
       pc.createDataChannel(
@@ -717,10 +771,45 @@ const editInterval =
     dc.onmessage = (
       event,
     ) => {
-      console.log(
-        "Realtime event:",
-        event.data,
-      );
+      try {
+        const data = JSON.parse(
+          event.data,
+        ) as {
+          type?: string;
+          delta?: string;
+          transcript?: string;
+          text?: string;
+        };
+
+        if (
+          data.type ===
+            "response.output_text.delta" &&
+          data.delta
+        ) {
+          appendVoicePromptText(
+            data.delta,
+          );
+
+          return;
+        }
+
+        if (
+          data.type?.includes(
+            "input_audio_transcription.completed",
+          ) &&
+          data.transcript &&
+          !voiceDraftRef.current
+        ) {
+          appendVoicePromptText(
+            data.transcript,
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Realtime event parse failed:",
+          error,
+        );
+      }
     };
 
     const stream =
@@ -754,14 +843,13 @@ const editInterval =
 
     const sdpResponse =
       await fetch(
-        "https://api.openai.com/v1/realtime?model=gpt-realtime-2",
+        "/api/realtime-session",
         {
           method: "POST",
 
           body: offer.sdp!,
 
           headers: {
-            Authorization: `Bearer ${clientSecret}`,
             "Content-Type":
               "application/sdp",
           },
@@ -797,6 +885,8 @@ const editInterval =
 
     setLiveTranscript("");
 
+    voiceDraftRef.current = "";
+
     console.log(
       "Realtime connected",
     );
@@ -807,6 +897,8 @@ const editInterval =
     );
 
     setVoiceListening(false);
+
+    stopVoiceSession();
   }
 }
 

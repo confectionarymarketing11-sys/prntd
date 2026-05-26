@@ -1,14 +1,80 @@
+import { createHash } from "crypto";
+
+import { getEnv, getOptionalEnv } from "@/lib/env";
+import { checkRequestRateLimit, getClientIp } from "@/lib/rate-limit";
+import { assertTrustedOrigin } from "@/lib/security";
+
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function buildSafetyIdentifier(request: Request) {
+  const ip = getClientIp(request);
+
+  return createHash("sha256")
+    .update(`prntd-realtime:${ip}`)
+    .digest("hex");
+}
 
 export async function POST(
   request: Request,
 ) {
   try {
+    assertTrustedOrigin(request);
+
+    checkRequestRateLimit(
+      request,
+      "openai:realtime-session",
+      {
+        limit: 20,
+        windowMs: 60_000,
+      },
+    );
+
+    const contentType =
+      request.headers
+        .get("content-type")
+        ?.toLowerCase() ?? "";
+
+    if (
+      !contentType.includes(
+        "application/sdp",
+      ) &&
+      !contentType.includes(
+        "text/plain",
+      )
+    ) {
+      return new Response(
+        "Expected application/sdp payload.",
+        {
+          status: 415,
+        },
+      );
+    }
+
     const sdp =
       await request.text();
 
+    if (!sdp.trim()) {
+      return new Response(
+        "Missing SDP offer.",
+        {
+          status: 400,
+        },
+      );
+    }
+
     const formData =
       new FormData();
+
+    const model = getOptionalEnv(
+      "OPENAI_REALTIME_MODEL",
+      "gpt-realtime-2",
+    );
+
+    const voice = getOptionalEnv(
+      "OPENAI_REALTIME_VOICE",
+      "marin",
+    );
 
     formData.append(
       "sdp",
@@ -19,12 +85,17 @@ export async function POST(
       "session",
       JSON.stringify({
         type: "realtime",
-        model: "gpt-4o-realtime-preview",
+        model,
+        instructions:
+          "You are PRNTD's design prompt dictation assistant. Convert spoken design ideas into concise, clean prompt text for a print design generator. Keep the wording practical and print-ready.",
+        output_modalities: ["text"],
+        reasoning: {
+          effort: "minimal",
+        },
         audio: {
           output: {
-            voice: "verse",
+            voice,
           },
-
           input: {
             transcription: {
               model:
@@ -40,12 +111,14 @@ export async function POST(
         "https://api.openai.com/v1/realtime/calls",
         {
           method: "POST",
-
           headers: {
             Authorization:
-              `Bearer ${process.env.OPENAI_API_KEY}`,
+              `Bearer ${getEnv("OPENAI_API_KEY")}`,
+            "OpenAI-Safety-Identifier":
+              buildSafetyIdentifier(
+                request,
+              ),
           },
-
           body: formData,
         },
       );
@@ -53,17 +126,37 @@ export async function POST(
     const answer =
       await response.text();
 
+    if (!response.ok) {
+      console.error(
+        "Realtime session failed:",
+        answer,
+      );
+
+      return new Response(
+        answer ||
+          "Unable to start realtime session.",
+        {
+          status: response.status,
+        },
+      );
+    }
+
     return new Response(
       answer,
       {
         headers: {
           "Content-Type":
             "application/sdp",
+          "Cache-Control":
+            "no-store",
         },
       },
     );
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Realtime session error:",
+      error,
+    );
 
     return new Response(
       "Realtime failed",

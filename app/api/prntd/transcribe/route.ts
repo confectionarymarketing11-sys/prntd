@@ -11,19 +11,11 @@ import { getOptionalEnv } from "@/lib/env";
 
 import { checkRequestRateLimit } from "@/lib/rate-limit";
 
-import { createSupabaseAdminClient } from "@/lib/supabase/service";
-
 export const runtime = "nodejs";
 
 export const dynamic = "force-dynamic";
 
 export const maxDuration = 60;
-
-const openai = new OpenAI({
-  apiKey: getOptionalEnv(
-    "OPENAI_API_KEY",
-  ),
-});
 
 export async function POST(
   request: Request,
@@ -42,6 +34,12 @@ export async function POST(
           "openai_not_configured",
         );
       }
+
+      const openai = new OpenAI({
+        apiKey: getOptionalEnv(
+          "OPENAI_API_KEY",
+        ),
+      });
 
       checkRequestRateLimit(
         request,
