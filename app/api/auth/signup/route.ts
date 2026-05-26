@@ -13,7 +13,7 @@ const signupSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(6).max(128),
   fullName: z.string().trim().max(160).optional().default(""),
-  nextPath: z.string().trim().max(240).optional().default("/dashboard"),
+  nextPath: z.string().trim().max(240).optional().default("/login"),
 });
 
 function safeNextPath(value: string) {
