@@ -86,8 +86,8 @@ export async function POST(
       JSON.stringify({
         type: "realtime",
         model,
-        instructions:
-          "You are PRNTD's design prompt dictation assistant. Convert spoken design ideas into concise, clean prompt text for a print design generator. Keep the wording practical and print-ready.",
+          instructions:
+  "You are PRNTD's realtime voice prompt assistant. Preserve the user's original wording and intent. Lightly clean grammar and structure while keeping prompts concise and print-ready. Do not creatively rewrite or expand prompts unless explicitly asked.",
         output_modalities: ["text"],
         reasoning: {
           effort: "minimal",
