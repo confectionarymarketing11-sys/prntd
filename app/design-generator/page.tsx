@@ -235,19 +235,14 @@ const [
   setLiveTranscript,
 ] = useState("");
 
-const websocketRef =
-  useRef<WebSocket | null>(
-    null,
-  );
 
-const mediaRecorderRef =
-  useRef<MediaRecorder | null>(null);
+
+
 
 const mediaStreamRef =
   useRef<MediaStream | null>(null);
 
-const audioChunksRef =
-  useRef<Blob[]>([]);
+
 
 const generationInterval =
   useRef<number | null>(null);
@@ -676,7 +671,11 @@ const editInterval =
 
   async function startVoice() {
   if (voiceListening) {
-    mediaRecorderRef.current?.stop();
+    mediaStreamRef.current
+  ?.getTracks()
+  .forEach((track) =>
+    track.stop(),
+  );
 
     mediaStreamRef.current
       ?.getTracks()
@@ -720,124 +719,68 @@ if (!clientSecret) {
   );
 }
 
+const pc =
+  new RTCPeerConnection();
 
-   const ws =
-  new WebSocket(
-    `wss://api.openai.com/v1/realtime?model=gpt-realtime`,
+const stream =
+  await navigator.mediaDevices.getUserMedia(
     {
-      headers: {
-        Authorization: `Bearer ${clientSecret}`,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
       },
     },
   );
-  
 
-websocketRef.current =
-  ws;
+mediaStreamRef.current =
+  stream;
 
-    const stream =
-      await navigator.mediaDevices.getUserMedia(
-        {
-          audio: {
-  echoCancellation: true,
-  noiseSuppression: true,
-  autoGainControl: true,
-  channelCount: 1,
-  
-}
-        },
-      );
-
-    mediaStreamRef.current =
-      stream;
-
-   const mediaRecorder =
-  new MediaRecorder(stream, {
-    mimeType:
-      "audio/webm;codecs=opus",
-    audioBitsPerSecond: 256000,
-  });
-
-    mediaRecorderRef.current =
-      mediaRecorder;
-
-    audioChunksRef.current = [];
-
-    mediaRecorder.ondataavailable =
-  async (event) => {
-    if (
-      event.data.size > 0 &&
-      ws.readyState ===
-        WebSocket.OPEN
-    ) {
-      const arrayBuffer =
-  await event.data.arrayBuffer();
-
-const uint8 =
-  new Uint8Array(
-    arrayBuffer,
-  );
-
-let binary = "";
-
-for (
-  let i = 0;
-  i < uint8.length;
-  i++
-) {
-  binary += String.fromCharCode(
-    uint8[i],
+for (const track of stream.getTracks()) {
+  pc.addTrack(
+    track,
+    stream,
   );
 }
 
-const base64Audio =
-  btoa(binary);
+const offer =
+  await pc.createOffer();
 
-ws.send(
-  JSON.stringify({
-    type:
-      "input_audio_buffer.append",
-    audio:
-      base64Audio,
-  }),
-);
-    }
-  };
-
-ws.onmessage = (
-  message,
-) => {
-  const data = JSON.parse(
-  message.data,
+await pc.setLocalDescription(
+  offer,
 );
 
-console.log(data);
-};
-
-ws.onopen = () => {
-  console.log(
-    "Realtime connected",
+const sdpResponse =
+  await fetch(
+    "https://api.openai.com/v1/realtime?model=gpt-realtime",
+    {
+      method: "POST",
+      headers: {
+        Authorization:
+          `Bearer ${clientSecret}`,
+        "Content-Type":
+          "application/sdp",
+      },
+      body: offer.sdp,
+    },
   );
-};
 
-ws.onerror = (error) => {
-  console.error(
-    "Realtime websocket error:",
-    error,
-  );
-};
+const answer =
+  await sdpResponse.text();
 
-ws.onclose = (event) => {
-  console.log(
-    "Realtime closed:",
-    event,
-  );
-};
+await pc.setRemoteDescription(
+  {
+    type: "answer",
+    sdp: answer,
+  },
+);
 
-    
-        
+console.log(
+  "Realtime connected",
+);
 
-    mediaRecorder.start(250);
+  
 
 setVoiceListening(true);
 
@@ -939,10 +882,9 @@ function calibrateNoise() {
   checkSilence();
 }
 
-function checkSilence() {  if (
-    mediaRecorder.state !==
-    "recording"
-  ) {
+function checkSilence() {
+
+if (!voiceListening){
     audioContext.close();
 
     return;
@@ -984,7 +926,13 @@ if (
     silenceStart >
   silenceDelay
 ) {
-  mediaRecorder.stop();
+  mediaStreamRef.current
+  ?.getTracks()
+  .forEach((track) =>
+    track.stop(),
+  );
+
+setVoiceListening(false);
 
   audioContext.close();
 
@@ -996,6 +944,8 @@ if (
     checkSilence,
   );
 }
+
+
 
 calibrateNoise();
   } catch (error) {
