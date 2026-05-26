@@ -92,7 +92,19 @@ export function authVerificationTemplate(input: {
           <div style="font-size:12px;font-weight:800;letter-spacing:0.18em;color:#4f46e5;text-transform:uppercase;">PRNTD</div>
           <h1 style="margin:12px 0 8px;font-size:30px;line-height:1.1;">Verify your account</h1>
           <p style="margin:0 0 20px;color:#4b5563;line-height:1.6;">${greeting} finish creating your PRNTD account so you can access saved designs, orders, and creator tools.</p>
-          <a href="${input.verificationUrl}" style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#6366f1,#7c3aed);color:#ffffff;text-decoration:none;border-radius:999px;padding:14px 20px;font-weight:800;">Verify account</a>
+          <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin:24px 0;">
+            <tr>
+              <td bgcolor="#4f46e5" style="border-radius:999px;background-color:#4f46e5;">
+                <a href="${input.verificationUrl}" style="display:inline-block;padding:14px 22px;font-size:15px;line-height:20px;font-family:Arial,sans-serif;font-weight:800;color:#ffffff !important;text-decoration:none;border-radius:999px;background-color:#4f46e5;">
+                  Verify account
+                </a>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:18px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">If the button is hidden or does not open, copy and paste this link into your browser:</p>
+          <p style="margin:8px 0 0;font-size:13px;line-height:1.6;word-break:break-all;">
+            <a href="${input.verificationUrl}" style="color:#4f46e5 !important;text-decoration:underline;">${input.verificationUrl}</a>
+          </p>
           <p style="margin:24px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">This secure link can only be used for this signup request. If you did not request it, you can ignore this email.</p>
         </div>
       </div>
