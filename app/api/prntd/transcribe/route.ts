@@ -88,7 +88,7 @@ export async function POST(
             file: audio,
             model:
               "gpt-4o-mini-transcribe",
-            openai.audio.transcriptions.create,
+            
             response_format:
               "json",
             temperature: 0.2,
