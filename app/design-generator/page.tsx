@@ -718,6 +718,16 @@ if (!clientSecret) {
 const pc =
   new RTCPeerConnection();
 
+const dc =
+  pc.createDataChannel("oai-events");
+
+dc.onmessage = (event) => {
+  console.log(
+    "Realtime event:",
+    event.data,
+  );
+};
+
 const stream =
   await navigator.mediaDevices.getUserMedia(
     {
