@@ -690,26 +690,31 @@ const editInterval =
 
     if (!token) return;
 
-const sessionResponse =
+const sdpResponse =
   await fetch(
     "/api/realtime-session",
     {
       method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/sdp",
+      },
+
+      body: offer.sdp!,
     },
   );
 
-const sessionData =
-  await sessionResponse.json();
+const answer = {
+  type: "answer" as const,
 
-console.log(
-  "Realtime session:",
-  sessionData,
-);
+  sdp:
+    await sdpResponse.text(),
+};
 
-const clientSecret =
-  sessionData.value;
-
-if (!clientSecret) {
+await pc.setRemoteDescription(
+  answer,
+);if (!clientSecret) {
   throw new Error(
     "No realtime token",
   );
@@ -756,9 +761,7 @@ await pc.setLocalDescription(
   offer,
 );
 
-const sdpResponse =
-  await fetch(
-    "https://api.openai.com/v1/realtime/calls?model=gpt-realtime",
+
     {
       method: "POST",
       body: offer.sdp,

@@ -1,22 +1,30 @@
 export const runtime = "nodejs";
 
-export async function POST() {
-  const response = await fetch(
-    "https://api.openai.com/v1/realtime/client_secrets",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type":
-          "application/json",
-      },
+export async function POST(
+  request: Request,
+) {
+  try {
+    const sdp =
+      await request.text();
 
-      body: JSON.stringify({
+    const formData =
+      new FormData();
+
+    formData.append(
+      "sdp",
+      sdp,
+    );
+
+    formData.append(
+      "session",
+      JSON.stringify({
+        type: "realtime",
         model: "gpt-realtime",
-
-        voice: "verse",
-
         audio: {
+          output: {
+            voice: "verse",
+          },
+
           input: {
             transcription: {
               model:
@@ -25,23 +33,43 @@ export async function POST() {
           },
         },
       }),
-    },
-  );
+    );
 
-  const data =
-    await response.json();
+    const response =
+      await fetch(
+        "https://api.openai.com/v1/realtime/calls",
+        {
+          method: "POST",
 
-  console.log(data);
+          headers: {
+            Authorization:
+              `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
 
-  if (!response.ok) {
-    return Response.json(
-      data,
+          body: formData,
+        },
+      );
+
+    const answer =
+      await response.text();
+
+    return new Response(
+      answer,
       {
-        status:
-          response.status,
+        headers: {
+          "Content-Type":
+            "application/sdp",
+        },
+      },
+    );
+  } catch (error) {
+    console.error(error);
+
+    return new Response(
+      "Realtime failed",
+      {
+        status: 500,
       },
     );
   }
-
-  return Response.json(data);
 }
