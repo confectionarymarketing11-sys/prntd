@@ -698,7 +698,7 @@ const editInterval =
       await sessionResponse.json();
 
     const clientSecret =
-      sessionData?.value;
+  sessionData?.client_secret?.value;
 
     if (!clientSecret) {
       throw new Error(
