@@ -677,11 +677,7 @@ const editInterval =
     track.stop(),
   );
 
-    mediaStreamRef.current
-      ?.getTracks()
-      .forEach((track) =>
-        track.stop(),
-      );
+    
 
     setVoiceListening(false);
 
