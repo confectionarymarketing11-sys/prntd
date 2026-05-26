@@ -52,51 +52,7 @@ export async function POST(
         },
       );
 
-      const authorization =
-        request.headers.get(
-          "authorization",
-        );
-
-      if (
-        !authorization?.startsWith(
-          "Bearer ",
-        )
-      ) {
-        throw new ApiError(
-          "Unauthorized.",
-          401,
-          "unauthorized",
-        );
-      }
-
-      const token =
-        authorization.replace(
-          "Bearer ",
-          "",
-        );
-
-      const supabase =
-        createSupabaseAdminClient();
-
-      const {
-        data: { user },
-        error: authError,
-      } =
-        await supabase.auth.getUser(
-          token,
-        );
-
-      if (
-        authError ||
-        !user
-      ) {
-        throw new ApiError(
-          "Invalid session.",
-          401,
-          "invalid_session",
-        );
-      }
-
+      
       const formData =
         await request.formData();
 
