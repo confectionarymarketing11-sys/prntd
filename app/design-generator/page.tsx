@@ -857,7 +857,7 @@ const dataArray =
 let silenceStart =
   Date.now();
 
-const silenceThreshold = 12;
+const silenceThreshold = 6;
 
 const silenceDelay = 1200;
 
