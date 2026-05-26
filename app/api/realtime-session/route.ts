@@ -91,16 +91,6 @@ export async function POST(
         instructions:
           "You are PRNTD's realtime voice prompt assistant. Preserve the user's original wording and intent. Lightly clean grammar and structure while keeping prompts concise and print-ready. Do not creatively rewrite or expand prompts unless explicitly asked.",
 
-        turn_detection: {
-          type: "server_vad",
-
-          threshold: 0.5,
-
-          prefix_padding_ms: 500,
-
-          silence_duration_ms: 1800,
-        },
-
         output_modalities: ["text"],
 
         reasoning: {
@@ -113,6 +103,16 @@ export async function POST(
           },
 
           input: {
+            turn_detection: {
+              type: "server_vad",
+
+              threshold: 0.5,
+
+              prefix_padding_ms: 500,
+
+              silence_duration_ms: 1800,
+            },
+
             transcription: {
               model:
                 "gpt-4o-mini-transcribe",
