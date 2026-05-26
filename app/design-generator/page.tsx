@@ -740,7 +740,7 @@ const stream =
     },
   );
 
-mediaStregpt-realamRef.current =
+mediaStreamRef.current = stream;
 
 for (const track of stream.getTracks()) {
   pc.addTrack(
