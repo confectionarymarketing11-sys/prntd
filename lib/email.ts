@@ -101,10 +101,7 @@ export function authVerificationTemplate(input: {
               </td>
             </tr>
           </table>
-          <p style="margin:18px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">If the button is hidden or does not open, copy and paste this link into your browser:</p>
-          <p style="margin:8px 0 0;font-size:13px;line-height:1.6;word-break:break-all;">
-            <a href="${input.verificationUrl}" style="color:#4f46e5 !important;text-decoration:underline;">${input.verificationUrl}</a>
-          </p>
+          
           <p style="margin:24px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">This secure link can only be used for this signup request. If you did not request it, you can ignore this email.</p>
         </div>
       </div>
