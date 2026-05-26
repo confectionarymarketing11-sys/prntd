@@ -690,8 +690,8 @@ const editInterval =
         {
           audio: {
   echoCancellation: true,
-  noiseSuppression: false,
-  autoGainControl: false,
+  noiseSuppression: true,
+  autoGainControl: true,
   channelCount: 1,
   sampleRate: 48000,
 }
