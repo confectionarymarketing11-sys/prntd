@@ -769,9 +769,36 @@ websocketRef.current =
         WebSocket.OPEN
     ) {
       const arrayBuffer =
-        await event.data.arrayBuffer();
+  await event.data.arrayBuffer();
 
-      ws.send(arrayBuffer);
+const uint8 =
+  new Uint8Array(
+    arrayBuffer,
+  );
+
+let binary = "";
+
+for (
+  let i = 0;
+  i < uint8.length;
+  i++
+) {
+  binary += String.fromCharCode(
+    uint8[i],
+  );
+}
+
+const base64Audio =
+  btoa(binary);
+
+ws.send(
+  JSON.stringify({
+    type:
+      "input_audio_buffer.append",
+    audio:
+      base64Audio,
+  }),
+);
     }
   };
 
