@@ -794,15 +794,21 @@ const editInterval =
     );
 
     if (
-      data.type ===
-      "conversation.item.input_audio_transcription.delta"
-    ) {
-      setLiveTranscript(
-        data.delta ?? "",
-      );
+  data.type ===
+  "conversation.item.input_audio_transcription.delta"
+) {
+  const next = (
+    voiceDraftRef.current +
+    (data.delta ?? "")
+  )
+    .replace(/\s+/g, " ");
 
-      return;
-    }
+  setLiveTranscript(
+    next,
+  );
+
+  return;
+}
 
     if (
       data.type ===
@@ -814,12 +820,17 @@ const editInterval =
           .replace(/\s+/g, " ")
           .trim();
 
-      voiceDraftRef.current =
-        cleaned;
+      voiceDraftRef.current = (
+  voiceDraftRef.current +
+  " " +
+  cleaned
+)
+  .replace(/\s+/g, " ")
+  .trim();
 
-      setLiveTranscript(
-        cleaned,
-      );
+setLiveTranscript(
+  voiceDraftRef.current,
+);
 
       if (showBusinessCard) {
         setBusinessCardDetails(
