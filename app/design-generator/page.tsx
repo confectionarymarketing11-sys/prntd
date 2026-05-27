@@ -256,6 +256,9 @@ const voicePartialRef = useRef("");
 const voiceCommittedItemIdsRef =
   useRef<Set<string>>(new Set());
 
+const silenceTimeoutRef =
+  useRef<number | null>(null);
+
 
 
 const generationInterval =
@@ -704,6 +707,17 @@ const editInterval =
 
     peerConnectionRef.current = null;
 
+if (
+  silenceTimeoutRef.current
+) {
+  window.clearTimeout(
+    silenceTimeoutRef.current,
+  );
+
+  silenceTimeoutRef.current =
+    null;
+}
+
     setVoiceListening(false);
   }
 
@@ -714,6 +728,21 @@ const editInterval =
       .replace(/\s+/g, " ")
       .trim();
   }
+
+function resetSilenceTimeout() {
+  if (
+    silenceTimeoutRef.current
+  ) {
+    window.clearTimeout(
+      silenceTimeoutRef.current,
+    );
+  }
+
+  silenceTimeoutRef.current =
+    window.setTimeout(() => {
+      stopVoiceSession();
+    }, 2500);
+}
 
   function syncVoiceTranscript() {
     const sessionTranscript =
@@ -882,6 +911,9 @@ const editInterval =
   data.type ===
   "conversation.item.input_audio_transcription.delta"
 ) {
+
+resetSilenceTimeout();
+
   const partial =
     data.transcript ??
     data.delta ??
