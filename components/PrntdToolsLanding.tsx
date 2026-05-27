@@ -119,12 +119,15 @@ export default function PrntdToolsLanding() {
         Premium Custom Printing
       </div>
 
-      <h1 className="mt-10 text-[clamp(54px,10vw,118px)] font-black leading-[0.92] tracking-[-0.07em] text-white">
-        Premium
-        <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
-          Custom Printing
-        </span>
-      </h1>
+      <h1 className="mt-10 flex flex-col items-center text-center font-black leading-none text-white">
+  <span className="text-[clamp(46px,8vw,92px)] tracking-[-0.05em]">
+    Premium
+  </span>
+
+  <span className="mt-2 bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-[clamp(54px,10vw,118px)] tracking-[-0.06em] text-transparent">
+    Custom Printing
+  </span>
+</h1>
 
       <p className="mx-auto mt-10 max-w-[820px] text-lg leading-9 text-[#94a3b8] sm:text-[21px]">
         Apparel, stickers, business cards, labels, and branded print
