@@ -741,47 +741,85 @@ const editInterval =
   }
 
   function updateLiveVoicePartial(
-    partial: string,
-  ) {
-    voicePartialRef.current =
-      normalizeVoiceText(partial);
+  partial: string,
+) {
+  voicePartialRef.current =
+    normalizeVoiceText(
+      partial,
+    );
 
-    setPromptFromVoice(
-      normalizeVoiceText(
-        [
-          voiceDraftRef.current,
-          voicePartialRef.current,
-        ]
-          .filter(Boolean)
-          .join(" "),
-      ),
+  const combined =
+    normalizeVoiceText(
+      [
+        voiceBasePromptRef.current,
+        voiceDraftRef.current,
+        voicePartialRef.current,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+
+  setLiveTranscript(
+    combined,
+  );
+
+  if (showBusinessCard) {
+    setBusinessCardDetails(
+      combined,
+    );
+  } else {
+    setBrandDetails(
+      combined,
     );
   }
+}
 
   function commitVoiceTranscript(
-    transcript: string,
-  ) {
-    const cleaned =
-      normalizeVoiceText(transcript);
+  transcript: string,
+) {
+  const cleaned =
+    normalizeVoiceText(
+      transcript,
+    );
 
-    if (!cleaned) return;
+  if (!cleaned) return;
 
-    voiceDraftRef.current =
-      normalizeVoiceText(
-        [
-          voiceDraftRef.current,
-          cleaned,
-        ]
-          .filter(Boolean)
-          .join(" "),
-      );
+  voiceDraftRef.current =
+    normalizeVoiceText(
+      [
+        voiceDraftRef.current,
+        cleaned,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
 
-    voicePartialRef.current = "";
+  voicePartialRef.current = "";
 
-    setPromptFromVoice(
-      voiceDraftRef.current,
+  const combined =
+    normalizeVoiceText(
+      [
+        voiceBasePromptRef.current,
+        voiceDraftRef.current,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+
+  setLiveTranscript(
+    combined,
+  );
+
+  if (showBusinessCard) {
+    setBusinessCardDetails(
+      combined,
+    );
+  } else {
+    setBrandDetails(
+      combined,
     );
   }
+}
 
   async function startVoice() {
   if (voiceListening) {
