@@ -218,7 +218,7 @@ export default function AuthForm({
   return (
     <section className="w-full min-w-0">
       <div className="w-full min-w-0 overflow-hidden rounded-[32px] border border-white/10 bg-[#0f172a]/80 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-        <div className="grid min-w-0 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="grid min-w-0 lg:grid-cols-[1.2fr_1fr]">
           {/* LEFT */}
           <div className="relative overflow-hidden border-b border-white/10 bg-[linear-gradient(135deg,#0f172a_0%,#111827_45%,#312e81_100%)] p-7 text-white lg:border-b-0 lg:border-r sm:p-10">
             <div className="absolute right-[-10%] top-[-10%] h-[220px] w-[220px] rounded-full bg-[#8b5cf6]/20 blur-[90px]" />
