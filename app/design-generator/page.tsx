@@ -797,14 +797,10 @@ const editInterval =
   data.type ===
   "conversation.item.input_audio_transcription.delta"
 ) {
-  const next = (
-    voiceDraftRef.current +
-    (data.delta ?? "")
-  )
-    .replace(/\s+/g, " ");
-
   setLiveTranscript(
-    next,
+    `${voiceDraftRef.current} ${data.delta ?? ""}`
+      .replace(/\s+/g, " ")
+      .trim(),
   );
 
   return;
