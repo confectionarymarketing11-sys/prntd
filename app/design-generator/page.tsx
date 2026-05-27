@@ -741,7 +741,7 @@ function resetSilenceTimeout() {
   silenceTimeoutRef.current =
     window.setTimeout(() => {
       stopVoiceSession();
-    }, 1300);
+    }, 1700);
 }
 
   function syncVoiceTranscript() {
