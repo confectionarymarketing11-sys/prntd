@@ -97,7 +97,7 @@ export async function POST(
 
               language: "en",
 
-              delay: "low",
+              delay: "medium",
             },
           },
         },
