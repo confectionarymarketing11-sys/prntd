@@ -750,13 +750,20 @@ const editInterval =
   }
 
   function updateLiveVoicePartial(
-    partial: string,
-  ) {
-    voicePartialRef.current =
-      normalizeVoiceText(partial);
+  partial: string,
+) {
+  if (!partial) return;
 
-    syncVoiceTranscript();
-  }
+  voicePartialRef.current =
+    normalizeVoiceText(
+      [
+        voicePartialRef.current,
+        partial,
+      ].join(" "),
+    );
+
+  syncVoiceTranscript();
+}
 
   function commitVoiceTranscript({
     itemId,
