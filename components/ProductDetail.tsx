@@ -826,12 +826,16 @@ export default function ProductDetail({
             )}
 
             <button
-              type="button"
-              onClick={addToCart}
-              className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-black text-white transition hover:bg-white/[0.08]"
-            >
-              Add To Cart
-            </button>
+  type="button"
+  onClick={addToCart}
+  className="group relative overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#22c55e_0%,#16a34a_45%,#15803d_100%)] px-5 py-5 text-sm font-black uppercase tracking-[0.12em] text-white shadow-[0_20px_60px_rgba(34,197,94,0.45)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(34,197,94,0.6)]"
+>
+  <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(255,255,255,0.22)_50%,transparent_100%)] opacity-0 transition duration-500 group-hover:translate-x-full group-hover:opacity-100" />
+
+  <span className="relative z-10">
+    Add To Cart
+  </span>
+</button>
 
             <Link
               href="/design-generator"
