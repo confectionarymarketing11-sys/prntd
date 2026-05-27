@@ -1152,11 +1152,9 @@ setVoiceListening(true);
                 <div className="relative mt-6">
                   <textarea
                     value={
-  voiceListening
-    ? liveTranscript
-    : showBusinessCard
-      ? businessCardDetails
-      : brandDetails
+  showBusinessCard
+    ? businessCardDetails
+    : brandDetails
 }
                     onChange={(
                       event,
