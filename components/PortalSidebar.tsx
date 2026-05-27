@@ -11,7 +11,6 @@ import {
   QrCode,
   Settings,
   Sparkles,
-  Wand2,
 } from "lucide-react";
 
 const portalLinks = [
@@ -29,11 +28,6 @@ const portalLinks = [
     href: "/design-tools",
     label: "Design Tools",
     icon: Sparkles,
-  },
-  {
-    href: "/background-remover",
-    label: "Background Remover",
-    icon: Wand2,
   },
   {
     href: "/my-designs",
