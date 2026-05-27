@@ -741,7 +741,7 @@ function resetSilenceTimeout() {
   silenceTimeoutRef.current =
     window.setTimeout(() => {
       stopVoiceSession();
-    }, 1700);
+    }, 1800);
 }
 
   function syncVoiceTranscript() {
@@ -783,10 +783,13 @@ function resetSilenceTimeout() {
 ) {
   if (!partial) return;
 
-  resetSilenceTimeout();
-
   voicePartialRef.current =
-    normalizeVoiceText(partial);
+    normalizeVoiceText(
+      [
+        voicePartialRef.current,
+        partial,
+      ].join(" "),
+    );
 
   syncVoiceTranscript();
 }
@@ -909,7 +912,7 @@ function resetSilenceTimeout() {
   "conversation.item.input_audio_transcription.delta"
 ) {
 
-
+resetSilenceTimeout();
 
   const partial =
     data.transcript ??
