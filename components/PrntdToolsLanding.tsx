@@ -142,7 +142,7 @@ export default function PrntdToolsLanding() {
         <div className="mx-auto max-w-7xl">
           <div className="mb-14 text-center">
             <h2 className="text-[clamp(34px,10vw,72px)] font-black leading-tight tracking-[-0.03em] sm:leading-none">
-              Print Products + Smart Tools
+              Print Products + Smart Design STools
             </h2>
 
             <p className="mx-auto mt-5 max-w-[760px] text-lg leading-8 text-[#94a3b8]">
