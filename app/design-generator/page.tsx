@@ -783,10 +783,10 @@ const editInterval =
     const data = JSON.parse(
       event.data,
     ) as {
-      type?: string;
-      delta?: string;
-      transcript?: string;
-    };
+  type?: string;
+  delta?: string;
+  transcript?: string;
+};
 
     console.log(
       "Realtime event:",
