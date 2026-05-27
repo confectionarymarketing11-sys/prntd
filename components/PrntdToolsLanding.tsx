@@ -112,37 +112,37 @@ export default function PrntdToolsLanding() {
       </div>
 
       {/* HERO */}
-      <section className="relative z-10 px-5 pb-20 pt-20 sm:px-6 sm:pb-28 sm:pt-28">
-        <div className="mx-auto max-w-7xl">
-          <div className="mx-auto max-w-5xl text-center">
-            <div className="inline-flex items-center rounded-full border border-[#6366f1]/30 bg-white/5 px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#a5b4fc] backdrop-blur">
-              Premium Custom Printing
-            </div>
+<section className="relative z-10 px-5 pb-20 pt-24 sm:px-6 sm:pb-28 sm:pt-32">
+  <div className="mx-auto max-w-7xl">
+    <div className="mx-auto max-w-5xl text-center">
+      <div className="inline-flex items-center rounded-full border border-[#6366f1]/30 bg-white/5 px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#a5b4fc] backdrop-blur">
+        Premium Custom Printing
+      </div>
 
-            <h1 className="mt-8 text-[clamp(48px,12vw,110px)] font-black leading-[0.92] tracking-[-0.05em] text-white">
-              Design, Print &
-              <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
-                Grow Your Brand
-              </span>
-            </h1>
+      <h1 className="mt-10 text-[clamp(54px,10vw,118px)] font-black leading-[0.88] tracking-[-0.07em] text-white">
+        Premium
+        <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
+          Custom Printing
+        </span>
+      </h1>
 
-            <p className="mx-auto mt-8 max-w-[850px] text-lg leading-9 text-[#94a3b8] sm:text-[20px]">
-              Premium apparel, stickers, business cards, and branded print
-              products powered by modern online design tools.
-            </p>
+      <p className="mx-auto mt-10 max-w-[820px] text-lg leading-9 text-[#94a3b8] sm:text-[21px]">
+        Apparel, stickers, business cards, labels, and branded print
+        products powered by modern online design tools.
+      </p>
 
-            <div className="mt-12 flex flex-wrap justify-center gap-4">
-              <PrimaryButton href="/products">
-                Shop Products
-              </PrimaryButton>
+      <div className="mt-12 flex flex-wrap justify-center gap-4">
+        <PrimaryButton href="/products">
+          Shop Products
+        </PrimaryButton>
 
-              <SecondaryButton href="/design-generator">
-                Start Designing
-              </SecondaryButton>
-            </div>
-          </div>
-        </div>
-      </section>
+        <SecondaryButton href="/design-generator">
+          Start Designing
+        </SecondaryButton>
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* FEATURE STRIP */}
       <section className="relative z-10 px-5 pb-16 sm:px-6 sm:pb-20">
