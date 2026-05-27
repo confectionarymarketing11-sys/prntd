@@ -790,27 +790,20 @@ const editInterval =
     );
 
     if (
-      data.type ===
-      "conversation.item.input_audio_transcription.delta"
-    ) {
-      const partial =
-        data.delta ??
-        data.transcript ??
-        "";
+  data.type ===
+  "conversation.item.input_audio_transcription.delta"
+) {
+  const partial =
+    data.transcript ??
+    data.delta ??
+    "";
 
-      setLiveTranscript(
-        [
-          voiceDraftRef.current,
-          partial,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .replace(/\s+/g, " ")
-          .trim(),
-      );
+  setLiveTranscript(
+    partial,
+  );
 
-      return;
-    }
+  return;
+}
 
     if (
       data.type ===
