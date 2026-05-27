@@ -247,11 +247,14 @@ const peerConnectionRef =
     null,
   );
 
-const voiceDraftRef = useRef("");
+const voiceCommittedRef = useRef("");
 
 const voiceBasePromptRef = useRef("");
 
 const voicePartialRef = useRef("");
+
+const voiceCommittedItemIdsRef =
+  useRef<Set<string>>(new Set());
 
 
 
@@ -712,114 +715,90 @@ const editInterval =
       .trim();
   }
 
-  function setPromptFromVoice(
-    nextTranscript: string,
-  ) {
-    const nextPrompt =
+  function syncVoiceTranscript() {
+    const sessionTranscript =
+      normalizeVoiceText(
+        [
+          voiceCommittedRef.current,
+          voicePartialRef.current,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+
+    const promptText =
       normalizeVoiceText(
         [
           voiceBasePromptRef.current,
-          nextTranscript,
+          sessionTranscript,
         ]
           .filter(Boolean)
           .join(" "),
       );
 
     setLiveTranscript(
-      nextTranscript,
+      sessionTranscript,
     );
 
     if (showBusinessCard) {
       setBusinessCardDetails(
-        nextPrompt,
+        promptText,
       );
     } else {
-      setBrandDetails(
-        nextPrompt,
-      );
+      setBrandDetails(promptText);
     }
   }
 
   function updateLiveVoicePartial(
-  partial: string,
-) {
-  voicePartialRef.current =
-    normalizeVoiceText(
-      partial,
-    );
+    partial: string,
+  ) {
+    voicePartialRef.current =
+      normalizeVoiceText(partial);
 
-  const combined =
-    normalizeVoiceText(
-      [
-        voiceBasePromptRef.current,
-        voiceDraftRef.current,
-        voicePartialRef.current,
-      ]
-        .filter(Boolean)
-        .join(" "),
-    );
-
-  setLiveTranscript(
-    combined,
-  );
-
-  if (showBusinessCard) {
-    setBusinessCardDetails(
-      combined,
-    );
-  } else {
-    setBrandDetails(
-      combined,
-    );
+    syncVoiceTranscript();
   }
-}
 
-  function commitVoiceTranscript(
-  transcript: string,
-) {
-  const cleaned =
-    normalizeVoiceText(
-      transcript,
-    );
+  function commitVoiceTranscript({
+    itemId,
+    transcript,
+  }: {
+    itemId?: string;
+    transcript: string;
+  }) {
+    if (
+      itemId &&
+      voiceCommittedItemIdsRef.current.has(
+        itemId,
+      )
+    ) {
+      return;
+    }
 
-  if (!cleaned) return;
+    const cleaned =
+      normalizeVoiceText(transcript);
 
-  voiceDraftRef.current =
-    normalizeVoiceText(
-      [
-        voiceDraftRef.current,
-        cleaned,
-      ]
-        .filter(Boolean)
-        .join(" "),
-    );
+    if (!cleaned) return;
 
-  voicePartialRef.current = "";
+    if (itemId) {
+      voiceCommittedItemIdsRef.current.add(
+        itemId,
+      );
+    }
 
-  const combined =
-    normalizeVoiceText(
-      [
-        voiceBasePromptRef.current,
-        voiceDraftRef.current,
-      ]
-        .filter(Boolean)
-        .join(" "),
-    );
+    voiceCommittedRef.current =
+      normalizeVoiceText(
+        [
+          voiceCommittedRef.current,
+          cleaned,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
 
-  setLiveTranscript(
-    combined,
-  );
+    voicePartialRef.current = "";
 
-  if (showBusinessCard) {
-    setBusinessCardDetails(
-      combined,
-    );
-  } else {
-    setBrandDetails(
-      combined,
-    );
+    syncVoiceTranscript();
   }
-}
 
   async function startVoice() {
   if (voiceListening) {
@@ -841,9 +820,12 @@ const editInterval =
           : brandDetails,
       );
 
-    voiceDraftRef.current = "";
+    voiceCommittedRef.current = "";
 
     voicePartialRef.current = "";
+
+    voiceCommittedItemIdsRef.current =
+      new Set();
 
     setLiveTranscript("");
 
@@ -877,7 +859,12 @@ const editInterval =
   try {
     const data = JSON.parse(
       event.data,
-    );
+    ) as {
+      type?: string;
+      item_id?: string;
+      transcript?: string;
+      delta?: string;
+    };
 
     console.log(
       "Realtime event:",
@@ -906,7 +893,12 @@ const editInterval =
       data.transcript
     ) {
       commitVoiceTranscript(
-        data.transcript,
+        {
+          itemId:
+            data.item_id,
+          transcript:
+            data.transcript,
+        },
       );
     }
   } catch (error) {
