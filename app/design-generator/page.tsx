@@ -811,37 +811,37 @@ const editInterval =
 }
 
     if (
-      data.type ===
-        "conversation.item.input_audio_transcription.completed" &&
-      data.transcript
-    ) {
-      const cleaned =
-        data.transcript
-          .replace(/\s+/g, " ")
-          .trim();
+  data.type ===
+    "conversation.item.input_audio_transcription.completed" &&
+  data.transcript
+) {
+  const cleaned =
+    data.transcript
+      .replace(/\s+/g, " ")
+      .trim();
 
-      voiceDraftRef.current = (
-  voiceDraftRef.current +
-  " " +
-  cleaned
-)
-  .replace(/\s+/g, " ")
-  .trim();
+  voiceDraftRef.current = (
+    voiceDraftRef.current +
+    " " +
+    cleaned
+  )
+    .replace(/\s+/g, " ")
+    .trim();
 
-setLiveTranscript(
-  voiceDraftRef.current,
-);
+  setLiveTranscript(
+    voiceDraftRef.current,
+  );
 
-      if (showBusinessCard) {
-        setBusinessCardDetails(
-          cleaned,
-        );
-      } else {
-        setBrandDetails(
-          cleaned,
-        );
-      }
-    }
+  if (showBusinessCard) {
+    setBusinessCardDetails(
+      voiceDraftRef.current,
+    );
+  } else {
+    setBrandDetails(
+      voiceDraftRef.current,
+    );
+  }
+}
   } catch (error) {
     console.error(
       "Realtime event parse failed:",
