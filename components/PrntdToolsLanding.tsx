@@ -119,7 +119,7 @@ export default function PrntdToolsLanding() {
         Premium Custom Printing
       </div>
 
-      <h1 className="mt-10 text-[clamp(54px,10vw,118px)] font-black leading-[0.94] tracking-[-0.07em] text-white">
+      <h1 className="mt-10 text-[clamp(54px,10vw,118px)] font-black leading-[0.93] tracking-[-0.07em] text-white">
         Premium
         <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
           Custom Printing
