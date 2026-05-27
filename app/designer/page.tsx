@@ -857,12 +857,21 @@ export default function DesignerPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-[#111827]">
+    <main className="min-h-screen overflow-x-hidden bg-[#020617] text-white">
+
+{/* BG */}
+<div className="pointer-events-none fixed inset-0 overflow-hidden">
+  <div className="absolute left-[-10%] top-[-10%] h-[520px] w-[520px] rounded-full bg-[#4f46e5]/15 blur-[140px]" />
+
+  <div className="absolute bottom-[-10%] right-[-10%] h-[520px] w-[520px] rounded-full bg-[#2563eb]/15 blur-[140px]" />
+</div>
+
+<div className="relative z-10">
       <ShopHeader />
 
       <section className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-[22px] sm:py-10">
         <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] max-[1100px]:gap-7 max-[860px]:grid-cols-1">
-          <div className="relative rounded-[32px] bg-[#f5f7fb] p-7 max-[860px]:rounded-3xl max-[860px]:p-[18px]">
+          <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0f172a]/80 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:rounded-[34px] sm:p-7">
             <div className="mb-[18px] flex gap-2.5 overflow-auto max-[860px]:w-full">
               {(["front", "back"] as ShirtSide[]).map((side) => (
                 <button
@@ -870,7 +879,9 @@ export default function DesignerPage() {
                   type="button"
                   onClick={() => setSide(side)}
                   className={`rounded-full px-[18px] py-3 text-sm font-bold capitalize max-[860px]:min-w-30 max-[860px]:flex-1 ${
-                    currentView === side ? "bg-[#111827] text-white" : "bg-[#e5e7eb] text-[#111827]"
+                    currentView === side
+  ? "bg-[linear-gradient(135deg,#3b82f6,#6366f1,#8b5cf6)] text-white shadow-[0_10px_30px_rgba(99,102,241,0.35)]"
+  : "border border-white/10 bg-white/[0.04] text-[#cbd5e1]"
                   }`}
                 >
                   {side}
@@ -881,7 +892,9 @@ export default function DesignerPage() {
                 type="button"
                 onClick={() => setShowPrintGuide((current) => !current)}
                 className={`rounded-full px-[18px] py-3 text-sm font-bold max-[860px]:min-w-36 max-[860px]:flex-1 ${
-                  showPrintGuide ? "bg-blue-50 text-blue-700" : "bg-[#e5e7eb] text-[#111827]"
+                  showPrintGuide
+  ? "bg-white text-[#111827]"
+  : "border border-white/10 bg-white/[0.04] text-[#cbd5e1]"
                 }`}
               >
                 {showPrintGuide ? "Hide Guide" : "Show Guide"}
@@ -893,7 +906,11 @@ export default function DesignerPage() {
               Keep everything inside the blue-lined card. Prints exactly as shown.
             </div>
 
-            <div ref={stageWrapRef} className="relative mx-auto aspect-[1/1.2] w-full overflow-hidden rounded-[28px] bg-[#eef2f7] max-[860px]:rounded-[20px]">
+            <div className="grid min-h-[280px] place-items-center rounded-[24px] border border-white/10 bg-[#020617] p-3 sm:min-h-[420px] sm:rounded-[30px] sm:p-5 lg:min-h-[520px]">
+  <div
+    ref={stageWrapRef}
+    className="relative aspect-[1/1.2] w-full max-w-[760px] overflow-hidden rounded-[20px] border border-white/10 bg-[#eef2f7] shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:rounded-[28px]"
+  >
               <Image
                 src={color.images[currentView]}
                 alt={`${color.name} shirt ${currentView}`}
@@ -958,13 +975,14 @@ export default function DesignerPage() {
                 />
               )}
             </div>
+</div>
 
-            <p className="mt-4 rounded-[18px] bg-white/80 px-4 py-3 text-sm font-semibold text-[#4b5563] shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
+            <p className="mt-5 rounded-[20px] border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-semibold text-[#cbd5e1]">
               {notice}
             </p>
           </div>
 
-          <aside className="flex flex-col gap-[18px] rounded-[28px] bg-white p-7 shadow-[0_10px_28px_rgba(0,0,0,0.05)] max-[860px]:rounded-3xl max-[860px]:p-[22px] max-[480px]:p-[18px]">
+          <aside className="flex flex-col gap-5 rounded-[28px] border border-white/10 bg-[#0f172a]/80 p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:rounded-[34px] sm:p-7">
             <h1 className="mb-2 text-[52px] font-black leading-[0.92] tracking-[-0.05em] max-[1100px]:text-[42px] max-[860px]:text-[34px] max-[480px]:text-3xl">
               Customize T-Shirts
             </h1>
@@ -1210,6 +1228,7 @@ export default function DesignerPage() {
           </aside>
         </div>
       </section>
+</div>
     </main>
   );
 }
