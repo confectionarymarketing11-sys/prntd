@@ -1,40 +1,43 @@
 import Link from "next/link";
 
-type ToolCard = {
+type ProductCard = {
   title: string;
   description: string;
   href: string;
   action: string;
 };
 
-const toolCards: ToolCard[] = [
+const products: ProductCard[] = [
   {
-    title: "Custom Print Products",
+    title: "Custom Apparel",
     description:
-      "Premium apparel, business cards, stickers, labels, and branded products designed for modern businesses.",
+      "Premium t-shirts, hoodies, and branded apparel printed for businesses, creators, teams, and events.",
     href: "/products",
-    action: "Shop Products",
+    action: "Shop Apparel",
   },
+
   {
-    title: "Design Creator",
+    title: "Business Cards",
     description:
-      "Generate professional artwork, branded assets, and print-ready designs with integrated design tools.",
+      "Modern business cards, marketing materials, and print assets designed to elevate your brand.",
+    href: "/products",
+    action: "Browse Cards",
+  },
+
+  {
+    title: "Custom Stickers",
+    description:
+      "Durable die-cut stickers, labels, and branded packaging assets for products and promotions.",
+    href: "/products",
+    action: "Shop Stickers",
+  },
+
+  {
+    title: "Online Design Tools",
+    description:
+      "Create artwork, remove backgrounds, generate QR codes, and manage your designs online.",
     href: "/design-generator",
-    action: "Open Designer",
-  },
-  {
-    title: "Background Removal",
-    description:
-      "Clean product photos and apparel images instantly for ecommerce, menus, branding, and marketing.",
-    href: "/background-remover",
-    action: "Remove Background",
-  },
-  {
-    title: "Dynamic QR Codes",
-    description:
-      "Launch editable QR campaigns with analytics, redirects, scan tracking, and customer insights.",
-    href: "/qr-dashboard",
-    action: "Manage QR Codes",
+    action: "Open Design Tools",
   },
 ];
 
@@ -72,20 +75,24 @@ function SecondaryButton({
   );
 }
 
-function ToolCardView({ card }: { card: ToolCard }) {
+function ProductCardView({
+  card,
+}: {
+  card: ProductCard;
+}) {
   return (
-    <article className="group relative overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-[#6366f1]/50 hover:bg-white/[0.06] hover:shadow-[0_20px_60px_rgba(79,70,229,0.18)] sm:rounded-[30px] sm:p-8">
+    <article className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-7 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-[#6366f1]/40 hover:bg-white/[0.06] hover:shadow-[0_20px_60px_rgba(79,70,229,0.18)]">
       <div className="absolute inset-x-0 top-0 h-[2px] bg-[linear-gradient(90deg,#3b82f6,#6366f1,#7c3aed)] opacity-0 transition group-hover:opacity-100" />
 
-      <h3 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+      <h3 className="text-3xl font-black tracking-[-0.03em] text-white">
         {card.title}
       </h3>
 
-      <p className="mt-4 text-[15px] leading-7 text-[#cbd5e1]">
+      <p className="mt-5 text-[15px] leading-8 text-[#cbd5e1]">
         {card.description}
       </p>
 
-      <div className="mt-7">
+      <div className="mt-8">
         <PrimaryButton href={card.href}>
           {card.action}
         </PrimaryButton>
@@ -96,95 +103,136 @@ function ToolCardView({ card }: { card: ToolCard }) {
 
 export default function PrntdToolsLanding() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#020617] text-white">
-      {/* Background Effects */}
+    <div className="relative min-h-screen overflow-hidden bg-[#020617] text-white">
+      {/* BACKGROUND */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-10%] top-[-10%] h-[500px] w-[500px] rounded-full bg-[#4f46e5]/30 blur-[140px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] h-[600px] w-[600px] rounded-full bg-[#2563eb]/20 blur-[160px]" />
+        <div className="absolute left-[-10%] top-[-10%] h-[500px] w-[500px] rounded-full bg-[#4f46e5]/25 blur-[140px]" />
+
+        <div className="absolute bottom-[-15%] right-[-10%] h-[600px] w-[600px] rounded-full bg-[#2563eb]/20 blur-[160px]" />
       </div>
 
       {/* HERO */}
-      <section className="relative z-10 px-4 pb-16 pt-16 sm:px-6 sm:pb-24 sm:pt-24">
+      <section className="relative z-10 px-5 pb-20 pt-20 sm:px-6 sm:pb-28 sm:pt-28">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-5xl text-center">
-            <div className="mb-8 inline-flex items-center rounded-full border border-[#6366f1]/30 bg-white/5 px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#a5b4fc] backdrop-blur">
-              Online Design &amp; Print Studio
+            <div className="inline-flex items-center rounded-full border border-[#6366f1]/30 bg-white/5 px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#a5b4fc] backdrop-blur">
+              Premium Custom Printing
             </div>
 
-            <h1 className="text-[clamp(42px,15vw,110px)] font-black leading-[0.95] tracking-[-0.035em] text-white sm:leading-[0.92] sm:tracking-[-0.04em]">
-              Build a Stronger Brand
+            <h1 className="mt-8 text-[clamp(48px,12vw,110px)] font-black leading-[0.92] tracking-[-0.05em] text-white">
+              Design, Print &
               <span className="block bg-[linear-gradient(135deg,#60a5fa_0%,#818cf8_45%,#a855f7_100%)] bg-clip-text text-transparent">
-                Online and In Person
+                Grow Your Brand
               </span>
             </h1>
 
-            <p className="mx-auto mt-7 max-w-[900px] text-base leading-8 text-[#94a3b8] sm:mt-10 sm:text-[20px] sm:leading-[1.9]">
-              PRNTD combines premium custom printing with custom online design
-              tools, QR systems, customer portals, and ecommerce automation -
-              all in one modern platform.
+            <p className="mx-auto mt-8 max-w-[850px] text-lg leading-9 text-[#94a3b8] sm:text-[20px]">
+              Premium apparel, stickers, business cards, and branded print
+              products powered by modern online design tools.
             </p>
 
-            <div className="mt-10 flex flex-wrap justify-center gap-4 sm:mt-12 sm:gap-5">
+            <div className="mt-12 flex flex-wrap justify-center gap-4">
               <PrimaryButton href="/products">
                 Shop Products
               </PrimaryButton>
 
-              <SecondaryButton href="/dashboard">
-                Open Customer Portal
+              <SecondaryButton href="/design-generator">
+                Start Designing
               </SecondaryButton>
             </div>
           </div>
         </div>
       </section>
 
-      {/* TOOL GRID */}
-      <section className="relative z-10 px-4 pb-16 sm:px-6 sm:pb-24">
+      {/* FEATURE STRIP */}
+      <section className="relative z-10 px-5 pb-16 sm:px-6 sm:pb-20">
+        <div className="mx-auto grid max-w-7xl gap-5 md:grid-cols-3">
+          {[
+            [
+              "Premium Print Quality",
+              "High-quality apparel, stickers, cards, and branding products.",
+            ],
+
+            [
+              "Easy Online Design",
+              "Create and customize products directly from your browser.",
+            ],
+
+            [
+              "Built For Brands",
+              "Perfect for creators, startups, events, restaurants, and businesses.",
+            ],
+          ].map(([title, desc]) => (
+            <div
+              key={title}
+              className="rounded-[28px] border border-white/10 bg-white/[0.04] p-7 backdrop-blur-xl"
+            >
+              <h3 className="text-xl font-black text-white">
+                {title}
+              </h3>
+
+              <p className="mt-4 text-[15px] leading-8 text-[#94a3b8]">
+                {desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PRODUCTS + TOOLS */}
+      <section className="relative z-10 px-5 pb-20 sm:px-6 sm:pb-28">
         <div className="mx-auto max-w-7xl">
           <div className="mb-14 text-center">
-            <h2 className="text-[clamp(34px,10vw,72px)] font-black leading-tight tracking-[-0.03em] sm:leading-none">
-              Print Products + Smart Design STools
+            <h2 className="text-[clamp(38px,8vw,72px)] font-black leading-[0.95] tracking-[-0.04em]">
+              Print Products &
+              <span className="block text-[#a5b4fc]">
+                Smart Design Tools
+              </span>
             </h2>
 
-            <p className="mx-auto mt-5 max-w-[760px] text-lg leading-8 text-[#94a3b8]">
-              Everything needed to design, manage, print, and grow your brand
-              from one unified platform.
+            <p className="mx-auto mt-6 max-w-[760px] text-lg leading-8 text-[#94a3b8]">
+              Everything you need to design, customize, and order premium
+              branded products from one modern platform.
             </p>
           </div>
 
           <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-4">
-            {toolCards.map((card) => (
-              <ToolCardView key={card.title} card={card} />
+            {products.map((card) => (
+              <ProductCardView
+                key={card.title}
+                card={card}
+              />
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA SECTION */}
-      <section className="relative z-10 px-4 pb-20 sm:px-6 sm:pb-28">
+      {/* CTA */}
+      <section className="relative z-10 px-5 pb-24 sm:px-6 sm:pb-32">
         <div className="mx-auto max-w-7xl">
-          <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(135deg,#0f172a_0%,#111827_40%,#312e81_100%)] px-5 py-12 text-center shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:rounded-[40px] sm:px-10 sm:py-20">
+          <div className="relative overflow-hidden rounded-[38px] border border-white/10 bg-[linear-gradient(135deg,#0f172a_0%,#111827_40%,#312e81_100%)] px-6 py-16 text-center shadow-[0_25px_90px_rgba(0,0,0,0.45)] sm:px-12 sm:py-24">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.35),transparent_45%)]" />
 
             <div className="relative z-10">
-              <h2 className="text-[clamp(34px,12vw,78px)] font-black leading-[0.98] tracking-[-0.035em] sm:leading-[0.95] sm:tracking-[-0.04em]">
-                Launch Your Brand
+              <h2 className="text-[clamp(40px,10vw,82px)] font-black leading-[0.95] tracking-[-0.05em]">
+                Start Building
                 <span className="block text-[#a5b4fc]">
                   With PRNTD
                 </span>
               </h2>
 
               <p className="mx-auto mt-8 max-w-[760px] text-lg leading-8 text-[#cbd5e1]">
-                Premium print products, innovative design systems, and modern
-                business tools built for creators, startups, and growing brands.
+                Professional custom printing and modern online design tools for
+                businesses, creators, and growing brands.
               </p>
 
-              <div className="mt-10 flex flex-wrap justify-center gap-4 sm:mt-12 sm:gap-5">
+              <div className="mt-12 flex flex-wrap justify-center gap-4">
                 <PrimaryButton href="/products">
-                  Start Shopping
+                  Shop Products
                 </PrimaryButton>
 
-                <SecondaryButton href="/dashboard">
-                  Customer Portal
+                <SecondaryButton href="/signup">
+                  Create Account
                 </SecondaryButton>
               </div>
             </div>
