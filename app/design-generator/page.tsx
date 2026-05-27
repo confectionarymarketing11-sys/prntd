@@ -783,13 +783,10 @@ function resetSilenceTimeout() {
 ) {
   if (!partial) return;
 
+  resetSilenceTimeout();
+
   voicePartialRef.current =
-    normalizeVoiceText(
-      [
-        voicePartialRef.current,
-        partial,
-      ].join(" "),
-    );
+    normalizeVoiceText(partial);
 
   syncVoiceTranscript();
 }
@@ -912,7 +909,7 @@ function resetSilenceTimeout() {
   "conversation.item.input_audio_transcription.delta"
 ) {
 
-resetSilenceTimeout();
+
 
   const partial =
     data.transcript ??
