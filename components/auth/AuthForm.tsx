@@ -228,7 +228,7 @@ export default function AuthForm({
                 PRNTD Account
               </div>
 
-              <h1 className="mt-7 break-words text-[clamp(38px,5vw,62px)] font-black leading-[0.9] tracking-[-0.06em]">
+              <h1 className="mt-7 text-[clamp(32px,4vw,52px)] font-black leading-[0.95] tracking-[-0.04em]">
                 {copy.title}
               </h1>
 
