@@ -249,6 +249,10 @@ const peerConnectionRef =
 
 const voiceDraftRef = useRef("");
 
+const voiceBasePromptRef = useRef("");
+
+const voicePartialRef = useRef("");
+
 
 
 const generationInterval =
@@ -700,44 +704,84 @@ const editInterval =
     setVoiceListening(false);
   }
 
-  function appendVoicePromptText(
-  text: string,
-) {
-  if (!text) return;
-
-  const cleaned = text
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!cleaned) return;
-
-  voiceDraftRef.current =
-    `${voiceDraftRef.current} ${cleaned}`
+  function normalizeVoiceText(
+    text: string,
+  ) {
+    return text
       .replace(/\s+/g, " ")
       .trim();
+  }
 
-  setLiveTranscript(
-    voiceDraftRef.current,
-  );
+  function setPromptFromVoice(
+    nextTranscript: string,
+  ) {
+    const nextPrompt =
+      normalizeVoiceText(
+        [
+          voiceBasePromptRef.current,
+          nextTranscript,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
 
-  const updatePrompt = (
-    current: string,
-  ) => {
-    return `${current} ${cleaned}`
-      .replace(/\s+/g, " ")
-      .trim();
-  };
-
-  if (showBusinessCard) {
-    setBusinessCardDetails(
-      updatePrompt,
+    setLiveTranscript(
+      nextTranscript,
     );
-  } else {
-    setBrandDetails(
-      updatePrompt,
+
+    if (showBusinessCard) {
+      setBusinessCardDetails(
+        nextPrompt,
+      );
+    } else {
+      setBrandDetails(
+        nextPrompt,
+      );
+    }
+  }
+
+  function updateLiveVoicePartial(
+    partial: string,
+  ) {
+    voicePartialRef.current =
+      normalizeVoiceText(partial);
+
+    setPromptFromVoice(
+      normalizeVoiceText(
+        [
+          voiceDraftRef.current,
+          voicePartialRef.current,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      ),
     );
   }
-}
+
+  function commitVoiceTranscript(
+    transcript: string,
+  ) {
+    const cleaned =
+      normalizeVoiceText(transcript);
+
+    if (!cleaned) return;
+
+    voiceDraftRef.current =
+      normalizeVoiceText(
+        [
+          voiceDraftRef.current,
+          cleaned,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+
+    voicePartialRef.current = "";
+
+    setPromptFromVoice(
+      voiceDraftRef.current,
+    );
+  }
 
   async function startVoice() {
   if (voiceListening) {
@@ -751,6 +795,19 @@ const editInterval =
       await ensureAuthToken();
 
     if (!token) return;
+
+    voiceBasePromptRef.current =
+      normalizeVoiceText(
+        showBusinessCard
+          ? businessCardDetails
+          : brandDetails,
+      );
+
+    voiceDraftRef.current = "";
+
+    voicePartialRef.current = "";
+
+    setLiveTranscript("");
 
     const pc =
       new RTCPeerConnection();
@@ -798,7 +855,7 @@ const editInterval =
     data.delta ??
     "";
 
-  setLiveTranscript(
+  updateLiveVoicePartial(
     partial,
   );
 
@@ -810,28 +867,9 @@ const editInterval =
         "conversation.item.input_audio_transcription.completed" &&
       data.transcript
     ) {
-      voiceDraftRef.current = [
-        voiceDraftRef.current,
+      commitVoiceTranscript(
         data.transcript,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-      setLiveTranscript(
-        voiceDraftRef.current,
       );
-
-      if (showBusinessCard) {
-        setBusinessCardDetails(
-          voiceDraftRef.current,
-        );
-      } else {
-        setBrandDetails(
-          voiceDraftRef.current,
-        );
-      }
     }
   } catch (error) {
     console.error(
@@ -889,10 +927,6 @@ await pc.setRemoteDescription({
   type: "answer",
   sdp: answer,
 });
-
-voiceDraftRef.current = "";
-
-setLiveTranscript("");
 
 setVoiceListening(true);
 
@@ -1159,6 +1193,13 @@ setVoiceListening(true);
                     </button>
                   )}
                 </div>
+
+                {voiceListening && (
+                  <p className="mt-3 rounded-2xl border border-[#6366f1]/20 bg-[#6366f1]/10 px-4 py-3 text-sm leading-6 text-[#c7d2fe]">
+                    {liveTranscript ||
+                      "Listening..."}
+                  </p>
+                )}
               </section>
 
               {/* STYLES */}
