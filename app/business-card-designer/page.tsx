@@ -177,7 +177,7 @@ export default function BusinessCardDesignerPage() {
     textColor,
     setTextColor,
   ] =
-    useState("#ffffff");
+    useState("#111111");
 
   const [qrValue, setQrValue] =
     useState("");
