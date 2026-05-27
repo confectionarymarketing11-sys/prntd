@@ -302,7 +302,7 @@ export default function DashboardPage() {
                     </button>
 
 <LogoutButton />
-</div>
+
                   </div>
                 </div>
 
