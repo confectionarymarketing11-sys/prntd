@@ -298,6 +298,18 @@ export default function DashboardPage() {
                     >
                       Refresh Portal
                     </button>
+
+<button
+  type="button"
+  onClick={() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = "/signin";
+  }}
+  className="inline-flex items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 px-7 py-4 text-sm font-black text-red-200 transition hover:bg-red-500/20"
+>
+  Sign Out
+</button>
                   </div>
                 </div>
 
