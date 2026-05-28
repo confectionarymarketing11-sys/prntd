@@ -78,7 +78,7 @@ function compressUpload(file: File) {
 
         ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-        resolve(canvas.toDataURL("image/webp", 0.92));
+        resolve(canvas.toDataURL("image/webp", 0.75));
       };
 
       image.onerror = reject;
