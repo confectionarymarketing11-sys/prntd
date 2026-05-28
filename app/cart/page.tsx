@@ -404,6 +404,8 @@ export default function CartPage() {
   ) {
     event.preventDefault();
 
+if (isCheckingOut) return;
+
     if (!items.length) {
       setStatus(
         "Add a product before checkout.",
@@ -939,16 +941,31 @@ export default function CartPage() {
             )}
 
             <button
-              type="submit"
-              disabled={isCheckingOut || !shippingMethods.length}
-              className="mt-7 flex w-full items-center justify-center gap-3 rounded-[24px] bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-7 py-5 text-lg font-black text-white shadow-[0_20px_60px_rgba(99,102,241,0.35)] transition hover:-translate-y-1 disabled:opacity-50"
-            >
-              {isCheckingOut
-                ? "Opening Stripe..."
-                : "Checkout Securely"}
+  type="submit"
+  disabled={
+    isCheckingOut ||
+    !shippingMethods.length
+  }
+  className="mt-7 flex w-full items-center justify-center gap-3 rounded-[24px] bg-[linear-gradient(135deg,#3b82f6_0%,#6366f1_45%,#8b5cf6_100%)] px-7 py-5 text-lg font-black text-white shadow-[0_20px_60px_rgba(99,102,241,0.35)] transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  {isCheckingOut ? (
+    <>
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
 
-              <ArrowRight className="h-5 w-5" />
-            </button>
+      <span>
+        Preparing Checkout...
+      </span>
+    </>
+  ) : (
+    <>
+      <span>
+        Checkout Securely
+      </span>
+
+      <ArrowRight className="h-5 w-5" />
+    </>
+  )}
+</button>
           </form>
         </section>
       </div>
