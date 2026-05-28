@@ -1,3 +1,7 @@
+
+import {
+  uploadOrderPrintAssets,
+} from "@/lib/orders/upload-print-assets";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
@@ -66,27 +70,6 @@ function requestIdentifier(request: Request) {
   );
 }
 
-function dataUrlToUpload(dataUrl: string) {
-  const match = dataUrl.match(/^data:([-+\w.]+\/[-+\w.]+);base64,(.+)$/);
-
-  if (!match?.[2]) return null;
-
-  const mimeType = (match[1] || "image/png").toLowerCase();
-
-  if (!ALLOWED_PRINT_ASSET_TYPES.has(mimeType)) return null;
-
-  const buffer = Buffer.from(match[2], "base64");
-
-  if (buffer.length > MAX_PRINT_ASSET_BYTES) return null;
-
-  const extension = mimeType.includes("jpeg") ? "jpg" : mimeType.split("/")[1] || "png";
-
-  return {
-    buffer,
-    mimeType,
-    extension,
-  };
-}
 
 function layerHasArt(layers: DesignLayer[]) {
   return layers.some((layer) => layer.type === "image" || Boolean(layer.text?.trim()));
@@ -290,161 +273,9 @@ async function repriceOrder(order: Order): Promise<Order> {
   };
 }
 
-async function uploadPrintAsset({
-  orderId,
-  itemId,
-  productId,
-  side,
-  role,
-  dataUrl,
-  placement,
-}: {
-  orderId: string;
-  itemId: string;
-  productId: string;
-  side: "front" | "back";
-  role: "print_area" | "placement_reference" | "source_layer";
-  dataUrl?: string | null;
-  placement: Record<string, unknown>;
-}) {
-  if (!dataUrl?.startsWith("data:image/")) return null;
 
-  const upload = dataUrlToUpload(dataUrl);
-  if (!upload) return null;
 
-  const supabase = createSupabaseAdminClient();
-  const fileName = `${role}-${side}-${crypto.randomUUID()}.${upload.extension}`;
-  const path = `checkout/${orderId}/${itemId}/${fileName}`;
 
-  const { error: storageError } = await supabase.storage.from("uploads").upload(path, upload.buffer, {
-    contentType: upload.mimeType,
-    upsert: true,
-  });
-
-  if (storageError) {
-    console.warn("Print asset upload failed:", storageError.message);
-    return null;
-  }
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("uploads").getPublicUrl(path);
-
-  const { data, error } = await supabase
-    .from("uploads")
-    .insert({
-      file_name: fileName,
-      file_url: publicUrl,
-      preview_url: publicUrl,
-      mime_type: upload.mimeType,
-      file_size: upload.buffer.length,
-      upload_status: "uploaded",
-      print_side: side,
-      asset_role: role,
-      placement: {
-        order_client_id: orderId,
-        cart_item_id: itemId,
-        product_id: productId,
-        ...placement,
-      },
-    })
-    .select("id")
-    .single<{ id: string }>();
-
-  if (error) {
-    if (error.code !== "42703") {
-      console.warn("Print asset database insert failed:", error.message);
-      return null;
-    }
-
-    const { data: legacyData, error: legacyError } = await supabase
-      .from("uploads")
-      .insert({
-        file_name: fileName,
-        file_url: publicUrl,
-        preview_url: publicUrl,
-        mime_type: upload.mimeType,
-        file_size: upload.buffer.length,
-        upload_status: "uploaded",
-      })
-      .select("id")
-      .single<{ id: string }>();
-
-    if (legacyError) {
-      console.warn("Legacy print asset database insert failed:", legacyError.message);
-      return null;
-    }
-
-    return legacyData?.id ?? null;
-  }
-
-  return data?.id ?? null;
-}
-
-async function uploadOrderPrintAssets(order: Order) {
-  const uploadIds: string[] = [];
-
-  for (const item of order.items) {
-    const printAssets = [
-      { side: "front" as const, role: "print_area" as const, dataUrl: item.frontPreview },
-      { side: "back" as const, role: "print_area" as const, dataUrl: item.backPreview },
-      { side: "front" as const, role: "placement_reference" as const, dataUrl: item.frontPlacementPreview },
-      { side: "back" as const, role: "placement_reference" as const, dataUrl: item.backPlacementPreview },
-    ];
-
-    for (const asset of printAssets) {
-      const uploadId = await uploadPrintAsset({
-        orderId: order.id,
-        itemId: item.id,
-        productId: item.productId,
-        side: asset.side,
-        role: asset.role,
-        dataUrl: asset.dataUrl,
-        placement: {
-          description:
-            asset.role === "placement_reference"
-              ? "Clipped artwork on clipping-area template"
-              : "Clipped artwork for printing",
-          safe_zone_inset_px: 20,
-        },
-      });
-
-      if (uploadId) uploadIds.push(uploadId);
-    }
-
-    const layerGroups: Array<{ side: "front" | "back"; layers: DesignLayer[] }> = [
-      { side: "front", layers: item.frontLayers },
-      { side: "back", layers: item.backLayers },
-    ];
-
-    for (const group of layerGroups) {
-      for (const layer of group.layers) {
-        if (layer.type !== "image") continue;
-
-        const uploadId = await uploadPrintAsset({
-          orderId: order.id,
-          itemId: item.id,
-          productId: item.productId,
-          side: group.side,
-          role: "source_layer",
-          dataUrl: layer.originalPreview || layer.preview,
-          placement: {
-            layer_id: layer.id,
-            x: layer.x,
-            y: layer.y,
-            width: layer.width ?? null,
-            height: layer.height ?? null,
-            rotation: layer.rotation,
-          },
-        });
-
-        if (uploadId) uploadIds.push(uploadId);
-      }
-    }
-  }
-
-  return uploadIds;
-}
 
 async function finalizeTestModeOrder({
   order,
@@ -624,7 +455,20 @@ export async function POST(req: NextRequest) {
     });
     const finalShippingCents = discount.finalShippingCents;
     const estimatedTotalCents = discount.finalSubtotalCents + finalShippingCents;
-    const uploadIds = await uploadOrderPrintAssets(order);
+
+const supabase =
+  createSupabaseAdminClient();
+
+await supabase
+  .from("pending_checkouts")
+  .upsert({
+    order_id: order.id,
+    customer_email:
+      order.customer.email,
+    order_payload: order,
+    status: "pending",
+  });
+    const uploadIds: string[] = [];
 
     if (settings.test_mode_enabled) {
       const admin = await getCurrentAdmin();

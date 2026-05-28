@@ -692,12 +692,36 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
     throw new Error(`Stripe session ${session.id} did not create an order id.`);
   }
 
+const { data: pendingOrder } =
+  await supabase
+    .from("pending_checkouts")
+    .select("order_payload")
+    .eq(
+      "order_id",
+      session.metadata?.order_id,
+    )
+    .single();
+
+if (!pendingOrder) {
+  throw new Error(
+    "Pending order not found.",
+  );
+}
+
+const pendingCheckoutOrder =
+  pendingOrder.order_payload;
+
+const uploadIds =
+  await uploadOrderPrintAssets(
+    pendingCheckoutOrder,
+  );
+
   const fallbackProductType = session.metadata?.product_type ?? "custom";
   const fallbackProductId = session.metadata?.product_id ?? fallbackProductType;
   const fallbackProductName = session.metadata?.product_name ?? "Custom PRNTD Product";
   const customization = parseMetadataJson(session.metadata?.customization);
   const pricingContext = parseMetadataJson(session.metadata?.pricing_context);
-  const uploadIds = parseMetadataArray(session.metadata?.upload_ids);
+  
   const designReferences = parseMetadataArray(session.metadata?.design_references);
   const discountId = session.metadata?.discount_id || "";
 
@@ -741,6 +765,18 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
   if (statusError) throw statusError;
 
   await attachUploadsToOrder(orderId, uploadIds, designReferences);
+
+await supabase
+  .from("pending_checkouts")
+  .update({
+    status: "completed",
+    completed_at:
+      new Date().toISOString(),
+  })
+  .eq(
+    "order_id",
+    session.metadata?.order_id,
+  );
 
   if (discountId && (discountAmountCents > 0 || shippingDiscountCents > 0)) {
     await recordDiscountRedemption({
