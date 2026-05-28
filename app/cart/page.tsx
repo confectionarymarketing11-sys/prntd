@@ -953,7 +953,7 @@ if (isCheckingOut) return;
       <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
 
       <span>
-        Preparing Checkout...
+        Uploading Files and Preparing Checkout...
       </span>
     </>
   ) : (
