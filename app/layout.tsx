@@ -3,34 +3,22 @@ import Link from "next/link";
 import StorefrontAnalyticsTracker from "@/components/StorefrontAnalyticsTracker";
 import "./globals.css";
 
-import type { Metadata } from "next";
-
 export const metadata: Metadata = {
   metadataBase: new URL("https://prntd.ca"),
 
-  title:
-    "Custom Business Cards Canada | Design Business Cards Online | PRNTD",
+  title: "PRNTD | Custom Apparel, Stickers & Business Cards Canada",
 
   description:
-    "Create professional custom business cards online. Upload artwork, add QR codes, customize layouts, and order premium business cards printed in Canada.",
+    "Design and order custom apparel, die-cut stickers, business cards, and print products online with PRNTD.",
 
   openGraph: {
-    title:
-      "Custom Business Cards Canada | Design Business Cards Online | PRNTD",
+    title: "PRNTD",
     description:
-      "Create professional custom business cards online with PRNTD. Upload artwork, customize layouts, and order premium business cards printed in Canada.",
-    url: "https://prntd.ca/products/business-cards",
+      "Custom apparel, stickers, business cards and print products.",
+    url: "https://prntd.ca",
     siteName: "PRNTD",
     locale: "en_CA",
     type: "website",
-  },
-
-  twitter: {
-    card: "summary_large_image",
-    title:
-      "Custom Business Cards Canada | Design Business Cards Online | PRNTD",
-    description:
-      "Create professional custom business cards online with PRNTD.",
   },
 };
 
