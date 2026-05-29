@@ -1,4 +1,4 @@
-```tsx
+
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -17,7 +17,17 @@ const articles = [
     href: "/blog/dtf-vs-screen-printing",
     category: "Apparel Printing",
   },
+
+{
+  title: "How to Design a Business Card That Gets Calls and Clients",
+  description:
+    "Learn how to create professional business cards that build trust and generate more leads.",
+  href: "/blog/how-to-design-a-business-card-that-gets-calls-and-clients",
+  category: "Business Cards",
+},
 ];
+
+
 
 export default function BlogPage() {
   return (
