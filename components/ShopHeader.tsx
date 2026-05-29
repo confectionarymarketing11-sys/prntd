@@ -31,10 +31,17 @@ const navItems = [
     href: "/products/die-cut-stickers",
     label: "Custom Stickers",
   },
+
+{
+    href: "/blog",
+    label: "Blog",
+  },
   {
     href: "/contact",
     label: "Contact",
   },
+
+
 ];
 
 export default function ShopHeader() {
