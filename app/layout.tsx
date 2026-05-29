@@ -4,8 +4,9 @@ import StorefrontAnalyticsTracker from "@/components/StorefrontAnalyticsTracker"
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PRNTD Print Shop",
-  description: "Custom print storefront, designer, checkout, and order desk.",
+  title: "PRNTD | Custom Apparel, Stickers & Business Cards Canada",
+  description:
+    "Design and order custom apparel, die-cut stickers, business cards, and print products online with PRNTD. Fast turnaround and premium print quality.",
 };
 
 export default function RootLayout({
