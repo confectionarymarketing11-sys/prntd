@@ -4,9 +4,22 @@ import StorefrontAnalyticsTracker from "@/components/StorefrontAnalyticsTracker"
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://prntd.ca"),
+
   title: "PRNTD | Custom Apparel, Stickers & Business Cards Canada",
+
   description:
-    "Design and order custom apparel, die-cut stickers, business cards, and print products online with PRNTD. Fast turnaround and premium print quality.",
+    "Design and order custom apparel, die-cut stickers, business cards, and print products online with PRNTD.",
+
+  openGraph: {
+    title: "PRNTD",
+    description:
+      "Custom apparel, stickers, business cards and print products.",
+    url: "https://prntd.ca",
+    siteName: "PRNTD",
+    locale: "en_CA",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
