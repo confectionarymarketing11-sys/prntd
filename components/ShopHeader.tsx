@@ -17,22 +17,21 @@ import type { SiteSettings } from "@/features/site-settings/types";
 const navItems = [
   {
     href: "/dashboard",
-    label: "Customer Portal",
+    label: "Portal",
   },
   {
     href: "/products/classic-tee",
-    label: "Custom T-Shirts",
+    label: "T-Shirts",
   },
   {
     href: "/products/business-cards",
-    label: "Business Cards",
+    label: "Cards",
   },
   {
     href: "/products/die-cut-stickers",
-    label: "Custom Stickers",
+    label: "Stickers",
   },
-
-{
+  {
     href: "/blog",
     label: "Blog",
   },
@@ -40,8 +39,6 @@ const navItems = [
     href: "/contact",
     label: "Contact",
   },
-
-
 ];
 
 export default function ShopHeader() {
@@ -169,21 +166,30 @@ export default function ShopHeader() {
               </div>
             )}
 
-            <div className="min-w-0">
+            <div className="min-w-0 max-w-[180px]">
               <span className="block truncate text-[18px] font-black tracking-[-0.03em] text-white sm:text-[22px]">
                 {settings?.logo_text ||
                   "PRNTD"}
-              </span>
-
+              </span> 
               <span className="block max-w-[120px] truncate text-[10px] font-bold uppercase tracking-[0.16em] text-[#94a3b8] sm:max-w-none sm:text-[11px] sm:tracking-[0.22em]">
                 {settings?.logo_subtitle ||
-                  "Premium Print Shop"}
+  "Premium Printing"}
               </span>
             </div>
           </Link>
 
           {/* DESKTOP NAV */}
-          <nav className="hidden items-center gap-2 xl:flex">
+          <nav className="hidden flex-1 items-center justify-center gap-2 lg:flex">
+  {navItems.map((item) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-[#e2e8f0] no-underline transition duration-300 hover:border-[#6366f1]/40 hover:bg-white/[0.08] hover:text-white"
+    >
+      {item.label}
+    </Link>
+  ))}
+</nav>
             {navItems.map((item) => (
               <Link
                 key={item.href}
