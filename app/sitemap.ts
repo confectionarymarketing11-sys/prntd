@@ -1,4 +1,3 @@
-```ts
 import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -14,6 +13,27 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
     {
       url: `${baseUrl}/products`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+
+    {
+      url: `${baseUrl}/products/classic-tee`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+
+    {
+      url: `${baseUrl}/products/business-cards`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+
+    {
+      url: `${baseUrl}/products/die-cut-stickers`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.9,
@@ -83,4 +103,3 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 }
-```
