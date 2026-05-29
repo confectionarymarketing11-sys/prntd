@@ -190,17 +190,7 @@ export default function ShopHeader() {
     </Link>
   ))}
 </nav>
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-full border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-[#e2e8f0] no-underline transition duration-300 hover:border-[#6366f1]/40 hover:bg-white/[0.08] hover:text-white"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
+            
           {/* RIGHT ACTIONS */}
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <Link
