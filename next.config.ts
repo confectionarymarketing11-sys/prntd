@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
             value: "camera=(), microphone=(self), geolocation=(), payment=(self)",
           },
           {
-            key: "",
+            key: "Content-Security-Policy",
             value:
               "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://embed.tawk.to; connect-src 'self' https: wss:; frame-src https://js.stripe.com https://hooks.stripe.com; form-action 'self' https://checkout.stripe.com;",
           },
