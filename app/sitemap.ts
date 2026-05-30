@@ -82,6 +82,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
 
 {
+      url: `${baseUrl}/blog/matte-vs-glossy-business-cards`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+
+{
       url: `${baseUrl}/blog/how-to-design-a-business-card-that-gets-calls-and-clients`,
       lastModified: new Date(),
       changeFrequency: "monthly",
