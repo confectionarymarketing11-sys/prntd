@@ -88,7 +88,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
 
 {
-      url: `${baseUrl}/blog/matte-vs-glossy-business-cards`,
+      url: `${baseUrl}/blog/matte-vs-gloss-business-cards`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
