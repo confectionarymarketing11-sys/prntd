@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     title: "QR Manager | Dynamic QR Codes & Analytics",
     description:
       "Create, manage, and track dynamic QR codes with analytics, branded links, and editable destinations.",
-    url: "https://www.prntd.ca/qr-manager",
+    url: "https://www.prntd.ca/qr-dashboard",
     siteName: "PRNTD",
     type: "website",
     images: [
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   },
 
   alternates: {
-    canonical: "https://www.prntd.ca/qr-manager",
+    canonical: "https://www.prntd.ca/qr-dashboard",
   },
 
   robots: {
