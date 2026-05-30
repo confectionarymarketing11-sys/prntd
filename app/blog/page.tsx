@@ -43,16 +43,10 @@ const articles = [
     title: "Gloss vs Matte Business Cards",
     description:
       "Discover the pros and cons of gloss and matte business cards and which finish is right for your brand.",
-    href: "/blog/gloss-vs-matte-business-cards",
+    href: "/blog/matte-vs-gloss-business-cards",
     category: "Business Cards",
   },
-  {
-    title: "Best Sticker Materials for Outdoor Use",
-    description:
-      "Compare vinyl, waterproof, laminated, and weather-resistant sticker materials.",
-    href: "/blog/best-sticker-materials-for-outdoor-use",
-    category: "Stickers",
-  },
+  
 ];
 
 const categories = [
