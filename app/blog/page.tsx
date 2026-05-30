@@ -46,13 +46,7 @@ const articles = [
     href: "/blog/gloss-vs-matte-business-cards",
     category: "Business Cards",
   },
-  {
-    title: "Best Sticker Materials for Outdoor Use",
-    description:
-      "Compare vinyl, waterproof, laminated, and weather-resistant sticker materials.",
-    href: "/blog/best-sticker-materials-for-outdoor-use",
-    category: "Stickers",
-  },
+  
 ];
 
 const categories = [
