@@ -901,10 +901,7 @@ export default function DesignerPage() {
               </button>
             </div>
 
-            <div className="absolute right-7 top-5 z-50 flex max-w-[calc(100%-210px)] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-red-500/10 bg-white/90 px-[18px] py-2.5 text-sm font-semibold text-[#111827] shadow-[0_8px_24px_rgba(0,0,0,0.08)] backdrop-blur max-[860px]:static max-[860px]:mb-4 max-[860px]:w-full max-[860px]:max-w-none max-[860px]:justify-start max-[860px]:whitespace-normal max-[860px]:rounded-[18px]">
-              <span className="font-extrabold text-red-500">Important:</span>
-              Keep everything inside the blue-lined card. Prints exactly as shown.
-            </div>
+            
 
             <div className="grid min-h-[280px] place-items-center rounded-[24px] border border-white/10 bg-[#020617] p-3 sm:min-h-[420px] sm:rounded-[30px] sm:p-5 lg:min-h-[520px]">
   <div

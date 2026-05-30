@@ -49,7 +49,7 @@ const articles = [
   
 ];
 
-const categories = [
+//const categories = [
   {
     title: "Apparel Printing",
     description: "DTF, DTG, screen printing, and custom apparel guides.",
@@ -66,7 +66,7 @@ const categories = [
     title: "Design Tips",
     description: "Branding, artwork setup, and professional design advice.",
   },
-];
+];//
 
 export default function BlogPage() {
   return (
@@ -157,7 +157,7 @@ export default function BlogPage() {
           </Link>
         </section>
 
-        <section className="mx-auto max-w-6xl px-6 py-16">
+        //<section className="mx-auto max-w-6xl px-6 py-16">
           <div className="mb-10">
             <h2 className="text-4xl font-black tracking-tight">
               Browse Categories
@@ -180,7 +180,7 @@ export default function BlogPage() {
               </div>
             ))}
           </div>
-        </section>
+        </section>//
 
         <section className="mx-auto max-w-6xl px-6 pb-16">
           <div className="mb-10">
