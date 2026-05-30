@@ -906,7 +906,7 @@ export default function DesignerPage() {
             <div className="grid min-h-[280px] place-items-center rounded-[24px] border border-white/10 bg-[#020617] p-3 sm:min-h-[420px] sm:rounded-[30px] sm:p-5 lg:min-h-[520px]">
   <div
     ref={stageWrapRef}
-    className="relative aspect-[1/1.2] w-full max-w-[760px] overflow-hidden rounded-[20px] border border-white/10 bg-[#eef2f7] shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:rounded-[28px]"
+    className="relative aspect-[1/1.2] w-full max-w-[760px] overflow-hidden rounded-[20px] border border-white/10 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:rounded-[28px]"
   >
               <Image
                 src={color.images[currentView]}
