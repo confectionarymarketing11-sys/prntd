@@ -981,7 +981,7 @@ export default function DesignerPage() {
 
           <aside className="flex flex-col gap-5 rounded-[28px] border border-white/10 bg-[#0f172a]/80 p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:rounded-[34px] sm:p-7">
             <h1 className="mb-2 text-[52px] font-black leading-[0.92] tracking-[-0.05em] max-[1100px]:text-[42px] max-[860px]:text-[34px] max-[480px]:text-3xl">
-              Customize T-Shirts
+              Design Your Own Custom T-Shirt
             </h1>
             <div className="h-px bg-black/5" />
 
